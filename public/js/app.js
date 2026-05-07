@@ -813,6 +813,13 @@ function openNewBatch() {
   checkGmailStatus();
 }
 
+function clearBatch() {
+  nbState.emails       = [];
+  nbState.selectedFile = null;
+  nbState.savedCount   = 0;
+  renderNewBatchView();
+}
+
 function renderNewBatchView() {
   const total     = nbState.emails.length;
   const generated = nbState.emails.filter(e => !e.error).length;
@@ -918,7 +925,11 @@ function renderNewBatchView() {
           <h3 class="panel-title" style="margin-bottom:0">
             ${nbState.emails.length > 0 ? `${nbState.emails.length} emails generated` : 'Generated Emails'}
           </h3>
-          ${nbState.emails.length > 0 ? `<span style="font-size:12px;color:var(--text-muted)">Click to edit</span>` : ''}
+          ${nbState.emails.length > 0 ? `
+            <div style="display:flex;align-items:center;gap:12px">
+              <span style="font-size:12px;color:var(--text-muted)">Click to edit</span>
+              <button class="btn btn-secondary btn-sm" onclick="clearBatch()" style="font-size:11px;padding:3px 10px;color:var(--text-muted)">Clear All</button>
+            </div>` : ''}
         </div>
         <div id="nb-output">
           ${nbState.emails.length === 0 ? `
