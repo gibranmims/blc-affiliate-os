@@ -68,11 +68,11 @@ function showToast(message, type = 'success') {
   }, 3200);
 }
 
-function showDraftSuccessModal(savedCount, addedCount, gmailEmail) {
+function showDraftSuccessModal(savedCount, addedCount, gmailEmail, isSingle = false) {
   const existing = document.getElementById('draft-success-modal');
   if (existing) existing.remove();
 
-  const emailLabel = gmailEmail ? `<strong>${esc(gmailEmail)}</strong> drafts folder` : `your Gmail drafts folder`;
+  const emailLabel = gmailEmail ? `<strong>${esc(gmailEmail)}</strong> drafts` : `your Gmail drafts`;
 
   const el = document.createElement('div');
   el.id = 'draft-success-modal';
@@ -87,11 +87,14 @@ function showDraftSuccessModal(savedCount, addedCount, gmailEmail) {
       </div>
       <hr class="draft-modal-divider">
       <div class="draft-modal-reminder">
-        Don't forget to go into Gmail and <strong>manually send each draft</strong> when you're ready to reach out. Once sent, come back here and move each creator from <strong>Drafted → Sent</strong> in your pipeline.
+        Don't forget to go into Gmail and <strong>manually send each draft</strong> when you're ready. Once sent, come back and move each creator from <strong>Drafted → Sent</strong> in your pipeline.
       </div>
       <div class="draft-modal-actions">
-        <button class="btn btn-primary" onclick="document.getElementById('draft-success-modal').remove(); backToPipeline()">Go to Pipeline</button>
-        <button class="btn btn-secondary" onclick="document.getElementById('draft-success-modal').remove(); clearBatch()">New Batch</button>
+        ${isSingle
+          ? `<button class="btn btn-primary" onclick="document.getElementById('draft-success-modal').remove()">Got it</button>`
+          : `<button class="btn btn-primary" onclick="document.getElementById('draft-success-modal').remove(); backToPipeline()">Go to Pipeline</button>
+             <button class="btn btn-secondary" onclick="document.getElementById('draft-success-modal').remove(); clearBatch()">New Batch</button>`
+        }
       </div>
     </div>`;
 
@@ -1129,7 +1132,7 @@ async function saveOneDraft(i) {
     await addOneToPipeline(e);
     if (btn) { btn.disabled = true; btn.textContent = 'Saved ✓'; btn.classList.add('saved'); }
     nbState.savedCount = (nbState.savedCount || 0) + 1;
-    showToast(`Draft saved & ${e.name || e.handle} added to pipeline`);
+    showDraftSuccessModal(1, 1, nbState.connectedEmail, true);
   } catch (err) {
     if (btn) { btn.disabled = false; btn.textContent = 'Save to Gmail'; }
     if (err.message.includes('not connected') || err.message.includes('invalid_grant')) {
