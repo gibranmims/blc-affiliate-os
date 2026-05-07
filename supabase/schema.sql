@@ -40,6 +40,10 @@ CREATE TABLE outreach (
   counter_offer_amount NUMERIC(10,2),
   counter_offer_email  TEXT,
 
+  -- Signing details (populated when status = signed)
+  video_count          INTEGER,
+  start_date           DATE,
+
   created_at           TIMESTAMPTZ DEFAULT NOW(),
   updated_at           TIMESTAMPTZ DEFAULT NOW()
 );

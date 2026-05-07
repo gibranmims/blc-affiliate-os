@@ -214,6 +214,109 @@ Output only the email body. No subject line. No preamble. Start with Hey ${first
   }
 });
 
+// POST /api/outreach-gen/create-contract
+router.post('/create-contract', async (req, res) => {
+  if (!gmailTokens) return res.status(401).json({ error: 'Google not connected. Connect Google first.' });
+
+  const { creatorName, handle, creatorEmail, signedRate, videoCount, startDate } = req.body;
+  if (!creatorName || !handle || !signedRate || !videoCount || !startDate) {
+    return res.status(400).json({ error: 'Missing required fields' });
+  }
+
+  const totalPayment = Math.round(parseFloat(signedRate) * parseInt(videoCount));
+  const halfPayment  = Math.round(totalPayment / 2);
+
+  const start = new Date(startDate + 'T12:00:00'); // noon to avoid timezone shifts
+  const end   = new Date(start);
+  end.setDate(end.getDate() + 60);
+
+  const fmt = d => d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+
+  const TEMPLATE_ID = '10NFrH809w1ksmG8TlSp6_fwanNnm2nFcJNd1HzauSEY';
+  const FOLDER_ID   = '1EX2fAsKvNad8tWEXchBYTURM9kP4fiL3';
+
+  try {
+    const oauth2Client = getOAuthClient();
+    oauth2Client.setCredentials(gmailTokens);
+
+    if (gmailTokens.expiry_date && gmailTokens.expiry_date < Date.now() + 60_000) {
+      const { credentials } = await oauth2Client.refreshAccessToken();
+      gmailTokens = credentials;
+      oauth2Client.setCredentials(gmailTokens);
+    }
+
+    const drive = google.drive({ version: 'v3', auth: oauth2Client });
+    const docs  = google.docs({ version: 'v1', auth: oauth2Client });
+
+    // 1. Create creator folder inside TikTok Affiliates folder
+    const folderRes = await drive.files.create({
+      requestBody: {
+        name: `${creatorName} (@${handle})`,
+        mimeType: 'application/vnd.google-apps.folder',
+        parents: [FOLDER_ID]
+      },
+      fields: 'id'
+    });
+    const folderId = folderRes.data.id;
+
+    // 2. Copy template into the new folder
+    const copyRes = await drive.files.copy({
+      fileId: TEMPLATE_ID,
+      requestBody: {
+        name: `${creatorName} - BLC Partnership Agreement`,
+        parents: [folderId]
+      },
+      fields: 'id'
+    });
+    const docId = copyRes.data.id;
+
+    // 3. Replace all placeholders
+    const replacements = {
+      '[BLC CONTACT NAME]':  'Gibran Mims',
+      '[BLC CONTACT EMAIL]': 'hello@thebikiniline.co',
+      '[CREATOR NAME]':      creatorName,
+      '[@TIKTOK HANDLE]':   `@${handle}`,
+      '[CREATOR EMAIL]':     creatorEmail || '',
+      '[NUMBER OF VIDEOS]':  String(videoCount),
+      '[START DATE]':        fmt(start),
+      '[END DATE]':          fmt(end),
+      '[TOTAL PAYMENT]':     totalPayment.toLocaleString(),
+      '[50% OF TOTAL]':      halfPayment.toLocaleString(),
+      '[BLC INVOICE EMAIL]': 'partnerships@thebikiniline.co'
+    };
+
+    await docs.documents.batchUpdate({
+      documentId: docId,
+      requestBody: {
+        requests: Object.entries(replacements).map(([find, replace]) => ({
+          replaceAllText: {
+            containsText: { text: find, matchCase: true },
+            replaceText: replace
+          }
+        }))
+      }
+    });
+
+    // 4. Export as PDF
+    const pdfRes = await drive.files.export(
+      { fileId: docId, mimeType: 'application/pdf' },
+      { responseType: 'arraybuffer' }
+    );
+
+    const safeName = creatorName.replace(/[^a-zA-Z0-9\s\-_]/g, '').trim();
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${safeName} - BLC Contract.pdf"`);
+    res.send(Buffer.from(pdfRes.data));
+
+  } catch (err) {
+    console.error('Contract generation error:', err);
+    if (err.message?.includes('insufficientPermissions') || err.code === 403) {
+      return res.status(403).json({ error: 'Insufficient Google permissions. Please disconnect and reconnect Google to grant Drive access.' });
+    }
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET /api/outreach-gen/auth/url
 router.get('/auth/url', (req, res) => {
   if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
@@ -222,7 +325,11 @@ router.get('/auth/url', (req, res) => {
   const oauth2Client = getOAuthClient();
   const url = oauth2Client.generateAuthUrl({
     access_type: 'offline',
-    scope: ['https://www.googleapis.com/auth/gmail.compose'],
+    scope: [
+      'https://www.googleapis.com/auth/gmail.compose',
+      'https://www.googleapis.com/auth/drive',
+      'https://www.googleapis.com/auth/documents'
+    ],
     prompt: 'consent'
   });
   res.json({ url });

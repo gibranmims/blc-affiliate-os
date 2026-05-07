@@ -10,22 +10,23 @@ const API = {
 };
 
 const STATUSES = [
-  { key: 'drafted',        label: 'Drafted',        color: 'gray'   },
-  { key: 'sent',           label: 'Sent',           color: 'blue'   },
-  { key: 'replied',        label: 'Replied',        color: 'yellow' },
-  { key: 'evaluating',     label: 'Evaluating',     color: 'purple' },
-  { key: 'counter_offered',label: 'Countered',      color: 'orange' },
-  { key: 'signed',         label: 'Signed',         color: 'green'  },
-  { key: 'ghosted',        label: 'Ghosted',        color: 'red'    }
+  { key: 'drafted',        label: 'Drafted',    color: 'gray'   },
+  { key: 'sent',           label: 'Sent',       color: 'blue'   },
+  { key: 'replied',        label: 'Replied',    color: 'yellow' },
+  { key: 'evaluating',     label: 'Evaluating', color: 'purple' },
+  { key: 'counter_offered',label: 'Countered',  color: 'orange' },
+  { key: 'signed',         label: 'Signed',     color: 'green'  },
+  { key: 'archived',       label: 'Archived',   color: 'gray'   }
 ];
 
 const state = {
-  currentPage:       'outreach',
-  outreach:          [],
-  roster:            [],
-  outreachFilter:    'all',
-  outreachView:      'pipeline',  // 'pipeline' | 'new-batch'
-  selectedOutreachId: null
+  currentPage:        'outreach',
+  outreach:           [],
+  roster:             [],
+  outreachFilter:     'all',
+  outreachView:       'pipeline',  // 'pipeline' | 'new-batch'
+  selectedOutreachId: null,
+  selectedIds:        new Set()
 };
 
 const nbState = {
@@ -220,18 +221,23 @@ function renderOutreachPage() {
 // ============================================================
 
 function renderPipelineView() {
-  const keys = STATUSES.map(s => s.key);
-  const counts = keys.reduce((acc, k) => {
-    acc[k] = state.outreach.filter(r => r.status === k).length;
+  const pipelineStatuses = STATUSES.filter(s => s.key !== 'archived');
+  const counts = STATUSES.reduce((acc, s) => {
+    acc[s.key] = state.outreach.filter(r => r.status === s.key).length;
     return acc;
-  }, { all: state.outreach.length });
+  }, {});
+  const allCount = state.outreach.filter(r => r.status !== 'archived').length;
 
   const filtered = state.outreachFilter === 'all'
-    ? state.outreach
+    ? state.outreach.filter(r => r.status !== 'archived')
+    : state.outreachFilter === 'archived'
+    ? state.outreach.filter(r => r.status === 'archived')
     : state.outreach.filter(r => r.status === state.outreachFilter);
 
   const inPipeline = ['sent','replied','evaluating','counter_offered']
     .reduce((s, k) => s + (counts[k] || 0), 0);
+
+  const anySelected = state.selectedIds.size > 0;
 
   document.getElementById('page-content').innerHTML = `
     <div class="page-header">
@@ -244,8 +250,8 @@ function renderPipelineView() {
 
     <div class="stat-cards">
       <div class="stat-card">
-        <div class="stat-value">${counts.all}</div>
-        <div class="stat-label">Total</div>
+        <div class="stat-value">${allCount}</div>
+        <div class="stat-label">Active</div>
       </div>
       <div class="stat-card">
         <div class="stat-value accent">${inPipeline}</div>
@@ -256,29 +262,45 @@ function renderPipelineView() {
         <div class="stat-label">Signed</div>
       </div>
       <div class="stat-card">
-        <div class="stat-value muted">${counts.ghosted || 0}</div>
-        <div class="stat-label">Ghosted</div>
+        <div class="stat-value muted">${counts.archived || 0}</div>
+        <div class="stat-label">Archived</div>
       </div>
     </div>
 
     <div class="filter-bar">
       <div class="filter-tabs">
         <button class="filter-tab ${state.outreachFilter === 'all' ? 'active' : ''}" onclick="setOutreachFilter('all')">
-          All <span class="filter-count">${counts.all}</span>
+          All <span class="filter-count">${allCount}</span>
         </button>
-        ${STATUSES.map(s => `
+        ${pipelineStatuses.map(s => `
           <button class="filter-tab ${state.outreachFilter === s.key ? 'active' : ''}" onclick="setOutreachFilter('${s.key}')">
             ${s.label} <span class="filter-count">${counts[s.key] || 0}</span>
           </button>
         `).join('')}
+        <button class="filter-tab filter-tab-archive ${state.outreachFilter === 'archived' ? 'active' : ''}" onclick="setOutreachFilter('archived')">
+          Archived <span class="filter-count">${counts.archived || 0}</span>
+        </button>
       </div>
     </div>
+
+    ${anySelected ? `
+    <div class="selection-bar" id="selection-bar">
+      <span class="selection-count">${state.selectedIds.size} selected</span>
+      <div class="selection-actions">
+        ${state.outreachFilter !== 'archived' ? `
+          <button class="btn btn-secondary btn-sm" onclick="bulkArchive()">Archive</button>
+        ` : ''}
+        <button class="btn btn-danger btn-sm" onclick="bulkDelete()">Delete</button>
+        <button class="btn btn-secondary btn-sm" onclick="clearSelection()">Deselect</button>
+      </div>
+    </div>
+    ` : ''}
 
     <div class="table-container">
       ${filtered.length === 0 ? `
         <div class="empty-state">
           <div class="empty-icon">📬</div>
-          <h3>${state.outreachFilter === 'all' ? 'No creators yet' : 'None in this stage'}</h3>
+          <h3>${state.outreachFilter === 'all' ? 'No creators yet' : state.outreachFilter === 'archived' ? 'No archived creators' : 'None in this stage'}</h3>
           <p>${state.outreachFilter === 'all' ? 'Upload a CSV to start your first batch' : 'Try a different filter'}</p>
           ${state.outreachFilter === 'all' ? '<button class="btn btn-primary" onclick="openNewBatch()">+ New Batch</button>' : ''}
         </div>
@@ -286,6 +308,11 @@ function renderPipelineView() {
         <table class="data-table">
           <thead>
             <tr>
+              <th style="width:36px;padding-right:0">
+                <input type="checkbox" class="row-checkbox" id="select-all-cb"
+                  ${filtered.every(r => state.selectedIds.has(r.id)) && filtered.length > 0 ? 'checked' : ''}
+                  onchange="toggleSelectAll(this.checked, ${JSON.stringify(filtered.map(r => r.id))})">
+              </th>
               <th>Creator</th>
               <th>Category</th>
               <th>GMV (30d)</th>
@@ -298,8 +325,14 @@ function renderPipelineView() {
           </thead>
           <tbody>
             ${filtered.map(r => `
-              <tr class="clickable-row ${state.selectedOutreachId === r.id ? 'row-active' : ''}"
+              <tr class="clickable-row ${state.selectedOutreachId === r.id ? 'row-active' : ''} ${state.selectedIds.has(r.id) ? 'row-selected' : ''}"
                   onclick="openDetailPanel('${r.id}')">
+                <td style="padding-right:0" onclick="event.stopPropagation()">
+                  <input type="checkbox" class="row-checkbox"
+                    data-id="${r.id}"
+                    ${state.selectedIds.has(r.id) ? 'checked' : ''}
+                    onchange="toggleRowSelect('${r.id}', this.checked)">
+                </td>
                 <td>
                   <div class="creator-cell">
                     <div class="creator-name">${esc(r.name || r.handle)}</div>
@@ -505,6 +538,46 @@ function renderDetailPanel() {
     ` : ''}
     ` : ''}
 
+    <!-- Signed: deal details & contract -->
+    ${r.status === 'signed' ? `
+    <div class="dp-section dp-signed-section">
+      <div class="dp-section-label">Deal Details</div>
+      <div class="dp-signed-grid">
+        <div class="dp-form-group">
+          <label>Rate per video ($)</label>
+          <input type="number" class="dp-input" id="dp-final-rate"
+            value="${r.counter_offer_amount || r.asked_rate || ''}"
+            placeholder="e.g. 150"
+            onblur="updateOutreachField('${r.id}', 'counter_offer_amount', this.value)">
+        </div>
+        <div class="dp-form-group">
+          <label>Number of videos</label>
+          <input type="number" class="dp-input" id="dp-video-count"
+            value="${r.video_count || ''}"
+            placeholder="e.g. 4"
+            onblur="updateOutreachField('${r.id}', 'video_count', this.value)">
+        </div>
+      </div>
+      <div class="dp-form-group">
+        <label>Start date</label>
+        <input type="date" class="dp-input" id="dp-start-date"
+          value="${r.start_date ? r.start_date.split('T')[0] : ''}"
+          onblur="updateOutreachField('${r.id}', 'start_date', this.value)">
+      </div>
+      ${(r.counter_offer_amount || r.asked_rate) && r.video_count ? `
+      <div class="dp-deal-summary">
+        <span>Total: <strong>${fmt$(parseFloat(r.counter_offer_amount || r.asked_rate) * parseInt(r.video_count))}</strong></span>
+        <span class="dp-deal-half">50% upfront: ${fmt$(parseFloat(r.counter_offer_amount || r.asked_rate) * parseInt(r.video_count) / 2)}</span>
+      </div>
+      ` : ''}
+      <button class="btn btn-primary" style="margin-top:12px;width:100%;justify-content:center"
+        id="dp-contract-btn"
+        onclick="generateContractAndMoveToRoster('${r.id}')">
+        Generate Contract + Move to Roster
+      </button>
+    </div>
+    ` : ''}
+
     <!-- Delete -->
     <div class="dp-delete-zone">
       <button class="btn btn-danger btn-sm" onclick="deleteOutreach('${r.id}')">Delete Record</button>
@@ -576,6 +649,152 @@ async function deleteOutreach(id) {
   } catch (err) {
     showToast(err.message, 'error');
   }
+}
+
+// ============================================================
+// OUTREACH — BULK SELECTION
+// ============================================================
+
+function toggleRowSelect(id, checked) {
+  if (checked) state.selectedIds.add(id);
+  else state.selectedIds.delete(id);
+  renderPipelineView();
+}
+
+function toggleSelectAll(checked, ids) {
+  if (checked) ids.forEach(id => state.selectedIds.add(id));
+  else ids.forEach(id => state.selectedIds.delete(id));
+  renderPipelineView();
+}
+
+function clearSelection() {
+  if (state.selectedIds.size === 0) return;
+  state.selectedIds.clear();
+  if (state.outreachView === 'pipeline' && state.currentPage === 'outreach') renderPipelineView();
+}
+
+async function bulkArchive() {
+  const ids = [...state.selectedIds];
+  if (ids.length === 0) return;
+  try {
+    await Promise.all(ids.map(id =>
+      fetchAPI(`${API.outreach}/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ status: 'archived' })
+      }).then(rec => {
+        const i = state.outreach.findIndex(x => x.id === id);
+        if (i !== -1) state.outreach[i] = rec;
+      })
+    ));
+    state.selectedIds.clear();
+    showToast(`${ids.length} creator${ids.length !== 1 ? 's' : ''} archived`);
+    renderPipelineView();
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+async function bulkDelete() {
+  const ids = [...state.selectedIds];
+  if (ids.length === 0) return;
+  if (!confirm(`Delete ${ids.length} creator record${ids.length !== 1 ? 's' : ''}? This cannot be undone.`)) return;
+  try {
+    await Promise.all(ids.map(id => fetchAPI(`${API.outreach}/${id}`, { method: 'DELETE' })));
+    state.outreach = state.outreach.filter(r => !ids.includes(r.id));
+    state.selectedIds.clear();
+    showToast(`${ids.length} record${ids.length !== 1 ? 's' : ''} deleted`);
+    renderPipelineView();
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+// ============================================================
+// OUTREACH — CONTRACT + ROSTER HANDOFF
+// ============================================================
+
+async function generateContractAndMoveToRoster(id) {
+  const r = state.outreach.find(x => x.id === id);
+  if (!r) return;
+
+  const rateEl  = document.getElementById('dp-final-rate');
+  const countEl = document.getElementById('dp-video-count');
+  const dateEl  = document.getElementById('dp-start-date');
+
+  const rate       = parseFloat(rateEl?.value || r.counter_offer_amount || r.asked_rate);
+  const videoCount = parseInt(countEl?.value || r.video_count);
+  const startDate  = dateEl?.value || (r.start_date ? r.start_date.split('T')[0] : '');
+
+  if (!rate || isNaN(rate))            { showToast('Enter rate per video first', 'error'); return; }
+  if (!videoCount || isNaN(videoCount)){ showToast('Enter number of videos first', 'error'); return; }
+  if (!startDate)                       { showToast('Enter start date first', 'error'); return; }
+
+  const btn = document.getElementById('dp-contract-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Generating...'; }
+
+  try {
+    // Save deal details in one request
+    const saved = await fetchAPI(`${API.outreach}/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ counter_offer_amount: rate, video_count: videoCount, start_date: startDate })
+    });
+    const i = state.outreach.findIndex(x => x.id === id);
+    if (i !== -1) state.outreach[i] = saved;
+
+    // Generate contract PDF (streamed back as PDF)
+    const res = await fetch(`${API.outreachGen}/create-contract`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        creatorName:  r.name || r.handle,
+        handle:       r.handle,
+        creatorEmail: r.email || '',
+        signedRate:   rate,
+        videoCount:   videoCount,
+        startDate:    startDate
+      })
+    });
+
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.error || 'Contract generation failed');
+    }
+
+    const blob = await res.blob();
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `${(r.name || r.handle).replace(/[^a-zA-Z0-9\s\-]/g, '')} - BLC Contract.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1000);
+
+    // Add to Roster
+    await moveToRoster(r, rate, videoCount);
+    showToast('Contract downloaded — creator moved to Roster!');
+    renderDetailPanel();
+
+  } catch (err) {
+    showToast(err.message, 'error');
+    if (btn) { btn.disabled = false; btn.textContent = 'Generate Contract + Move to Roster'; }
+  }
+}
+
+async function moveToRoster(r, rate, videoCount) {
+  const rec = await fetchAPI(API.roster, {
+    method: 'POST',
+    body: JSON.stringify({
+      handle:          r.handle,
+      platform:        'TikTok',
+      niche:           (r.product_category || '').split(',')[0].trim() || null,
+      followers:       r.follower_count || null,
+      email:           r.email || null,
+      status:          'active',
+      commission_rate: 0,
+      notes:           `Signed ${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}. Rate: $${rate}/video × ${videoCount} videos.`
+    })
+  });
+  state.roster.unshift(rec);
 }
 
 // ============================================================
@@ -1306,6 +1525,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (e.key === 'Escape') {
       closeModal();
       closeDetailPanel();
+      clearSelection();
     }
   });
 

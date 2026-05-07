@@ -12,7 +12,8 @@ const FIELDS = [
   'last_30d_gmv', 'avg_engagement', 'estimated_post_rate', 'profile_url',
   'status', 'generated_email', 'sender', 'asked_rate',
   'on_camera', 'feels_natural', 'viral_potential', 'tier', 'evaluation_notes',
-  'counter_offer_amount', 'counter_offer_email'
+  'counter_offer_amount', 'counter_offer_email',
+  'video_count', 'start_date'
 ];
 
 function buildRecord(body) {
@@ -21,6 +22,7 @@ function buildRecord(body) {
     if (body[f] === undefined) continue;
     if (f === 'handle') rec.handle = String(body.handle).replace(/^@/, '').trim();
     else if (f === 'follower_count') rec.follower_count = body[f] ? parseInt(body[f]) : null;
+    else if (f === 'video_count') rec.video_count = body[f] ? parseInt(body[f]) : null;
     else if (['last_30d_gmv', 'asked_rate', 'counter_offer_amount'].includes(f))
       rec[f] = body[f] !== '' && body[f] !== null ? parseFloat(body[f]) : null;
     else rec[f] = body[f] !== '' ? body[f] : null;

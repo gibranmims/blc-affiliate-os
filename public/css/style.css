@@ -1744,3 +1744,95 @@ body {
 .page-back-row .page-title {
   margin-bottom: 0;
 }
+
+/* ============================================================
+   BULK SELECTION BAR
+   ============================================================ */
+
+.selection-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--accent-dim);
+  border: 1px solid rgba(255, 246, 235, 0.2);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  margin-bottom: 10px;
+}
+
+.selection-count {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.selection-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.row-checkbox {
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+  accent-color: var(--accent);
+  flex-shrink: 0;
+}
+
+.row-selected {
+  background: rgba(255, 246, 235, 0.04) !important;
+}
+
+/* ============================================================
+   ARCHIVED TAB (muted, separated)
+   ============================================================ */
+
+.filter-tab-archive {
+  margin-left: 6px;
+  padding-left: 16px !important;
+  border-left: 1px solid var(--border);
+  opacity: 0.6;
+}
+
+.filter-tab-archive:hover {
+  opacity: 1;
+}
+
+.filter-tab-archive.active {
+  opacity: 1;
+}
+
+/* ============================================================
+   SIGNED SECTION IN DETAIL PANEL
+   ============================================================ */
+
+.dp-signed-section {
+  border-top: 2px solid var(--green) !important;
+  background: rgba(74, 222, 128, 0.03);
+}
+
+.dp-signed-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.dp-deal-summary {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  margin-bottom: 4px;
+  font-size: 13.5px;
+  color: var(--text-primary);
+}
+
+.dp-deal-half {
+  font-size: 12px;
+  color: var(--text-muted);
+}
