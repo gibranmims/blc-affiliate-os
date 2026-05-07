@@ -1106,6 +1106,14 @@ function setDraftMode(mode) {
 
 async function saveOneDraft(i) {
   if (!nbState.gmailConnected) { showToast('Connect Gmail first', 'error'); return; }
+
+  await checkGmailStatus();
+  if (!nbState.gmailConnected) {
+    showToast('Gmail was disconnected — please reconnect and try again', 'error');
+    renderNewBatchView();
+    return;
+  }
+
   const e = nbState.emails[i];
   const el = document.getElementById(`nb-email-text-${i}`);
   if (el) e.body = el.innerText;
@@ -1225,6 +1233,14 @@ async function addOneToPipeline(e) {
 
 async function nbSaveDrafts() {
   if (!nbState.gmailConnected) { showToast('Connect Gmail first', 'error'); return; }
+
+  // Pre-flight: verify server still has tokens (catches redeploy mid-session)
+  await checkGmailStatus();
+  if (!nbState.gmailConnected) {
+    showToast('Gmail was disconnected — please reconnect and try again', 'error');
+    renderNewBatchView();
+    return;
+  }
 
   nbState.emails.forEach((e, i) => {
     const el = document.getElementById(`nb-email-text-${i}`);
