@@ -33,7 +33,9 @@ const nbState = {
   emails:         [],
   selectedFile:   null,
   gmailConnected: false,
+  connectedEmail: null,
   autoSave:       false,
+  savedCount:     0,
   polling:        null
 };
 
@@ -804,13 +806,19 @@ async function moveToRoster(r, rate, videoCount) {
 
 function openNewBatch() {
   state.outreachView = 'new-batch';
-  nbState.emails = [];
+  nbState.emails       = [];
   nbState.selectedFile = null;
+  nbState.savedCount   = 0;
   renderNewBatchView();
   checkGmailStatus();
 }
 
 function renderNewBatchView() {
+  const total     = nbState.emails.length;
+  const generated = nbState.emails.filter(e => !e.error).length;
+  const errors    = nbState.emails.filter(e => e.error).length;
+  const saved     = nbState.savedCount || 0;
+
   document.getElementById('page-content').innerHTML = `
     <div class="page-back-row">
       <button class="back-btn" onclick="backToPipeline()">
@@ -822,54 +830,73 @@ function renderNewBatchView() {
       <h1 class="page-title">New Batch</h1>
     </div>
 
+    <div class="nb-stats-bar">
+      <div class="nb-stat"><span class="nb-stat-value">${total}</span><span class="nb-stat-label">Total</span></div>
+      <div class="nb-stat"><span class="nb-stat-value ${generated > 0 ? 'green' : ''}">${generated}</span><span class="nb-stat-label">Generated</span></div>
+      <div class="nb-stat"><span class="nb-stat-value ${saved > 0 ? 'accent' : ''}">${saved}</span><span class="nb-stat-label">Saved this run</span></div>
+      <div class="nb-stat"><span class="nb-stat-value ${errors > 0 ? 'red' : ''}">${errors}</span><span class="nb-stat-label">Errors</span></div>
+    </div>
+
     <div class="new-batch-layout">
 
-      <!-- Left: controls -->
-      <div class="panel" style="position:sticky;top:24px;">
-        <h3 class="panel-title">Upload CSV</h3>
+      <!-- Left: steps -->
+      <div style="position:sticky;top:24px;display:flex;flex-direction:column;gap:12px;">
 
-        <div class="csv-columns-hint">
-          Euka export columns auto-detected:<br>
-          <code>handle</code> <code>name</code> <code>email</code>
-          <code>follower_count</code> <code>last_30d_gmv</code>
-          <code>product_category</code> <code>profile</code>
+        <!-- Step 1 -->
+        <div class="nb-step">
+          <div class="nb-step-header">
+            <span class="nb-step-num">1</span>
+            <span class="nb-step-title">CONTACTS CSV</span>
+          </div>
+          <div class="csv-columns-hint">
+            Euka export auto-detected:<br>
+            <code>handle</code> <code>name</code> <code>email</code>
+            <code>follower_count</code> <code>last_30d_gmv</code>
+            <code>product_category</code> <code>profile</code>
+          </div>
+          <div class="dropzone ${nbState.selectedFile ? 'file-selected' : ''}"
+               id="nb-dropzone" onclick="document.getElementById('nb-file-input').click()">
+            <div class="dropzone-icon">${nbState.selectedFile ? '✅' : '📂'}</div>
+            <div class="dropzone-label">${nbState.selectedFile ? nbState.selectedFile.name : 'Click to upload CSV'}</div>
+            <div class="dropzone-sub">${nbState.selectedFile ? (nbState.selectedFile.size / 1024).toFixed(1) + ' KB' : 'or drag and drop'}</div>
+          </div>
+          <input type="file" id="nb-file-input" accept=".csv" style="display:none" onchange="handleNbFileSelect(event)">
         </div>
 
-        <div class="dropzone" id="nb-dropzone" onclick="document.getElementById('nb-file-input').click()">
-          <div class="dropzone-icon" id="nb-dz-icon">📂</div>
-          <div class="dropzone-label" id="nb-dz-label">Click to upload CSV</div>
-          <div class="dropzone-sub" id="nb-dz-sub">or drag and drop</div>
-        </div>
-        <input type="file" id="nb-file-input" accept=".csv" style="display:none" onchange="handleNbFileSelect(event)">
-
-        <button class="btn btn-primary btn-full" id="nb-generate-btn" onclick="runBatchGenerate()" disabled>
-          Generate Emails
-        </button>
-
-        <div class="new-batch-actions">
-          <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-bottom:4px;">GMAIL DRAFTS</div>
+        <!-- Step 2 -->
+        <div class="nb-step">
+          <div class="nb-step-header">
+            <span class="nb-step-num">2</span>
+            <span class="nb-step-title">RUN</span>
+          </div>
 
           ${!nbState.gmailConnected ? `
-            <div class="gmail-status disconnected">
+            <div class="gmail-status disconnected" style="margin-bottom:10px">
               <div class="status-dot"></div>
-              <span class="gmail-status-text">Not connected</span>
+              <span class="gmail-status-text">Gmail not connected</span>
             </div>
-            <button class="btn btn-secondary btn-full" onclick="connectGmail()" id="nb-connect-btn">Connect Gmail</button>
+            <button class="btn btn-secondary btn-full" onclick="connectGmail()" id="nb-connect-btn" style="margin-bottom:10px">Connect Gmail</button>
           ` : `
-            <div class="gmail-status connected">
+            <div class="gmail-status connected" style="margin-bottom:10px">
               <div class="status-dot"></div>
-              <span class="gmail-status-text">Gmail connected</span>
-              <button class="btn btn-secondary btn-sm" onclick="disconnectGmail()" style="font-size:11px;padding:3px 8px;">Disconnect</button>
+              <span class="gmail-status-text">${esc(nbState.connectedEmail || 'Gmail connected')}</span>
+              <button class="btn btn-secondary btn-sm" onclick="disconnectGmail()" style="font-size:11px;padding:3px 8px;margin-left:auto">Disconnect</button>
             </div>
           `}
 
-          <label class="autosave-toggle">
-            <input type="checkbox" id="nb-autosave-cb" ${nbState.autoSave ? 'checked' : ''}
+          <label class="autosave-toggle" style="margin-bottom:12px">
+            <input type="checkbox" ${nbState.autoSave ? 'checked' : ''}
               onchange="nbState.autoSave = this.checked">
             Auto-save drafts after generating
           </label>
 
+          <button class="btn btn-primary btn-full" id="nb-generate-btn"
+                  onclick="runBatchGenerate()" ${!nbState.selectedFile ? 'disabled' : ''}>
+            Generate Emails
+          </button>
+
           ${nbState.emails.length > 0 ? `
+          <div style="display:flex;flex-direction:column;gap:8px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
             <button class="btn btn-secondary btn-full" id="nb-save-btn"
               onclick="nbSaveDrafts()" ${!nbState.gmailConnected ? 'disabled title="Connect Gmail first"' : ''}>
               Save ${nbState.emails.filter(e => e.body && !e.error).length} Drafts to Gmail
@@ -877,6 +904,7 @@ function renderNewBatchView() {
             <button class="btn btn-primary btn-full" id="nb-add-btn" onclick="addToPipeline()">
               Add ${nbState.emails.filter(e => !e.error).length} to Pipeline
             </button>
+          </div>
           ` : ''}
         </div>
       </div>
@@ -889,7 +917,6 @@ function renderNewBatchView() {
           </h3>
           ${nbState.emails.length > 0 ? `<span style="font-size:12px;color:var(--text-muted)">Click to edit</span>` : ''}
         </div>
-
         <div id="nb-output">
           ${nbState.emails.length === 0 ? `
             <div class="panel">
@@ -1105,6 +1132,7 @@ async function checkGmailStatus() {
     const data = await fetchAPI(`${API.outreachGen}/auth/status`);
     const wasConnected = nbState.gmailConnected;
     nbState.gmailConnected = data.connected;
+    nbState.connectedEmail = data.email || null;
     if (data.connected !== wasConnected && state.outreachView === 'new-batch') renderNewBatchView();
   } catch (_) {}
 }
@@ -1159,8 +1187,10 @@ async function nbSaveDrafts() {
       method: 'POST',
       body: JSON.stringify({ emails: nbState.emails })
     });
+    nbState.savedCount = (nbState.savedCount || 0) + res.saved;
     showToast(`${res.saved} drafts saved to Gmail${res.skipped ? ` (${res.skipped} skipped)` : ''}`);
     if (btn) { btn.disabled = false; btn.textContent = `Saved ${res.saved} Drafts ✓`; }
+    renderNewBatchView();
   } catch (err) {
     if (err.message.includes('not connected') || err.message.includes('invalid_grant')) {
       nbState.gmailConnected = false;

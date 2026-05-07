@@ -8,6 +8,7 @@ const { google } = require('googleapis');
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
 let gmailTokens = null;
+let gmailEmail   = null;
 
 const SENDERS = ['Lu'];
 
@@ -360,6 +361,13 @@ router.get('/auth/callback', async (req, res) => {
     const oauth2Client = getOAuthClient();
     const { tokens } = await oauth2Client.getToken(code);
     gmailTokens = tokens;
+    // Fetch and cache the connected email address
+    try {
+      oauth2Client.setCredentials(tokens);
+      const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
+      const profile = await gmail.users.getProfile({ userId: 'me' });
+      gmailEmail = profile.data.emailAddress;
+    } catch (_) {}
     res.send(`<html><body style="${style}"><h2>Gmail connected.</h2><p style="color:#9090aa">You can close this tab and go back to BLC Affiliate OS.</p><script>window.close();</script></body></html>`);
   } catch (err) {
     res.send(`<html><body style="${style}"><h2 style="color:#f87171">Error: ${err.message}</h2><p style="color:#9090aa">You can close this tab.</p></body></html>`);
@@ -368,12 +376,13 @@ router.get('/auth/callback', async (req, res) => {
 
 // GET /api/outreach-gen/auth/status
 router.get('/auth/status', (req, res) => {
-  res.json({ connected: !!gmailTokens });
+  res.json({ connected: !!gmailTokens, email: gmailEmail });
 });
 
 // DELETE /api/outreach-gen/auth/disconnect
 router.delete('/auth/disconnect', (req, res) => {
   gmailTokens = null;
+  gmailEmail   = null;
   res.json({ disconnected: true });
 });
 

@@ -1858,3 +1858,90 @@ body {
   accent-color: var(--accent);
   flex-shrink: 0;
 }
+
+/* ============================================================
+   NEW BATCH — STATS BAR
+   ============================================================ */
+
+.nb-stats-bar {
+  display: flex;
+  gap: 2px;
+  margin-bottom: 24px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.nb-stat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 14px 12px;
+  border-right: 1px solid var(--border);
+  gap: 4px;
+}
+
+.nb-stat:last-child { border-right: none; }
+
+.nb-stat-value {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+.nb-stat-value.green  { color: var(--green); }
+.nb-stat-value.accent { color: var(--accent); }
+.nb-stat-value.red    { color: var(--red); }
+
+.nb-stat-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+/* ============================================================
+   NEW BATCH — STEP CARDS
+   ============================================================ */
+
+.nb-step {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 18px 20px;
+}
+
+.nb-step-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.nb-step-num {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-light);
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.nb-step-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
