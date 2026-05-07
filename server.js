@@ -6,6 +6,7 @@ const path = require('path');
 const outreachRoutes = require('./routes/outreach');
 const rosterRoutes = require('./routes/roster');
 const generateRoutes = require('./routes/generate');
+const outreachGenRoutes = require('./routes/outreach-gen');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -19,6 +20,7 @@ app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 app.use('/api/outreach', outreachRoutes);
 app.use('/api/roster', rosterRoutes);
 app.use('/api/generate', generateRoutes);
+app.use('/api/outreach-gen', outreachGenRoutes);
 
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));

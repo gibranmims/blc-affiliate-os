@@ -140,7 +140,7 @@ function navigate(page) {
   document.querySelectorAll('.nav-item').forEach(el => {
     el.classList.toggle('active', el.dataset.page === page);
   });
-  const renderers = { outreach: renderOutreachPage, roster: renderRosterPage, scripts: renderScriptsPage };
+  const renderers = { outreach: renderOutreachPage, roster: renderRosterPage, scripts: renderScriptsPage, 'outreach-gen': renderOutreachGenPage };
   if (renderers[page]) renderers[page]();
 }
 
@@ -728,6 +728,338 @@ function copyOutput(id) {
   navigator.clipboard.writeText(text)
     .then(() => showToast('Copied to clipboard!'))
     .catch(() => showToast('Copy failed — try selecting and copying manually', 'error'));
+}
+
+// ============================================================
+// OUTREACH GENERATOR
+// ============================================================
+
+const ogState = {
+  emails: [],        // generated email objects
+  gmailConnected: false,
+  polling: null,     // setInterval handle for auth polling
+  selectedFile: null
+};
+
+function renderOutreachGenPage() {
+  document.getElementById('page-content').innerHTML = `
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Outreach Generator</h1>
+        <p class="page-subtitle">Upload a CSV from Euka, generate personalized emails, save directly to Gmail drafts</p>
+      </div>
+    </div>
+
+    <div class="outreach-gen-layout">
+
+      <!-- Left: controls -->
+      <div class="panel" style="position:sticky;top:24px;">
+        <h3 class="panel-title">Setup</h3>
+
+        <div class="csv-columns-hint">
+          Required CSV columns:<br>
+          <code>handle</code> <code>name</code> <code>product_category</code>
+          <code>last_30d_gmv</code> <code>follower_count</code> <code>email</code>
+        </div>
+
+        <div class="dropzone" id="og-dropzone" onclick="document.getElementById('og-file-input').click()">
+          <div class="dropzone-icon" id="og-dz-icon">📂</div>
+          <div class="dropzone-label" id="og-dz-label">Click to upload CSV</div>
+          <div class="dropzone-sub" id="og-dz-sub">or drag and drop</div>
+        </div>
+        <input type="file" id="og-file-input" accept=".csv" style="display:none" onchange="handleFileSelect(event)">
+
+        <button class="btn btn-primary btn-full" id="og-generate-btn" onclick="runGenerate()" disabled>
+          ✨ Generate Emails
+        </button>
+
+        <div style="margin-top:20px;margin-bottom:8px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);">GMAIL DRAFTS</div>
+
+        ${!ogState.gmailConnected ? `
+          <div id="gmail-status-area">
+            <div class="gmail-status disconnected">
+              <div class="status-dot"></div>
+              <span class="gmail-status-text">Not connected</span>
+            </div>
+            <button class="btn btn-secondary btn-full" onclick="connectGmail()" id="og-connect-btn">
+              Connect Gmail
+            </button>
+          </div>
+        ` : `
+          <div id="gmail-status-area">
+            <div class="gmail-status connected">
+              <div class="status-dot"></div>
+              <span class="gmail-status-text">Gmail connected</span>
+              <button class="btn btn-secondary btn-sm" onclick="disconnectGmail()" style="font-size:11px;padding:3px 8px;">Disconnect</button>
+            </div>
+          </div>
+        `}
+
+        ${!process || true ? `
+          <div class="setup-notice" id="og-google-notice" style="margin-top:12px;">
+            Gmail requires <code style="background:rgba(0,0,0,.3);padding:1px 4px;border-radius:3px;font-size:11px">GOOGLE_CLIENT_ID</code>,
+            <code style="background:rgba(0,0,0,.3);padding:1px 4px;border-radius:3px;font-size:11px">GOOGLE_CLIENT_SECRET</code>, and
+            <code style="background:rgba(0,0,0,.3);padding:1px 4px;border-radius:3px;font-size:11px">BASE_URL</code>
+            set in Railway variables.
+          </div>
+        ` : ''}
+
+        ${ogState.emails.length > 0 ? `
+          <div style="margin-top:12px;">
+            <button class="btn btn-primary btn-full" id="og-save-btn" onclick="saveDrafts()" ${!ogState.gmailConnected ? 'disabled title="Connect Gmail first"' : ''}>
+              📥 Save ${ogState.emails.filter(e=>e.body&&!e.error).length} Drafts to Gmail
+            </button>
+          </div>
+        ` : ''}
+      </div>
+
+      <!-- Right: email previews -->
+      <div>
+        <div class="output-panel-header">
+          <h3 class="panel-title" style="margin-bottom:0">${ogState.emails.length > 0 ? `${ogState.emails.length} emails generated` : 'Generated Emails'}</h3>
+          ${ogState.emails.length > 0 ? `
+            <div class="output-panel-actions">
+              <span style="font-size:12px;color:var(--text-muted)">Click any email to edit</span>
+            </div>
+          ` : ''}
+        </div>
+
+        <div id="og-output">
+          ${ogState.emails.length === 0 ? `
+            <div class="panel">
+              <div class="output-placeholder" style="height:300px">
+                <div class="output-icon">✉️</div>
+                <p>Upload a CSV and click Generate — emails will appear here ready to review and edit before saving</p>
+              </div>
+            </div>
+          ` : renderEmailCards()}
+        </div>
+      </div>
+
+    </div>`;
+
+  setupDropzone();
+  checkGmailStatus();
+}
+
+function setupDropzone() {
+  const dz = document.getElementById('og-dropzone');
+  if (!dz) return;
+
+  dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag-over'); });
+  dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
+  dz.addEventListener('drop', e => {
+    e.preventDefault();
+    dz.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file) applyFile(file);
+  });
+}
+
+function handleFileSelect(e) {
+  const file = e.target.files[0];
+  if (file) applyFile(file);
+}
+
+function applyFile(file) {
+  if (!file.name.endsWith('.csv')) { showToast('Please upload a .csv file', 'error'); return; }
+  ogState.selectedFile = file;
+
+  const dz = document.getElementById('og-dropzone');
+  dz.classList.add('file-selected');
+  document.getElementById('og-dz-icon').textContent = '✅';
+  document.getElementById('og-dz-label').textContent = file.name;
+  document.getElementById('og-dz-sub').textContent = `${(file.size / 1024).toFixed(1)} KB`;
+
+  const btn = document.getElementById('og-generate-btn');
+  if (btn) { btn.disabled = false; btn.textContent = '✨ Generate Emails'; }
+}
+
+async function runGenerate() {
+  if (!ogState.selectedFile) { showToast('Upload a CSV first', 'error'); return; }
+
+  const btn = document.getElementById('og-generate-btn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Generating...';
+
+  const outputEl = document.getElementById('og-output');
+  outputEl.innerHTML = `
+    <div class="panel gen-progress">
+      <div style="font-size:14px;font-weight:600;color:var(--text-primary)">Generating emails...</div>
+      <div class="gen-progress-bar-track"><div class="gen-progress-bar-fill" id="og-progress-fill" style="width:0%"></div></div>
+      <div class="gen-progress-label" id="og-progress-label">Reading CSV and calling Claude API</div>
+    </div>`;
+
+  // Animate the bar while waiting
+  let pct = 0;
+  const ticker = setInterval(() => {
+    pct = Math.min(pct + (Math.random() * 4), 88);
+    const fill = document.getElementById('og-progress-fill');
+    if (fill) fill.style.width = pct + '%';
+  }, 600);
+
+  try {
+    const formData = new FormData();
+    formData.append('csv', ogState.selectedFile);
+
+    const res = await fetch('/api/outreach-gen/generate', { method: 'POST', body: formData });
+    const data = await res.json();
+
+    clearInterval(ticker);
+    const fill = document.getElementById('og-progress-fill');
+    if (fill) fill.style.width = '100%';
+
+    if (!res.ok) throw new Error(data.error || 'Generation failed');
+
+    ogState.emails = data.emails;
+    showToast(`${data.total} emails generated`);
+    renderOutreachGenPage();
+
+  } catch (err) {
+    clearInterval(ticker);
+    outputEl.innerHTML = `<div class="panel"><div class="output-error">⚠️ ${esc(err.message)}</div></div>`;
+    showToast(err.message, 'error');
+    btn.disabled = false;
+    btn.textContent = '✨ Generate Emails';
+  }
+}
+
+function renderEmailCards() {
+  if (ogState.emails.length === 0) return '';
+  return `<div class="email-list">${ogState.emails.map((e, i) => renderEmailCard(e, i)).join('')}</div>`;
+}
+
+function renderEmailCard(e, i) {
+  if (e.error) {
+    return `
+      <div class="email-card error-card">
+        <div class="email-card-header">
+          <div class="email-card-meta">
+            <div class="email-card-name">@${esc(e.handle)} — ${esc(e.name)}</div>
+            <div class="email-card-sub" style="color:var(--red)">Generation failed: ${esc(e.error)}</div>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  return `
+    <div class="email-card" id="email-card-${i}">
+      <div class="email-card-header">
+        <div class="email-card-meta">
+          <div class="email-card-name">@${esc(e.handle)}${e.name ? ' — ' + esc(e.name) : ''}</div>
+          <div class="email-card-sub">${esc(e.email) || '<span style="color:var(--red)">No email address</span>'}</div>
+        </div>
+        <span class="email-card-sender">from ${esc(e.sender)}</span>
+      </div>
+      <div class="email-card-body">
+        <div class="email-subject">Subject: <span>${esc(e.subject)}</span></div>
+        <div class="email-text"
+          id="email-text-${i}"
+          contenteditable="false"
+          onclick="makeEditable(${i})"
+          title="Click to edit">${esc(e.body)}</div>
+      </div>
+      <div class="email-card-actions">
+        <button class="btn btn-secondary btn-sm" onclick="makeEditable(${i})" id="edit-btn-${i}">✏️ Edit</button>
+        <button class="btn btn-secondary btn-sm" onclick="saveEdit(${i})" id="save-btn-${i}" style="display:none">✓ Done</button>
+      </div>
+    </div>`;
+}
+
+function makeEditable(i) {
+  const el = document.getElementById(`email-text-${i}`);
+  const editBtn = document.getElementById(`edit-btn-${i}`);
+  const saveBtn = document.getElementById(`save-btn-${i}`);
+  if (!el) return;
+  el.setAttribute('contenteditable', 'true');
+  el.focus();
+  editBtn.style.display = 'none';
+  saveBtn.style.display = '';
+}
+
+function saveEdit(i) {
+  const el = document.getElementById(`email-text-${i}`);
+  const editBtn = document.getElementById(`edit-btn-${i}`);
+  const saveBtn = document.getElementById(`save-btn-${i}`);
+  if (!el) return;
+  ogState.emails[i].body = el.innerText;
+  el.setAttribute('contenteditable', 'false');
+  editBtn.style.display = '';
+  saveBtn.style.display = 'none';
+}
+
+async function checkGmailStatus() {
+  try {
+    const data = await fetchAPI('/api/outreach-gen/auth/status');
+    const wasConnected = ogState.gmailConnected;
+    ogState.gmailConnected = data.connected;
+    if (data.connected !== wasConnected) renderOutreachGenPage();
+  } catch (_) {}
+}
+
+async function connectGmail() {
+  const btn = document.getElementById('og-connect-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Opening...'; }
+
+  try {
+    const data = await fetchAPI('/api/outreach-gen/auth/url');
+    const popup = window.open(data.url, 'gmail-auth', 'width=500,height=650,top=100,left=200');
+
+    // Poll for connection
+    if (ogState.polling) clearInterval(ogState.polling);
+    ogState.polling = setInterval(async () => {
+      await checkGmailStatus();
+      if (ogState.gmailConnected) {
+        clearInterval(ogState.polling);
+        if (popup && !popup.closed) popup.close();
+      }
+    }, 1500);
+
+  } catch (err) {
+    showToast(err.message, 'error');
+    if (btn) { btn.disabled = false; btn.textContent = 'Connect Gmail'; }
+  }
+}
+
+async function disconnectGmail() {
+  try {
+    await fetchAPI('/api/outreach-gen/auth/disconnect', { method: 'DELETE' });
+    ogState.gmailConnected = false;
+    renderOutreachGenPage();
+    showToast('Gmail disconnected');
+  } catch (err) { showToast(err.message, 'error'); }
+}
+
+async function saveDrafts() {
+  if (!ogState.gmailConnected) { showToast('Connect Gmail first', 'error'); return; }
+
+  const toSave = ogState.emails.filter(e => e.body && !e.error);
+  if (toSave.length === 0) { showToast('No valid emails to save', 'error'); return; }
+
+  const btn = document.getElementById('og-save-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Saving drafts...'; }
+
+  // Sync any edits from contenteditable back to state
+  ogState.emails.forEach((e, i) => {
+    const el = document.getElementById(`email-text-${i}`);
+    if (el) e.body = el.innerText;
+  });
+
+  try {
+    const res = await fetchAPI('/api/outreach-gen/save-drafts', {
+      method: 'POST',
+      body: JSON.stringify({ emails: ogState.emails })
+    });
+    showToast(`${res.saved} drafts saved to Gmail${res.skipped ? ` (${res.skipped} skipped — no email address)` : ''}`);
+    if (btn) { btn.disabled = false; btn.textContent = `📥 Saved ${res.saved} Drafts ✓`; }
+  } catch (err) {
+    if (err.message.includes('not connected') || err.message.includes('invalid_grant')) {
+      ogState.gmailConnected = false;
+      renderOutreachGenPage();
+    }
+    showToast(err.message, 'error');
+    if (btn) { btn.disabled = false; btn.textContent = `📥 Save ${toSave.length} Drafts to Gmail`; }
+  }
 }
 
 // ============================================================
