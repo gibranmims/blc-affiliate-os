@@ -887,6 +887,7 @@ function renderNewBatchView() {
           <label class="autosave-toggle" style="margin-bottom:12px">
             <input type="checkbox" ${nbState.autoSave ? 'checked' : ''}
               onchange="nbState.autoSave = this.checked">
+            <span class="toggle-track"><span class="toggle-thumb"></span></span>
             Auto-save drafts after generating
           </label>
 
