@@ -88,18 +88,17 @@ body {
 }
 
 .logo-mark {
-  height: 32px;
-  padding: 0 10px;
-  background: var(--accent);
-  border-radius: var(--radius-sm);
   display: flex;
   align-items: center;
-  justify-content: center;
-  font-size: 15px;
+  font-family: 'Poppins', sans-serif;
   font-weight: 700;
-  letter-spacing: 0.04em;
-  color: #0c0c10;
+  font-size: 22px;
+  letter-spacing: -0.06em;
+  color: var(--accent);
   flex-shrink: 0;
+  background: none;
+  padding: 0;
+  border-radius: 0;
 }
 
 .logo-text-group {
