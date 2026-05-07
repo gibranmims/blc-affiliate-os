@@ -5,13 +5,13 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --bg-primary:    #0c0c10;
-  --bg-secondary:  #111118;
-  --bg-tertiary:   #17171f;
-  --bg-elevated:   #1d1d28;
-  --bg-hover:      #21212e;
-  --border:        #242433;
-  --border-light:  #2e2e40;
+  --bg-primary:    #0a0a0a;
+  --bg-secondary:  #111111;
+  --bg-tertiary:   #171717;
+  --bg-elevated:   #1e1e1e;
+  --bg-hover:      #222222;
+  --border:        #2a2a2a;
+  --border-light:  #333333;
 
   --accent:        #FFF6EB;
   --accent-dim:    rgba(255, 246, 235, 0.10);
