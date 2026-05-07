@@ -24,6 +24,15 @@ function getOAuthClient() {
   );
 }
 
+function bodyToHtml(text) {
+  const blocks = text.split(/\n\n+/).map(b => b.trim()).filter(Boolean);
+  const html = blocks.map(block => {
+    const lines = block.split('\n').map(l => l.trim()).filter(Boolean);
+    return `<p style="margin: 0 0 16px 0;">${lines.join('<br>')}</p>`;
+  }).join('');
+  return `<table width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #000000;">${html}</td></tr></table>`;
+}
+
 function parseFollowers(val) {
   if (!val) return 0;
   const s = String(val).trim().toLowerCase().replace(/,/g, '');
@@ -415,13 +424,14 @@ router.post('/save-drafts', async (req, res) => {
 
     const results = await Promise.all(
       toSave.map(async (e) => {
+        const htmlBody = bodyToHtml(e.body);
         const mime = [
           `To: ${e.email}`,
-          `Subject: ${e.subject}`,
+          `Subject: ${e.subject || 'paid opportunity with The Bikini Line Co'}`,
           `MIME-Version: 1.0`,
-          `Content-Type: text/plain; charset=utf-8`,
+          `Content-Type: text/html; charset=utf-8`,
           ``,
-          e.body
+          htmlBody
         ].join('\r\n');
 
         const encoded = Buffer.from(mime)

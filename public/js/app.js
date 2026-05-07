@@ -34,7 +34,7 @@ const nbState = {
   selectedFile:   null,
   gmailConnected: false,
   connectedEmail: null,
-  autoSave:       false,
+  draftMode:      'manual',
   savedCount:     0,
   polling:        null
 };
@@ -884,12 +884,12 @@ function renderNewBatchView() {
             </div>
           `}
 
-          <label class="autosave-toggle" style="margin-bottom:12px">
-            <input type="checkbox" ${nbState.autoSave ? 'checked' : ''}
-              onchange="nbState.autoSave = this.checked">
-            <span class="toggle-track"><span class="toggle-thumb"></span></span>
-            Auto-save drafts after generating
-          </label>
+          <div class="draft-mode-selector" style="margin-bottom:12px">
+            <button class="draft-mode-btn ${nbState.draftMode === 'auto' ? 'active' : ''}"
+              onclick="setDraftMode('auto')">Auto Save</button>
+            <button class="draft-mode-btn ${nbState.draftMode === 'manual' ? 'active' : ''}"
+              onclick="setDraftMode('manual')">Manual Save</button>
+          </div>
 
           <button class="btn btn-primary btn-full" id="nb-generate-btn"
                   onclick="runBatchGenerate()" ${!nbState.selectedFile ? 'disabled' : ''}>
@@ -898,10 +898,12 @@ function renderNewBatchView() {
 
           ${nbState.emails.length > 0 ? `
           <div style="display:flex;flex-direction:column;gap:8px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
+            ${nbState.draftMode === 'auto' ? `
             <button class="btn btn-secondary btn-full" id="nb-save-btn"
               onclick="nbSaveDrafts()" ${!nbState.gmailConnected ? 'disabled title="Connect Gmail first"' : ''}>
-              Save ${nbState.emails.filter(e => e.body && !e.error).length} Drafts to Gmail
+              Save All ${nbState.emails.filter(e => e.body && !e.error).length} Drafts to Gmail
             </button>
+            ` : ''}
             <button class="btn btn-primary btn-full" id="nb-add-btn" onclick="addToPipeline()">
               Add ${nbState.emails.filter(e => !e.error).length} to Pipeline
             </button>
@@ -1001,7 +1003,7 @@ async function runBatchGenerate() {
     nbState.emails = data.emails;
     showToast(`${data.total} emails generated`);
     renderNewBatchView();
-    if (nbState.autoSave && nbState.gmailConnected) {
+    if (nbState.draftMode === 'auto' && nbState.gmailConnected) {
       await nbSaveDrafts();
     }
   } catch (err) {
@@ -1048,8 +1050,46 @@ function renderNbEmailCard(e, i) {
       <div class="email-card-actions">
         <button class="btn btn-secondary btn-sm" onclick="makeNbEditable(${i})" id="nb-edit-btn-${i}">Edit</button>
         <button class="btn btn-secondary btn-sm" onclick="saveNbEdit(${i})" id="nb-save-edit-btn-${i}" style="display:none">Done</button>
+        ${nbState.draftMode === 'manual' ? `
+        <button class="btn btn-secondary btn-sm nb-draft-btn" onclick="saveOneDraft(${i})" id="nb-draft-btn-${i}"
+          ${!nbState.gmailConnected ? 'disabled title="Connect Gmail first"' : ''}>
+          Save to Gmail
+        </button>` : ''}
       </div>
     </div>`;
+}
+
+function setDraftMode(mode) {
+  nbState.draftMode = mode;
+  renderNewBatchView();
+}
+
+async function saveOneDraft(i) {
+  if (!nbState.gmailConnected) { showToast('Connect Gmail first', 'error'); return; }
+  const e = nbState.emails[i];
+  const el = document.getElementById(`nb-email-text-${i}`);
+  if (el) e.body = el.innerText;
+
+  const btn = document.getElementById(`nb-draft-btn-${i}`);
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
+
+  try {
+    const res = await fetchAPI(`${API.outreachGen}/save-drafts`, {
+      method: 'POST',
+      body: JSON.stringify({ emails: [e] })
+    });
+    if (btn) { btn.disabled = true; btn.textContent = 'Saved ✓'; btn.classList.add('saved'); }
+    nbState.savedCount = (nbState.savedCount || 0) + 1;
+    renderNewBatchView();
+    showToast('Draft saved to Gmail');
+  } catch (err) {
+    if (btn) { btn.disabled = false; btn.textContent = 'Save to Gmail'; }
+    if (err.message.includes('not connected') || err.message.includes('invalid_grant')) {
+      nbState.gmailConnected = false;
+      renderNewBatchView();
+    }
+    showToast(err.message, 'error');
+  }
 }
 
 function makeNbEditable(i) {
