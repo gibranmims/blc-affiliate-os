@@ -905,14 +905,9 @@ function renderNewBatchView() {
 
           ${nbState.emails.length > 0 ? `
           <div style="display:flex;flex-direction:column;gap:8px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
-            ${nbState.draftMode === 'auto' ? `
-            <button class="btn btn-secondary btn-full" id="nb-save-btn"
+            <button class="btn btn-primary btn-full" id="nb-save-btn"
               onclick="nbSaveDrafts()" ${!nbState.gmailConnected ? 'disabled title="Connect Gmail first"' : ''}>
-              Save All ${nbState.emails.filter(e => e.body && !e.error).length} Drafts to Gmail
-            </button>
-            ` : ''}
-            <button class="btn btn-primary btn-full" id="nb-add-btn" onclick="addToPipeline()">
-              Add ${nbState.emails.filter(e => !e.error).length} to Pipeline
+              Save ${nbState.emails.filter(e => e.body && !e.error).length} Drafts + Add to Pipeline
             </button>
           </div>
           ` : ''}
@@ -1085,14 +1080,14 @@ async function saveOneDraft(i) {
   if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
 
   try {
-    const res = await fetchAPI(`${API.outreachGen}/save-drafts`, {
+    await fetchAPI(`${API.outreachGen}/save-drafts`, {
       method: 'POST',
       body: JSON.stringify({ emails: [e] })
     });
+    await addOneToPipeline(e);
     if (btn) { btn.disabled = true; btn.textContent = 'Saved ✓'; btn.classList.add('saved'); }
     nbState.savedCount = (nbState.savedCount || 0) + 1;
-    renderNewBatchView();
-    showToast('Draft saved to Gmail');
+    showToast(`Draft saved & ${e.name || e.handle} added to pipeline`);
   } catch (err) {
     if (btn) { btn.disabled = false; btn.textContent = 'Save to Gmail'; }
     if (err.message.includes('not connected') || err.message.includes('invalid_grant')) {
@@ -1121,51 +1116,6 @@ function saveNbEdit(i) {
   document.getElementById(`nb-save-edit-btn-${i}`).style.display = 'none';
 }
 
-async function addToPipeline() {
-  // Sync any in-progress edits
-  nbState.emails.forEach((e, i) => {
-    const el = document.getElementById(`nb-email-text-${i}`);
-    if (el) e.body = el.innerText;
-  });
-
-  const toAdd = nbState.emails.filter(e => !e.error);
-  if (toAdd.length === 0) { showToast('No valid emails to add', 'error'); return; }
-
-  const btn = document.getElementById('nb-add-btn');
-  if (btn) { btn.disabled = true; btn.textContent = 'Adding...'; }
-
-  let added = 0;
-  for (const e of toAdd) {
-    try {
-      const rec = await fetchAPI(API.outreach, {
-        method: 'POST',
-        body: JSON.stringify({
-          handle:              e.handle,
-          name:                e.name,
-          email:               e.email,
-          product_category:    e.product_category,
-          follower_count:      e.follower_count,
-          last_30d_gmv:        e.last_30d_gmv,
-          avg_engagement:      e.avg_engagement,
-          estimated_post_rate: e.estimated_post_rate,
-          profile_url:         e.profile_url,
-          status:              'drafted',
-          generated_email:     e.body,
-          sender:              e.sender
-        })
-      });
-      state.outreach.unshift(rec);
-      added++;
-    } catch (err) {
-      console.error('Failed to add', e.handle, err.message);
-    }
-  }
-
-  showToast(`${added} creator${added !== 1 ? 's' : ''} added to pipeline`);
-  nbState.emails = [];
-  state.outreachView = 'pipeline';
-  renderPipelineView();
-}
 
 // ============================================================
 // GMAIL (used in new batch view)
@@ -1212,6 +1162,33 @@ async function disconnectGmail() {
   } catch (err) { showToast(err.message, 'error'); }
 }
 
+async function addOneToPipeline(e) {
+  try {
+    const rec = await fetchAPI(API.outreach, {
+      method: 'POST',
+      body: JSON.stringify({
+        handle:              e.handle,
+        name:                e.name,
+        email:               e.email,
+        product_category:    e.product_category,
+        follower_count:      e.follower_count,
+        last_30d_gmv:        e.last_30d_gmv,
+        avg_engagement:      e.avg_engagement,
+        estimated_post_rate: e.estimated_post_rate,
+        profile_url:         e.profile_url,
+        status:              'drafted',
+        generated_email:     e.body,
+        sender:              e.sender
+      })
+    });
+    state.outreach.unshift(rec);
+    return true;
+  } catch (err) {
+    console.error('Failed to add to pipeline:', e.handle, err.message);
+    return false;
+  }
+}
+
 async function nbSaveDrafts() {
   if (!nbState.gmailConnected) { showToast('Connect Gmail first', 'error'); return; }
 
@@ -1224,16 +1201,37 @@ async function nbSaveDrafts() {
   if (toSave.length === 0) { showToast('No valid emails to save', 'error'); return; }
 
   const btn = document.getElementById('nb-save-btn');
-  if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving drafts...'; }
 
   try {
     const res = await fetchAPI(`${API.outreachGen}/save-drafts`, {
       method: 'POST',
-      body: JSON.stringify({ emails: nbState.emails })
+      body: JSON.stringify({ emails: toSave })
     });
+
+    if (btn) { btn.textContent = 'Adding to pipeline...'; }
+    let added = 0;
+    for (const e of toSave) {
+      const ok = await addOneToPipeline(e);
+      if (ok) added++;
+    }
+
     nbState.savedCount = (nbState.savedCount || 0) + res.saved;
-    showToast(`${res.saved} drafts saved to Gmail${res.skipped ? ` (${res.skipped} skipped)` : ''}`);
-    if (btn) { btn.disabled = false; btn.textContent = `Saved ${res.saved} Drafts ✓`; }
+
+    const outputEl = document.getElementById('nb-output');
+    if (outputEl) {
+      outputEl.innerHTML = `
+        <div class="nb-success-banner">
+          <div class="nb-success-icon">✅</div>
+          <div class="nb-success-title">${res.saved} draft${res.saved !== 1 ? 's' : ''} saved &amp; ${added} added to pipeline</div>
+          <div class="nb-success-body">Now go into Gmail and manually send each draft. Once you've sent them, come back here and move each creator from <strong>Drafted</strong> to <strong>Sent</strong> in your pipeline.</div>
+          <div style="display:flex;gap:10px;margin-top:20px">
+            <button class="btn btn-primary" onclick="backToPipeline()">Go to Pipeline</button>
+            <button class="btn btn-secondary" onclick="clearBatch()">Start New Batch</button>
+          </div>
+        </div>`;
+    }
+    nbState.emails = [];
     renderNewBatchView();
   } catch (err) {
     if (err.message.includes('not connected') || err.message.includes('invalid_grant')) {
@@ -1241,7 +1239,7 @@ async function nbSaveDrafts() {
       renderNewBatchView();
     }
     showToast(err.message, 'error');
-    if (btn) { btn.disabled = false; btn.textContent = `Save ${toSave.length} Drafts to Gmail`; }
+    if (btn) { btn.disabled = false; btn.textContent = `Save ${toSave.length} Drafts + Add to Pipeline`; }
   }
 }
 

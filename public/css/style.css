@@ -2041,3 +2041,48 @@ body {
   opacity: 0.35;
   cursor: not-allowed;
 }
+
+/* ============================================================
+   NEW BATCH — SUCCESS BANNER
+   ============================================================ */
+
+.nb-success-banner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 48px 40px;
+  background: var(--bg-secondary);
+  border: 1px solid rgba(74,222,128,0.2);
+  border-radius: var(--radius-lg);
+  gap: 12px;
+  animation: fadeInUp 0.3s ease;
+}
+
+.nb-success-icon {
+  font-size: 40px;
+  margin-bottom: 4px;
+}
+
+.nb-success-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--green);
+}
+
+.nb-success-body {
+  font-size: 13.5px;
+  color: var(--text-secondary);
+  line-height: 1.7;
+  max-width: 420px;
+}
+
+.nb-success-body strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
