@@ -85,6 +85,13 @@ CREATE OR REPLACE TRIGGER update_roster_updated_at
   BEFORE UPDATE ON roster
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+-- App settings (persists OAuth tokens across server restarts)
+CREATE TABLE IF NOT EXISTS app_settings (
+  key   TEXT PRIMARY KEY,
+  value JSONB
+);
+ALTER TABLE app_settings DISABLE ROW LEVEL SECURITY;
+
 -- Disable RLS (internal tool — no user auth layer)
 ALTER TABLE outreach DISABLE ROW LEVEL SECURITY;
 ALTER TABLE roster DISABLE ROW LEVEL SECURITY;
