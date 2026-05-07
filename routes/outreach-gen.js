@@ -7,7 +7,6 @@ const { google } = require('googleapis');
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
-// In-memory token store — persists while server is running
 let gmailTokens = null;
 
 const SENDERS = ['Tamar', 'Lu'];
@@ -54,12 +53,15 @@ function normalizeRow(row) {
     n[k.toLowerCase().trim().replace(/[\s-]+/g, '_')] = (v || '').trim();
   }
   return {
-    handle:           n.handle || n.username || n.tiktok_handle || n.ig_handle || '',
-    name:             n.name || n.full_name || n.creator_name || '',
-    product_category: n.product_category || n.category || n.niche || '',
-    last_30d_gmv:     parseGMV(n.last_30d_gmv || n.gmv || n['30d_gmv'] || n.last_30_days_gmv || '0'),
-    follower_count:   parseFollowers(n.follower_count || n.followers || n.follower || '0'),
-    email:            n.email || n.email_address || n.contact_email || ''
+    handle:              n.handle || n.username || n.tiktok_handle || n.ig_handle || '',
+    name:                n.name || n.full_name || n.creator_name || '',
+    product_category:    n.product_category || n.category || n.niche || '',
+    last_30d_gmv:        parseGMV(n.last_30d_gmv || n.gmv || n['30d_gmv'] || n.last_30_days_gmv || '0'),
+    follower_count:      parseFollowers(n.follower_count || n.followers || n.follower || '0'),
+    avg_engagement:      n.avg_video_engagement_30d || n.avg_engagement || n.engagement || '',
+    estimated_post_rate: n.estimated_post_rate || n.post_rate || '',
+    profile_url:         n.profile || n.profile_url || n.tiktok_url || '',
+    email:               n.email || n.email_address || n.contact_email || ''
   };
 }
 
@@ -131,26 +133,34 @@ router.post('/generate', upload.single('csv'), async (req, res) => {
         const sender = SENDERS[(i + idx) % 2];
         return generateEmail(creator, sender)
           .then(body => ({
-            handle: creator.handle,
-            name: creator.name,
-            email: creator.email,
-            follower_count: creator.follower_count,
-            gmv: creator.last_30d_gmv,
-            subject: 'paid opportunity with The Bikini Line Co',
+            handle:              creator.handle,
+            name:                creator.name,
+            email:               creator.email,
+            follower_count:      creator.follower_count,
+            last_30d_gmv:        creator.last_30d_gmv,
+            product_category:    creator.product_category,
+            avg_engagement:      creator.avg_engagement,
+            estimated_post_rate: creator.estimated_post_rate,
+            profile_url:         creator.profile_url,
+            subject:             'paid opportunity with The Bikini Line Co',
             body,
             sender,
             error: null
           }))
           .catch(err => ({
-            handle: creator.handle,
-            name: creator.name,
-            email: creator.email,
-            follower_count: creator.follower_count,
-            gmv: creator.last_30d_gmv,
-            subject: 'paid opportunity with The Bikini Line Co',
-            body: null,
-            sender: SENDERS[(i + idx) % 2],
-            error: err.message
+            handle:              creator.handle,
+            name:                creator.name,
+            email:               creator.email,
+            follower_count:      creator.follower_count,
+            last_30d_gmv:        creator.last_30d_gmv,
+            product_category:    creator.product_category,
+            avg_engagement:      creator.avg_engagement,
+            estimated_post_rate: creator.estimated_post_rate,
+            profile_url:         creator.profile_url,
+            subject:             'paid opportunity with The Bikini Line Co',
+            body:                null,
+            sender:              SENDERS[(i + idx) % 2],
+            error:               err.message
           }));
       })
     );
@@ -160,10 +170,54 @@ router.post('/generate', upload.single('csv'), async (req, res) => {
   res.json({ emails, total: emails.length });
 });
 
+// POST /api/outreach-gen/counter-offer
+router.post('/counter-offer', async (req, res) => {
+  const { name, handle, askedRate, counterOfferAmount, tier, sender } = req.body;
+  if (!name || !counterOfferAmount) return res.status(400).json({ error: 'name and counterOfferAmount required' });
+  if (!process.env.ANTHROPIC_API_KEY) return res.status(500).json({ error: 'ANTHROPIC_API_KEY not configured' });
+
+  const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  const firstName = getFirstName(name);
+  const senderName = sender || 'Tamar';
+
+  try {
+    const msg = await anthropic.messages.create({
+      model: 'claude-opus-4-7',
+      max_tokens: 300,
+      messages: [{
+        role: 'user',
+        content: `Write a short counter offer email from ${senderName} at The Bikini Line Co to a creator who replied with their rates.
+
+Creator first name: ${firstName}
+Handle: @${handle || ''}
+Their asked rate: $${askedRate || '?'}/video
+Our counter offer: $${counterOfferAmount}/video
+
+Hard rules:
+1. First line must be exactly: Hey ${firstName},
+2. NEVER use em dashes or en dashes. Not once.
+3. Sound like a real 28-year-old woman texting a friend, not a marketer
+4. Total length: 50 to 80 words max
+5. Put one blank line between every 1 to 2 sentences
+6. Acknowledge their reply naturally (short, not over the top)
+7. State our counter offer of $${counterOfferAmount}/video clearly
+8. Keep it warm and open so they feel comfortable responding
+9. Last line is only: ${senderName}
+
+Output only the email body. No subject line. No preamble. Start with Hey ${firstName},`
+      }]
+    });
+
+    res.json({ email: msg.content[0].text.trim() });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET /api/outreach-gen/auth/url
 router.get('/auth/url', (req, res) => {
   if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
-    return res.status(500).json({ error: 'GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET not configured in environment variables' });
+    return res.status(500).json({ error: 'GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET not configured' });
   }
   const oauth2Client = getOAuthClient();
   const url = oauth2Client.generateAuthUrl({

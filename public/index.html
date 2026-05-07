@@ -26,7 +26,7 @@
         <div class="nav-section-label">WORKSPACE</div>
         <a href="#" class="nav-item active" data-page="outreach">
           <span class="nav-icon">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81 19.79 19.79 0 01.01 2.18 2 2 0 012 .01h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L6.09 7.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 14v2.92z"/></svg>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
           </span>
           <span>Outreach</span>
         </a>
@@ -38,13 +38,6 @@
         </a>
 
         <div class="nav-section-label" style="margin-top: 20px;">AI TOOLS</div>
-        <a href="#" class="nav-item" data-page="outreach-gen">
-          <span class="nav-icon">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-          </span>
-          <span>Outreach Generator</span>
-          <span class="nav-badge">AI</span>
-        </a>
         <a href="#" class="nav-item" data-page="scripts">
           <span class="nav-icon">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
@@ -72,7 +65,7 @@
 
   <!-- Modal -->
   <div id="modal-overlay" class="modal-overlay hidden" onclick="handleOverlayClick(event)">
-    <div class="modal">
+    <div class="modal" id="modal-box">
       <div class="modal-header">
         <h2 id="modal-title" class="modal-title"></h2>
         <button class="modal-close" onclick="closeModal()">
@@ -80,6 +73,20 @@
         </button>
       </div>
       <div class="modal-body" id="modal-body"></div>
+    </div>
+  </div>
+
+  <!-- Detail Panel (creator drawer) -->
+  <div id="detail-panel" class="detail-panel" style="display:none">
+    <div class="detail-overlay" onclick="closeDetailPanel()"></div>
+    <div class="detail-drawer">
+      <div class="detail-drawer-header">
+        <span class="detail-drawer-title" id="detail-drawer-title"></span>
+        <button class="detail-close-btn" onclick="closeDetailPanel()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="detail-drawer-body" id="detail-drawer-body"></div>
     </div>
   </div>
 
