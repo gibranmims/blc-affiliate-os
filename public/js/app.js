@@ -140,7 +140,7 @@ function navigate(page) {
   document.querySelectorAll('.nav-item').forEach(el => {
     el.classList.toggle('active', el.dataset.page === page);
   });
-  const renderers = { outreach: renderOutreachPage, roster: renderRosterPage, briefs: renderBriefsPage, scripts: renderScriptsPage };
+  const renderers = { outreach: renderOutreachPage, roster: renderRosterPage, scripts: renderScriptsPage };
   if (renderers[page]) renderers[page]();
 }
 
@@ -564,102 +564,6 @@ async function deleteRoster(id) {
     state.roster = state.roster.filter(r => r.id !== id);
     renderRosterPage(); showToast('Affiliate removed');
   } catch (err) { showToast(err.message, 'error'); }
-}
-
-// ============================================================
-// BRIEF GENERATOR
-// ============================================================
-
-function renderBriefsPage() {
-  document.getElementById('page-content').innerHTML = `
-    <div class="page-header">
-      <div>
-        <h1 class="page-title">Brief Generator</h1>
-        <p class="page-subtitle">Generate personalized content briefs powered by Claude AI</p>
-      </div>
-    </div>
-
-    <div class="generator-layout">
-      <div class="generator-form-panel">
-        <div class="panel">
-          <h3 class="panel-title">Brief Settings</h3>
-
-          <div class="form-group">
-            <label>Select Creator *</label>
-            <select id="brief-creator" onchange="updatePreview('brief')">
-              <option value="">— Choose a creator —</option>
-              ${state.roster.map(c =>
-                `<option value="${c.id}">${platformIcon(c.platform)} @${esc(c.handle)}${c.niche ? ' · ' + esc(c.niche) : ''}</option>`
-              ).join('')}
-            </select>
-          </div>
-
-          <div id="brief-preview" class="creator-preview hidden"></div>
-
-          <div class="form-group">
-            <label>Product Focus</label>
-            <input id="brief-product" placeholder="e.g. Bikini Line Shave Serum">
-          </div>
-
-          <div class="form-group">
-            <label>Campaign Goal</label>
-            <input id="brief-goal" placeholder="e.g. Launch awareness, drive conversions">
-          </div>
-
-          <button class="btn btn-primary btn-full" id="brief-btn" onclick="generateBrief()">
-            ✨ Generate Brief
-          </button>
-
-          ${state.roster.length === 0 ? `<div class="info-box" style="margin-top:16px">Add creators to your Roster first — the generator pulls their profile to personalize the brief.</div>` : ''}
-        </div>
-      </div>
-
-      <div class="generator-output-panel">
-        <div class="panel">
-          <div class="panel-header">
-            <h3 class="panel-title">Generated Brief</h3>
-            <button class="btn btn-secondary btn-sm hidden" id="copy-brief-btn" onclick="copyOutput('brief-output')">📋 Copy</button>
-          </div>
-          <div id="brief-output" class="output-area">
-            <div class="output-placeholder">
-              <div class="output-icon">📋</div>
-              <p>Select a creator and click Generate to create a personalized content brief</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>`;
-}
-
-async function generateBrief() {
-  const creatorId   = document.getElementById('brief-creator').value;
-  const productFocus = document.getElementById('brief-product').value;
-  const campaignGoal = document.getElementById('brief-goal').value;
-
-  if (!creatorId) { showToast('Please select a creator', 'error'); return; }
-
-  const btn    = document.getElementById('brief-btn');
-  const output = document.getElementById('brief-output');
-
-  btn.disabled = true;
-  btn.textContent = '⏳ Generating...';
-  output.innerHTML = `<div class="generating-indicator"><div class="spinner"></div><p>Crafting your personalized brief...</p></div>`;
-
-  try {
-    const res = await fetchAPI(`${API.generate}/brief`, {
-      method: 'POST',
-      body: JSON.stringify({ creatorId, productFocus, campaignGoal })
-    });
-    output.innerHTML = `<div class="output-content">${renderMarkdown(res.brief)}</div>`;
-    document.getElementById('copy-brief-btn').classList.remove('hidden');
-    showToast('Brief generated!');
-  } catch (err) {
-    output.innerHTML = `<div class="output-error">⚠️ ${esc(err.message)}</div>`;
-    showToast(err.message, 'error');
-  } finally {
-    btn.disabled = false;
-    btn.textContent = '✨ Generate Brief';
-  }
 }
 
 // ============================================================
