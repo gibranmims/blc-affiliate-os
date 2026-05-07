@@ -84,29 +84,34 @@ async function generateEmail(creator, sender) {
 
   const msg = await anthropic.messages.create({
     model: 'claude-opus-4-7',
-    max_tokens: 350,
+    max_tokens: 200,
     messages: [{
       role: 'user',
-      content: `Write a short outreach email from ${sender} at The Bikini Line Co to a creator.
+      content: `Write an outreach email from ${sender} at The Bikini Line Co to a creator.
 
-Creator first name: ${firstName}
-Handle: @${creator.handle}
-Category: ${creator.product_category || 'lifestyle/beauty'}
+Follow this structure exactly, keeping every paragraph as a single short sentence or two. Put a blank line between each paragraph:
 
-Hard rules — break any of these and the email is rejected:
-1. First line must be exactly: Hey ${firstName},
-2. NEVER use em dashes (—) or en dashes. Not once.
-3. NEVER use: "I hope", "I wanted to reach out", "I'm excited", "touch base", "circle back", "delighted", "pleasure", "innovative", "leverage", "synergy", "amazing opportunity", "perfect fit", or any phrase that sounds like AI wrote it
-4. Sound like a real 28-year-old woman texting a friend, not a marketer writing a cold email
-5. Total length: 60 to 90 words max
-6. Put one blank line between every 1 to 2 sentences. This spacing is required.
-7. Introduce yourself as ${sender} from The Bikini Line Co (bikini line skincare)
-8. Say you're looking for creators for a paid collab: fixed monthly rate plus commission on sales
-9. Mention a ${bundle}-video bundle
-10. Ask what their rate would look like for that
-11. Last line is only: ${sender}
+Hey ${firstName},
 
-Output only the email body. No subject line. No preamble. Start with Hey ${firstName},`
+We love your content and think you'd do really well selling our product as an affiliate.
+
+We're looking for new creators and want to offer you a fixed monthly rate plus commission deal.
+
+What would your rates look like for 3, 5, and 10 video bundles?
+
+Can't wait to hear from you.
+
+Warmly,
+${sender}
+
+Rules:
+- Output only the email. No subject line. No extra text.
+- Do not change the structure above. Do not add lines. Do not remove lines.
+- Never use em dashes or en dashes.
+- Never describe the brand or product.
+- Never use corny or AI-sounding phrases.
+- The whole email must be under 6 lines of text (not counting blank lines and sign-off).
+- Keep it simple, direct, and human.`
     }]
   });
 
