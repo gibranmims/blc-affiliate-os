@@ -9,7 +9,7 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 
 
 let gmailTokens = null;
 
-const SENDERS = ['Tamar', 'Lu'];
+const SENDERS = ['Lu'];
 
 function getBaseUrl() {
   return process.env.BASE_URL || 'http://localhost:3000';
@@ -273,6 +273,7 @@ router.post('/create-contract', async (req, res) => {
     // 3. Replace all placeholders
     const replacements = {
       '[BLC CONTACT NAME]':  'Gibran Mims',
+      '[BLC CONTACT TITLE]': 'Co-Founder',
       '[BLC CONTACT EMAIL]': 'hello@thebikiniline.co',
       '[CREATOR NAME]':      creatorName,
       '[@TIKTOK HANDLE]':   `@${handle}`,
