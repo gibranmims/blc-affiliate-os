@@ -68,6 +68,40 @@ function showToast(message, type = 'success') {
   }, 3200);
 }
 
+function showDraftSuccessModal(savedCount, addedCount, gmailEmail) {
+  const existing = document.getElementById('draft-success-modal');
+  if (existing) existing.remove();
+
+  const emailLabel = gmailEmail ? `<strong>${esc(gmailEmail)}</strong> drafts folder` : `your Gmail drafts folder`;
+
+  const el = document.createElement('div');
+  el.id = 'draft-success-modal';
+  el.className = 'draft-modal-overlay';
+  el.innerHTML = `
+    <div class="draft-modal">
+      <button class="draft-modal-close" onclick="document.getElementById('draft-success-modal').remove()">✕</button>
+      <div class="draft-modal-icon">✅</div>
+      <div class="draft-modal-title">
+        <span>${savedCount} draft${savedCount !== 1 ? 's' : ''}</span> saved to ${emailLabel}<br>
+        and <span>${addedCount} creator${addedCount !== 1 ? 's' : ''}</span> added to your pipeline.
+      </div>
+      <hr class="draft-modal-divider">
+      <div class="draft-modal-reminder">
+        Don't forget to go into Gmail and <strong>manually send each draft</strong> when you're ready to reach out. Once sent, come back here and move each creator from <strong>Drafted → Sent</strong> in your pipeline.
+      </div>
+      <div class="draft-modal-actions">
+        <button class="btn btn-primary" onclick="document.getElementById('draft-success-modal').remove(); backToPipeline()">Go to Pipeline</button>
+        <button class="btn btn-secondary" onclick="document.getElementById('draft-success-modal').remove(); clearBatch()">New Batch</button>
+      </div>
+    </div>`;
+
+  el.addEventListener('click', (e) => {
+    if (e.target === el) el.remove();
+  });
+
+  document.body.appendChild(el);
+}
+
 function fmt$(val) {
   if (val === null || val === undefined || val === '') return '—';
   const n = parseFloat(val);
@@ -1217,22 +1251,9 @@ async function nbSaveDrafts() {
     }
 
     nbState.savedCount = (nbState.savedCount || 0) + res.saved;
-
-    const outputEl = document.getElementById('nb-output');
-    if (outputEl) {
-      outputEl.innerHTML = `
-        <div class="nb-success-banner">
-          <div class="nb-success-icon">✅</div>
-          <div class="nb-success-title">${res.saved} draft${res.saved !== 1 ? 's' : ''} saved &amp; ${added} added to pipeline</div>
-          <div class="nb-success-body">Now go into Gmail and manually send each draft. Once you've sent them, come back here and move each creator from <strong>Drafted</strong> to <strong>Sent</strong> in your pipeline.</div>
-          <div style="display:flex;gap:10px;margin-top:20px">
-            <button class="btn btn-primary" onclick="backToPipeline()">Go to Pipeline</button>
-            <button class="btn btn-secondary" onclick="clearBatch()">Start New Batch</button>
-          </div>
-        </div>`;
-    }
     nbState.emails = [];
     renderNewBatchView();
+    showDraftSuccessModal(res.saved, added, nbState.connectedEmail);
   } catch (err) {
     if (err.message.includes('not connected') || err.message.includes('invalid_grant')) {
       nbState.gmailConnected = false;

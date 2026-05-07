@@ -426,7 +426,17 @@ router.get('/auth/callback', async (req, res) => {
 });
 
 // GET /api/outreach-gen/auth/status
-router.get('/auth/status', (req, res) => {
+router.get('/auth/status', async (req, res) => {
+  if (gmailTokens && !gmailEmail) {
+    try {
+      const oauth2Client = getOAuthClient();
+      oauth2Client.setCredentials(gmailTokens);
+      const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
+      const profile = await gmail.users.getProfile({ userId: 'me' });
+      gmailEmail = profile.data.emailAddress;
+      await persistTokens(gmailTokens, gmailEmail);
+    } catch (_) {}
+  }
   res.json({ connected: !!gmailTokens, email: gmailEmail });
 });
 
