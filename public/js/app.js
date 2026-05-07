@@ -875,7 +875,7 @@ function renderNewBatchView() {
               <div class="status-dot"></div>
               <span class="gmail-status-text">Gmail not connected</span>
             </div>
-            <button class="btn btn-secondary btn-full" onclick="connectGmail()" id="nb-connect-btn" style="margin-bottom:10px">Connect Gmail</button>
+            <button class="btn btn-secondary btn-full btn-connect-gmail" onclick="connectGmail()" id="nb-connect-btn" style="margin-bottom:10px">Connect Gmail</button>
           ` : `
             <div class="gmail-status connected" style="margin-bottom:10px">
               <div class="status-dot"></div>
