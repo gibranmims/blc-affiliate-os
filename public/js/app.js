@@ -839,12 +839,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (e.key === 'Escape') closeModal();
   });
 
-  try {
-    await Promise.all([loadOutreach(), loadRoster()]);
-  } catch (err) {
-    showToast('Could not load data — check your Supabase config', 'error');
-    console.error(err);
-  }
+  await loadOutreach().catch(err => console.error('Outreach load failed:', err));
+  await loadRoster().catch(err => console.error('Roster load failed:', err));
 
   navigate('outreach');
 });
