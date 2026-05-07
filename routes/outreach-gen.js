@@ -17,31 +17,36 @@ let gmailTokens = null;
 let gmailEmail   = null;
 
 async function persistTokens(tokens, email) {
-  try {
-    await supabase.from('app_settings').upsert([
-      { key: 'gmail_tokens', value: tokens },
-      { key: 'gmail_email',  value: email ? { email } : null }
-    ], { onConflict: 'key' });
-  } catch (err) {
-    console.error('Failed to persist Gmail tokens:', err.message);
-  }
+  const rows = [{ key: 'gmail_tokens', value: tokens }];
+  if (email) rows.push({ key: 'gmail_email', value: { email } });
+
+  const { error } = await supabase
+    .from('app_settings')
+    .upsert(rows, { onConflict: 'key' });
+
+  if (error) console.error('[persistTokens] Supabase error:', error.message, error.code);
+  else console.log('[persistTokens] Tokens saved to Supabase');
 }
 
 async function loadPersistedTokens() {
-  try {
-    const { data } = await supabase
-      .from('app_settings')
-      .select('key, value')
-      .in('key', ['gmail_tokens', 'gmail_email']);
-    if (!data) return;
-    for (const row of data) {
-      if (row.key === 'gmail_tokens' && row.value) gmailTokens = row.value;
-      if (row.key === 'gmail_email'  && row.value) gmailEmail  = row.value.email || null;
-    }
-    if (gmailTokens) console.log('Gmail tokens restored from Supabase');
-  } catch (err) {
-    console.error('Failed to load Gmail tokens:', err.message);
+  const { data, error } = await supabase
+    .from('app_settings')
+    .select('key, value')
+    .in('key', ['gmail_tokens', 'gmail_email']);
+
+  if (error) {
+    console.error('[loadPersistedTokens] Supabase error:', error.message, error.code);
+    return;
   }
+  if (!data || data.length === 0) {
+    console.log('[loadPersistedTokens] No saved tokens found');
+    return;
+  }
+  for (const row of data) {
+    if (row.key === 'gmail_tokens' && row.value) gmailTokens = row.value;
+    if (row.key === 'gmail_email'  && row.value) gmailEmail  = row.value.email || null;
+  }
+  if (gmailTokens) console.log('[loadPersistedTokens] Tokens restored, email:', gmailEmail);
 }
 
 loadPersistedTokens();
