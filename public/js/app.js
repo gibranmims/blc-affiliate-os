@@ -959,15 +959,7 @@ function handleNbFileSelect(e) {
 function applyNbFile(file) {
   if (!file.name.endsWith('.csv')) { showToast('Please upload a .csv file', 'error'); return; }
   nbState.selectedFile = file;
-
-  const dz = document.getElementById('nb-dropzone');
-  dz.classList.add('file-selected');
-  document.getElementById('nb-dz-icon').textContent = '✅';
-  document.getElementById('nb-dz-label').textContent = file.name;
-  document.getElementById('nb-dz-sub').textContent = `${(file.size / 1024).toFixed(1)} KB`;
-
-  const btn = document.getElementById('nb-generate-btn');
-  if (btn) { btn.disabled = false; btn.textContent = 'Generate Emails'; }
+  renderNewBatchView();
 }
 
 async function runBatchGenerate() {
