@@ -30,10 +30,11 @@ const state = {
 };
 
 const nbState = {
-  emails:       [],
-  selectedFile: null,
+  emails:         [],
+  selectedFile:   null,
   gmailConnected: false,
-  polling:      null
+  autoSave:       false,
+  polling:        null
 };
 
 // ============================================================
@@ -862,6 +863,12 @@ function renderNewBatchView() {
             </div>
           `}
 
+          <label class="autosave-toggle">
+            <input type="checkbox" id="nb-autosave-cb" ${nbState.autoSave ? 'checked' : ''}
+              onchange="nbState.autoSave = this.checked">
+            Auto-save drafts after generating
+          </label>
+
           ${nbState.emails.length > 0 ? `
             <button class="btn btn-secondary btn-full" id="nb-save-btn"
               onclick="nbSaveDrafts()" ${!nbState.gmailConnected ? 'disabled title="Connect Gmail first"' : ''}>
@@ -974,6 +981,9 @@ async function runBatchGenerate() {
     nbState.emails = data.emails;
     showToast(`${data.total} emails generated`);
     renderNewBatchView();
+    if (nbState.autoSave && nbState.gmailConnected) {
+      await nbSaveDrafts();
+    }
   } catch (err) {
     clearInterval(ticker);
     outputEl.innerHTML = `<div class="panel"><div class="output-error">⚠️ ${esc(err.message)}</div></div>`;

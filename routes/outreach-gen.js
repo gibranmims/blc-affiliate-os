@@ -36,9 +36,20 @@ function parseGMV(val) {
   return parseFloat(String(val).replace(/[$,\s]/g, '')) || 0;
 }
 
-function getFirstName(fullName) {
-  const first = (fullName || '').trim().split(/\s+/)[0];
-  return first || 'there';
+function cleanFirstName(raw) {
+  if (!raw) return 'there';
+  // Strip emojis and non-printable unicode
+  let name = raw.replace(/[\u{1F000}-\u{1FAFF}]|[\u{2600}-\u{27FF}]|[\u{FE00}-\u{FEFF}]|️/gu, '').trim();
+  // Get first word (split on spaces, underscores, common separators)
+  const firstWord = name.split(/[\s_,;.@]+/)[0];
+  if (!firstWord) return 'there';
+  // Handle possessives: "Kim's" → "Kim"
+  const namePart = firstWord.split("'")[0];
+  // Remove any remaining non-letter characters
+  const letters = namePart.replace(/[^a-zA-ZÀ-ÿ-]/g, '');
+  if (!letters) return 'there';
+  // Proper case: first letter uppercase, rest lowercase
+  return letters.charAt(0).toUpperCase() + letters.slice(1).toLowerCase();
 }
 
 function getBundleSize(followers) {
@@ -67,7 +78,7 @@ function normalizeRow(row) {
 
 async function generateEmail(creator, sender) {
   const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-  const firstName = getFirstName(creator.name);
+  const firstName = cleanFirstName(creator.name);
   const bundle = getBundleSize(creator.follower_count);
 
   const msg = await anthropic.messages.create({
@@ -130,7 +141,7 @@ router.post('/generate', upload.single('csv'), async (req, res) => {
     const batch = creators.slice(i, i + BATCH);
     const results = await Promise.all(
       batch.map((creator, idx) => {
-        const sender = SENDERS[(i + idx) % 2];
+        const sender = SENDERS[(i + idx) % SENDERS.length];
         return generateEmail(creator, sender)
           .then(body => ({
             handle:              creator.handle,
@@ -159,7 +170,7 @@ router.post('/generate', upload.single('csv'), async (req, res) => {
             profile_url:         creator.profile_url,
             subject:             'paid opportunity with The Bikini Line Co',
             body:                null,
-            sender:              SENDERS[(i + idx) % 2],
+            sender:              SENDERS[(i + idx) % SENDERS.length],
             error:               err.message
           }));
       })
@@ -177,7 +188,7 @@ router.post('/counter-offer', async (req, res) => {
   if (!process.env.ANTHROPIC_API_KEY) return res.status(500).json({ error: 'ANTHROPIC_API_KEY not configured' });
 
   const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-  const firstName = getFirstName(name);
+  const firstName = cleanFirstName(name);
   const senderName = sender || 'Tamar';
 
   try {
