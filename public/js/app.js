@@ -183,13 +183,24 @@ function copyText(text) {
 }
 
 const EVAL_QUESTIONS = [
-  { key: 'product_fit',        label: 'Product Fit',        q: 'Does she match the demographic or creator type that could sell BLC?' },
-  { key: 'on_camera_energy',   label: 'On Camera Energy',   q: 'Authentic, good delivery, fast pace, believable?' },
-  { key: 'production_quality', label: 'Production Quality', q: 'Good lighting, audio, native captions, understands viral video basics?' },
-  { key: 'viral_track_record', label: 'Viral Track Record', q: 'How many videos over 1M views?',
-    opts: ['none','1to3','4plus'], optLabels: ['None','1–3','4+'] },
-  { key: 'viral_potential',    label: 'Viral Potential',    q: 'Can you imagine her going viral specifically for BLC?' },
-  { key: 'sales_structure',    label: 'Sales Structure',    q: 'Does she know how to structure videos to drive sales?' },
+  { key: 'product_fit',        label: 'Product Fit',
+    q: 'Does she match the demographic or creator type that could sell BLC?',
+    optLabels: ['Absolutely', 'Kinda', 'No'] },
+  { key: 'on_camera_energy',   label: 'On Camera Energy',
+    q: 'Authentic, good delivery, fast pace, believable?',
+    optLabels: ['Absolutely', "It's OK", 'No'] },
+  { key: 'production_quality', label: 'Production Quality',
+    q: 'Good lighting, audio, native captions, understands viral video basics?',
+    optLabels: ['Yes', 'Mid', 'No'] },
+  { key: 'viral_track_record', label: 'Viral Track Record',
+    q: 'How many videos over 1M views?',
+    opts: ['none','1to3','4plus'], optLabels: ['None', '1–3', '4+'] },
+  { key: 'viral_potential',    label: 'Viral Potential',
+    q: 'Can you imagine her going viral specifically for BLC?',
+    optLabels: ['Yes', 'Maybe', 'No'] },
+  { key: 'sales_structure',    label: 'Sales Structure',
+    q: 'Does she know how to structure videos to drive sales?',
+    optLabels: ['Yes', 'Kinda', 'No'] },
 ];
 
 // Each score 0–12 maps to a grade and a suggested per-video counter rate
