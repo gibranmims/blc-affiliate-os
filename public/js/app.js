@@ -592,22 +592,40 @@ function renderDetailPanel() {
       <div class="dp-section-label">Their Asked Rates</div>
       <div class="dp-rates-grid">
         <div class="dp-form-group">
-          <label>3 videos ($/vid)</label>
-          <input type="number" class="dp-input" placeholder="e.g. 400"
+          <label>3-video bundle ($)</label>
+          <input type="number" class="dp-input" placeholder="e.g. 1200"
             value="${r.asked_rate_3 || ''}"
             onblur="updateOutreachField('${r.id}', 'asked_rate_3', this.value)">
+          ${r.asked_rate_3 ? `<div class="dp-rate-per-vid">${fmt$(r.asked_rate_3/3)}/vid avg</div>` : ''}
         </div>
         <div class="dp-form-group">
-          <label>5 videos ($/vid)</label>
-          <input type="number" class="dp-input" placeholder="e.g. 350"
+          <label>5-video bundle ($)</label>
+          <input type="number" class="dp-input" placeholder="e.g. 1750"
             value="${r.asked_rate_5 || ''}"
             onblur="updateOutreachField('${r.id}', 'asked_rate_5', this.value)">
+          ${r.asked_rate_5 ? `<div class="dp-rate-per-vid">${fmt$(r.asked_rate_5/5)}/vid avg</div>` : ''}
         </div>
         <div class="dp-form-group">
-          <label>10 videos ($/vid)</label>
-          <input type="number" class="dp-input" placeholder="e.g. 300"
+          <label>10-video bundle ($)</label>
+          <input type="number" class="dp-input" placeholder="e.g. 2500"
             value="${r.asked_rate_10 || ''}"
             onblur="updateOutreachField('${r.id}', 'asked_rate_10', this.value)">
+          ${r.asked_rate_10 ? `<div class="dp-rate-per-vid">${fmt$(r.asked_rate_10/10)}/vid avg</div>` : ''}
+        </div>
+      </div>
+      <div class="dp-rates-custom">
+        <div class="dp-form-group" style="flex:0 0 90px">
+          <label># videos</label>
+          <input type="number" class="dp-input" placeholder="e.g. 6"
+            value="${r.asked_rate_custom_count || ''}"
+            onblur="updateOutreachField('${r.id}', 'asked_rate_custom_count', this.value)">
+        </div>
+        <div class="dp-form-group" style="flex:1">
+          <label>Custom bundle ($) <span class="dp-label-hint">optional</span></label>
+          <input type="number" class="dp-input" placeholder="e.g. 2100"
+            value="${r.asked_rate_custom || ''}"
+            onblur="updateOutreachField('${r.id}', 'asked_rate_custom', this.value)">
+          ${r.asked_rate_custom && r.asked_rate_custom_count ? `<div class="dp-rate-per-vid">${fmt$(r.asked_rate_custom/r.asked_rate_custom_count)}/vid avg</div>` : ''}
         </div>
       </div>
     </div>
@@ -661,18 +679,10 @@ function renderDetailPanel() {
       </div>
 
       <div class="dp-counter-rates">
-        <div class="dp-form-group">
-          <label>3 vids (their ask)</label>
-          <div class="dp-rate-display">${r.asked_rate_3 ? fmt$(r.asked_rate_3) : '—'}</div>
-        </div>
-        <div class="dp-form-group">
-          <label>5 vids (their ask)</label>
-          <div class="dp-rate-display">${r.asked_rate_5 ? fmt$(r.asked_rate_5) : '—'}</div>
-        </div>
-        <div class="dp-form-group">
-          <label>10 vids (their ask)</label>
-          <div class="dp-rate-display">${r.asked_rate_10 ? fmt$(r.asked_rate_10) : '—'}</div>
-        </div>
+        ${r.asked_rate_3 ? `<div class="dp-form-group"><label>3-vid bundle</label><div class="dp-rate-display">${fmt$(r.asked_rate_3)}</div><div class="dp-rate-per-vid">${fmt$(r.asked_rate_3/3)}/vid</div></div>` : ''}
+        ${r.asked_rate_5 ? `<div class="dp-form-group"><label>5-vid bundle</label><div class="dp-rate-display">${fmt$(r.asked_rate_5)}</div><div class="dp-rate-per-vid">${fmt$(r.asked_rate_5/5)}/vid</div></div>` : ''}
+        ${r.asked_rate_10 ? `<div class="dp-form-group"><label>10-vid bundle</label><div class="dp-rate-display">${fmt$(r.asked_rate_10)}</div><div class="dp-rate-per-vid">${fmt$(r.asked_rate_10/10)}/vid</div></div>` : ''}
+        ${r.asked_rate_custom && r.asked_rate_custom_count ? `<div class="dp-form-group"><label>${r.asked_rate_custom_count}-vid bundle</label><div class="dp-rate-display">${fmt$(r.asked_rate_custom)}</div><div class="dp-rate-per-vid">${fmt$(r.asked_rate_custom/r.asked_rate_custom_count)}/vid</div></div>` : ''}
       </div>
 
       <div class="dp-form-group">
@@ -800,9 +810,11 @@ async function generateCounterOffer(id) {
       body: JSON.stringify({
         name:               r.name,
         handle:             r.handle,
-        askedRate3:         r.asked_rate_3,
-        askedRate5:         r.asked_rate_5,
-        askedRate10:        r.asked_rate_10,
+        askedRate3:              r.asked_rate_3,
+        askedRate5:              r.asked_rate_5,
+        askedRate10:             r.asked_rate_10,
+        askedRateCustom:         r.asked_rate_custom,
+        askedRateCustomCount:    r.asked_rate_custom_count,
         counterOfferAmount: amount,
         tier:               r.tier,
         sender:             r.sender || 'Tamar'

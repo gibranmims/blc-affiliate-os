@@ -10,7 +10,8 @@ const supabase = createClient(
 const FIELDS = [
   'handle', 'name', 'email', 'product_category', 'follower_count',
   'last_30d_gmv', 'avg_engagement', 'estimated_post_rate', 'profile_url',
-  'status', 'generated_email', 'sender', 'asked_rate_3', 'asked_rate_5', 'asked_rate_10',
+  'status', 'generated_email', 'sender',
+  'asked_rate_3', 'asked_rate_5', 'asked_rate_10', 'asked_rate_custom', 'asked_rate_custom_count',
   'product_fit', 'on_camera_energy', 'production_quality', 'viral_track_record', 'viral_potential', 'sales_structure',
   'on_camera', 'feels_natural', 'tier', 'evaluation_notes',
   'counter_offer_amount', 'counter_offer_email',
@@ -24,7 +25,8 @@ function buildRecord(body) {
     if (f === 'handle') rec.handle = String(body.handle).replace(/^@/, '').trim();
     else if (f === 'follower_count') rec.follower_count = body[f] ? parseInt(body[f]) : null;
     else if (f === 'video_count') rec.video_count = body[f] ? parseInt(body[f]) : null;
-    else if (['last_30d_gmv', 'asked_rate_3', 'asked_rate_5', 'asked_rate_10', 'counter_offer_amount'].includes(f))
+    else if (f === 'asked_rate_custom_count') rec[f] = body[f] ? parseInt(body[f]) : null;
+    else if (['last_30d_gmv', 'asked_rate_3', 'asked_rate_5', 'asked_rate_10', 'asked_rate_custom', 'counter_offer_amount'].includes(f))
       rec[f] = body[f] !== '' && body[f] !== null ? parseFloat(body[f]) : null;
     else rec[f] = body[f] !== '' ? body[f] : null;
   }
