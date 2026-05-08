@@ -190,8 +190,10 @@ body {
 
 .sidebar-footer-text {
   font-size: 11px;
-  color: var(--text-muted);
-  font-weight: 500;
+  font-family: 'Poppins', sans-serif;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--accent);
 }
 
 /* ============================================================
