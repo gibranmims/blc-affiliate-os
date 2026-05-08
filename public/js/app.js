@@ -27,7 +27,7 @@ const state = {
   outreachView:       'pipeline',  // 'pipeline' | 'new-batch'
   selectedOutreachId: null,
   selectedIds:        new Set(),
-  outreachSort:       { col: 'gmv', dir: 'desc' },
+  outreachSort:       { col: 'followers', dir: 'desc' },
   dpAccordion:        { rates: false, eval: true, counter: true }
 };
 
@@ -137,6 +137,17 @@ function fmtGMV(val) {
 function fmtDate(d) {
   if (!d) return '—';
   return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function avgRatePerVid(r) {
+  const rates = [];
+  if (r.asked_rate_3  && r.asked_rate_3  > 0) rates.push(r.asked_rate_3  / 3);
+  if (r.asked_rate_5  && r.asked_rate_5  > 0) rates.push(r.asked_rate_5  / 5);
+  if (r.asked_rate_10 && r.asked_rate_10 > 0) rates.push(r.asked_rate_10 / 10);
+  if (r.asked_rate_custom && r.asked_rate_custom_count && r.asked_rate_custom > 0)
+    rates.push(r.asked_rate_custom / r.asked_rate_custom_count);
+  if (rates.length === 0) return null;
+  return rates.reduce((a, b) => a + b, 0) / rates.length;
 }
 
 function esc(str) {
@@ -346,12 +357,10 @@ function renderPipelineView() {
   ).slice().sort((a, b) => {
     const { col, dir } = state.outreachSort;
     let av, bv;
-    if (col === 'gmv')       { av = a.last_30d_gmv || 0;    bv = b.last_30d_gmv || 0; }
-    else if (col === 'followers') { av = a.follower_count || 0; bv = b.follower_count || 0; }
+    if (col === 'followers') { av = a.follower_count || 0; bv = b.follower_count || 0; }
+    else if (col === 'avgrate') { av = avgRatePerVid(a) || 0; bv = avgRatePerVid(b) || 0; }
     else if (col === 'name') { av = (a.name || a.handle || '').toLowerCase(); bv = (b.name || b.handle || '').toLowerCase(); }
-    else if (col === 'category') { av = (a.product_category || '').toLowerCase(); bv = (b.product_category || '').toLowerCase(); }
     else if (col === 'status') { av = a.status || ''; bv = b.status || ''; }
-    else if (col === 'added') { av = a.created_at || ''; bv = b.created_at || ''; }
     else { av = 0; bv = 0; }
     if (av < bv) return dir === 'asc' ? -1 : 1;
     if (av > bv) return dir === 'asc' ? 1 : -1;
@@ -445,12 +454,10 @@ function renderPipelineView() {
                   onchange="toggleSelectAll(this.checked)">
               </th>
               ${sortTh('name', 'Creator')}
-              ${sortTh('category', 'Category')}
-              ${sortTh('gmv', 'GMV (30d)')}
               ${sortTh('followers', 'Followers')}
+              ${sortTh('avgrate', 'Avg Rate/Vid')}
               <th>Grade</th>
               ${sortTh('status', 'Status')}
-              ${sortTh('added', 'Added')}
             </tr>
           </thead>
           <tbody>
@@ -469,9 +476,8 @@ function renderPipelineView() {
                     <div class="creator-handle-small">@${esc(r.handle)}</div>
                   </div>
                 </td>
-                <td class="category-cell">${esc((r.product_category || '').split(',')[0].trim()) || '—'}</td>
-                <td>${fmtGMV(r.last_30d_gmv)}</td>
                 <td>${fmtNum(r.follower_count)}</td>
+                <td class="avg-rate-cell">${avgRatePerVid(r) !== null ? fmt$(avgRatePerVid(r)) : '—'}</td>
                 <td>${gradeBadge(r.tier)}</td>
                 <td onclick="event.stopPropagation()">
                   <select class="inline-status-select status-key-${r.status}"
@@ -481,7 +487,6 @@ function renderPipelineView() {
                     ).join('')}
                   </select>
                 </td>
-                <td>${fmtDate(r.created_at)}</td>
               </tr>
             `).join('')}
           </tbody>
