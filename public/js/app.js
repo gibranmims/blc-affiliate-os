@@ -27,7 +27,8 @@ const state = {
   outreachView:       'pipeline',  // 'pipeline' | 'new-batch'
   selectedOutreachId: null,
   selectedIds:        new Set(),
-  outreachSort:       { col: 'gmv', dir: 'desc' }
+  outreachSort:       { col: 'gmv', dir: 'desc' },
+  dpAccordion:        { rates: false, eval: true, counter: true }
 };
 
 const nbState = {
@@ -122,8 +123,7 @@ function fmtNum(val) {
   const n = parseInt(val);
   if (isNaN(n)) return '—';
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M';
-  if (n >= 1_000) return (n / 1_000).toFixed(1) + 'K';
-  return n.toLocaleString();
+  return n.toLocaleString('en-US');
 }
 
 function fmtGMV(val) {
@@ -131,8 +131,7 @@ function fmtGMV(val) {
   const n = Number(val);
   if (isNaN(n) || n === 0) return '—';
   if (n >= 1_000_000) return '$' + (n / 1_000_000).toFixed(1) + 'M';
-  if (n >= 1_000) return '$' + (n / 1_000).toFixed(1) + 'K';
-  return '$' + n.toFixed(0);
+  return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 }
 
 function fmtDate(d) {
@@ -567,6 +566,19 @@ function openDetailPanel(id) {
   });
 }
 
+function toggleAccordion(key) {
+  state.dpAccordion[key] = !state.dpAccordion[key];
+  const body   = document.getElementById(`dp-acc-${key}`);
+  const header = body?.previousElementSibling;
+  if (!body) return;
+  body.classList.toggle('dp-acc-collapsed', !state.dpAccordion[key]);
+  if (header) {
+    header.classList.toggle('open', state.dpAccordion[key]);
+    const arrow = header.querySelector('.dp-acc-arrow');
+    if (arrow) arrow.textContent = state.dpAccordion[key] ? '▾' : '▸';
+  }
+}
+
 function closeDetailPanel() {
   state.selectedOutreachId = null;
   document.getElementById('detail-panel').style.display = 'none';
@@ -586,9 +598,15 @@ function renderDetailPanel() {
 
   document.getElementById('detail-drawer-body').innerHTML = `
 
-    <!-- Creator header -->
+    <!-- Creator header + inline status -->
     <div class="dp-creator-header">
-      <div class="dp-name">${esc(r.name || r.handle)}</div>
+      <div class="dp-header-top">
+        <div class="dp-name">${esc(r.name || r.handle)}</div>
+        <select class="inline-status-select status-key-${r.status} dp-status-inline"
+          onchange="updateOutreachField('${r.id}', 'status', this.value); this.className='inline-status-select status-key-'+this.value+' dp-status-inline'">
+          ${STATUSES.map(s => `<option value="${s.key}" ${r.status === s.key ? 'selected':''}>${s.label}</option>`).join('')}
+        </select>
+      </div>
       <div class="dp-handle-row">
         ${r.profile_url
           ? `<a class="dp-profile-link" href="${esc(r.profile_url)}" target="_blank">@${esc(r.handle)} ↗</a>`
@@ -598,28 +616,21 @@ function renderDetailPanel() {
       <div class="dp-chips">
         ${r.follower_count ? `<span class="dp-chip">${fmtNum(r.follower_count)} followers</span>` : ''}
         ${r.last_30d_gmv   ? `<span class="dp-chip">${fmtGMV(r.last_30d_gmv)} GMV</span>` : ''}
-        ${r.avg_engagement ? `<span class="dp-chip">${esc(r.avg_engagement)} eng</span>` : ''}
         ${r.email ? `<span class="dp-chip dp-chip-email">${esc(r.email)}</span>` : ''}
       </div>
       ${r.product_category ? `<div class="dp-category">${esc(r.product_category)}</div>` : ''}
     </div>
 
-    <!-- Status -->
-    <div class="dp-section">
-      <div class="dp-section-label">Status</div>
-      <div class="dp-status-row">
-        ${statusBadge(r.status)}
-        <select class="dp-status-select" onchange="updateOutreachField('${r.id}', 'status', this.value)">
-          ${STATUSES.map(s => `<option value="${s.key}" ${r.status === s.key ? 'selected':''}>${s.label}</option>`).join('')}
-        </select>
-      </div>
-    </div>
-
 
     <!-- Evaluation (shown from "replied" onward) -->
     ${hasReplied ? `
-    <div class="dp-section">
-      <div class="dp-section-label">Their Asked Rates</div>
+    <div class="dp-accordion">
+      <button class="dp-acc-header ${state.dpAccordion.rates ? 'open' : ''}" onclick="toggleAccordion('rates')">
+        <span>Their Asked Rates</span>
+        <span class="dp-acc-arrow">${state.dpAccordion.rates ? '▾' : '▸'}</span>
+      </button>
+      <div class="dp-acc-body${state.dpAccordion.rates ? '' : ' dp-acc-collapsed'}" id="dp-acc-rates">
+      <div class="dp-section" style="border:none;padding-top:0">
       <div class="dp-rates-grid">
         <div class="dp-form-group">
           <label>3-video bundle ($)</label>
@@ -660,7 +671,15 @@ function renderDetailPanel() {
       </div>
     </div>
 
-    <div class="dp-section">
+      </div></div></div>
+
+    <div class="dp-accordion">
+      <button class="dp-acc-header ${state.dpAccordion.eval ? 'open' : ''}" onclick="toggleAccordion('eval')">
+        <span>Creator Evaluation${allEvalDone ? ` — ${gradeBadge(autoTier)}` : ''}</span>
+        <span class="dp-acc-arrow">${state.dpAccordion.eval ? '▾' : '▸'}</span>
+      </button>
+      <div class="dp-acc-body${state.dpAccordion.eval ? '' : ' dp-acc-collapsed'}" id="dp-acc-eval">
+      <div class="dp-section" style="border:none;padding-top:0">
       <div class="dp-section-label-row">
         <div class="dp-section-label">Creator Evaluation</div>
         ${(EVAL_QUESTIONS.some(q => r[q.key])) ? `
@@ -705,10 +724,18 @@ function renderDetailPanel() {
       </div>
     </div>
 
+      </div></div></div>
+
     <!-- Counter offer -->
     ${(r.tier || autoTier) ? `
-    <div class="dp-section dp-section-counter">
-      <div class="dp-section-label dp-section-label-lg">Counter Offer</div>
+    <div class="dp-accordion">
+      <button class="dp-acc-header ${state.dpAccordion.counter ? 'open' : ''}" onclick="toggleAccordion('counter')">
+        <span>Counter Offer${r.tier ? ` — ${gradeBadge(r.tier)}` : ''}</span>
+        <span class="dp-acc-arrow">${state.dpAccordion.counter ? '▾' : '▸'}</span>
+      </button>
+      <div class="dp-acc-body${state.dpAccordion.counter ? '' : ' dp-acc-collapsed'}" id="dp-acc-counter">
+      <div class="dp-section dp-section-counter" style="border:none;padding-top:0">
+      <div class="dp-section-label dp-section-label-lg" style="display:none"></div>
 
       ${(() => {
         const g = gradeInfo(r.tier || autoTier);
@@ -752,6 +779,7 @@ function renderDetailPanel() {
       </div>
       ` : ''}
     </div>
+    </div></div></div>
     ` : ''}
     ` : ''}
 
