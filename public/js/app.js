@@ -675,7 +675,7 @@ function renderDetailPanel() {
 
     <div class="dp-accordion">
       <button class="dp-acc-header ${state.dpAccordion.eval ? 'open' : ''}" onclick="toggleAccordion('eval')">
-        <span>Creator Evaluation${allEvalDone ? ` — ${gradeBadge(autoTier)}` : ''}</span>
+        <span>Creator Evaluation</span>
         <span class="dp-acc-arrow">${state.dpAccordion.eval ? '▾' : '▸'}</span>
       </button>
       <div class="dp-acc-body${state.dpAccordion.eval ? '' : ' dp-acc-collapsed'}" id="dp-acc-eval">
@@ -724,13 +724,13 @@ function renderDetailPanel() {
       </div>
     </div>
 
-      </div></div></div>
+      </div></div>
 
     <!-- Counter offer -->
     ${(r.tier || autoTier) ? `
     <div class="dp-accordion">
       <button class="dp-acc-header ${state.dpAccordion.counter ? 'open' : ''}" onclick="toggleAccordion('counter')">
-        <span>Counter Offer${r.tier ? ` — ${gradeBadge(r.tier)}` : ''}</span>
+        <span>Counter Offer</span>
         <span class="dp-acc-arrow">${state.dpAccordion.counter ? '▾' : '▸'}</span>
       </button>
       <div class="dp-acc-body${state.dpAccordion.counter ? '' : ' dp-acc-collapsed'}" id="dp-acc-counter">
@@ -779,7 +779,7 @@ function renderDetailPanel() {
       </div>
       ` : ''}
     </div>
-    </div></div></div>
+    </div></div>
     ` : ''}
     ` : ''}
 

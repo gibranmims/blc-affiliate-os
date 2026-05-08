@@ -482,6 +482,8 @@ body {
 .inline-status-select.status-key-evaluating     { background-color: var(--purple-dim);  color: var(--purple); }
 .inline-status-select.status-key-counter_offered{ background-color: var(--orange-dim);  color: var(--orange); }
 .inline-status-select.status-key-signed         { background-color: var(--green-dim);   color: var(--green); }
+.inline-status-select.status-key-archived       { background-color: var(--bg-elevated); color: var(--text-muted); }
+.inline-status-select.status-key-ghosted        { background-color: var(--bg-elevated); color: var(--text-muted); }
 
 /* ============================================================
    BUTTONS
@@ -1654,6 +1656,53 @@ body {
   gap: 14px;
   margin-bottom: 16px;
 }
+
+/* Header inline status */
+.dp-header-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+.dp-status-inline {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+/* Accordion */
+.dp-accordion {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.dp-acc-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 11px 14px;
+  background: var(--bg-tertiary);
+  border: none;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+  font-family: var(--font);
+  text-align: left;
+  gap: 8px;
+}
+.dp-acc-header:hover, .dp-acc-header.open { background: var(--bg-elevated); color: var(--text-primary); }
+
+.dp-acc-arrow { font-size: 11px; flex-shrink: 0; }
+
+.dp-acc-body { overflow: hidden; }
+.dp-acc-body.dp-acc-collapsed { display: none; }
 
 .dp-section-label-row {
   display: flex;
