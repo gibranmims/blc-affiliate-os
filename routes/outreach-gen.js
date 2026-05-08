@@ -15,38 +15,37 @@ const supabase = createClient(
 
 let gmailTokens = null;
 let gmailEmail   = null;
+let driveTokens  = null;
+let driveEmail   = null;
 
-async function persistTokens(tokens, email) {
-  const rows = [{ key: 'gmail_tokens', value: tokens }];
-  if (email) rows.push({ key: 'gmail_email', value: { email } });
-
-  const { error } = await supabase
-    .from('app_settings')
-    .upsert(rows, { onConflict: 'key' });
-
-  if (error) console.error('[persistTokens] Supabase error:', error.message, error.code);
-  else console.log('[persistTokens] Tokens saved to Supabase');
+async function persistSettings(updates) {
+  const rows = Object.entries(updates).map(([key, value]) => ({ key, value }));
+  const { error } = await supabase.from('app_settings').upsert(rows, { onConflict: 'key' });
+  if (error) console.error('[persistSettings] Supabase error:', error.message);
+  else console.log('[persistSettings] Saved keys:', Object.keys(updates).join(', '));
 }
 
 async function loadPersistedTokens() {
   const { data, error } = await supabase
     .from('app_settings')
     .select('key, value')
-    .in('key', ['gmail_tokens', 'gmail_email']);
+    .in('key', ['gmail_tokens', 'gmail_email', 'drive_tokens', 'drive_email']);
 
-  if (error) {
-    console.error('[loadPersistedTokens] Supabase error:', error.message, error.code);
-    return;
-  }
-  if (!data || data.length === 0) {
-    console.log('[loadPersistedTokens] No saved tokens found');
-    return;
-  }
+  if (error) { console.error('[loadPersistedTokens] Supabase error:', error.message); return; }
+  if (!data || data.length === 0) { console.log('[loadPersistedTokens] No saved tokens'); return; }
   for (const row of data) {
     if (row.key === 'gmail_tokens' && row.value) gmailTokens = row.value;
     if (row.key === 'gmail_email'  && row.value) gmailEmail  = row.value.email || null;
+    if (row.key === 'drive_tokens' && row.value) driveTokens = row.value;
+    if (row.key === 'drive_email'  && row.value) driveEmail  = row.value.email || null;
   }
-  if (gmailTokens) console.log('[loadPersistedTokens] Tokens restored, email:', gmailEmail);
+  if (gmailTokens) console.log('[loadPersistedTokens] Gmail restored:', gmailEmail);
+  if (driveTokens) console.log('[loadPersistedTokens] Drive restored:', driveEmail);
+}
+
+// keep old name for backwards compat
+async function persistTokens(tokens, email) {
+  await persistSettings({ gmail_tokens: tokens, ...(email ? { gmail_email: { email } } : {}) });
 }
 
 loadPersistedTokens();
@@ -62,6 +61,14 @@ function getOAuthClient() {
     process.env.GOOGLE_CLIENT_ID,
     process.env.GOOGLE_CLIENT_SECRET,
     `${getBaseUrl()}/api/outreach-gen/auth/callback`
+  );
+}
+
+function getDriveOAuthClient() {
+  return new google.auth.OAuth2(
+    process.env.GOOGLE_CLIENT_ID,
+    process.env.GOOGLE_CLIENT_SECRET,
+    `${getBaseUrl()}/api/outreach-gen/drive-auth/callback`
   );
 }
 
@@ -311,7 +318,8 @@ Rules:
 
 // POST /api/outreach-gen/create-contract
 router.post('/create-contract', async (req, res) => {
-  if (!gmailTokens) return res.status(401).json({ error: 'Google not connected. Connect Google first.' });
+  const activeTokens = driveTokens || gmailTokens;
+  if (!activeTokens) return res.status(401).json({ error: 'Connect a Google Drive account first (use the Drive Connect button in New Batch).' });
 
   const { creatorName, handle, creatorEmail, signedRate, videoCount, startDate } = req.body;
   if (!creatorName || !handle || !signedRate || !videoCount || !startDate) {
@@ -332,13 +340,18 @@ router.post('/create-contract', async (req, res) => {
 
   try {
     const oauth2Client = getOAuthClient();
-    oauth2Client.setCredentials(gmailTokens);
+    oauth2Client.setCredentials(activeTokens);
 
-    if (gmailTokens.expiry_date && gmailTokens.expiry_date < Date.now() + 60_000) {
+    if (activeTokens.expiry_date && activeTokens.expiry_date < Date.now() + 60_000) {
       const { credentials } = await oauth2Client.refreshAccessToken();
-      gmailTokens = credentials;
-      oauth2Client.setCredentials(gmailTokens);
-      persistTokens(gmailTokens, gmailEmail);
+      if (driveTokens) {
+        driveTokens = credentials;
+        persistSettings({ drive_tokens: driveTokens });
+      } else {
+        gmailTokens = credentials;
+        persistTokens(gmailTokens, gmailEmail);
+      }
+      oauth2Client.setCredentials(credentials);
     }
 
     const drive = google.drive({ version: 'v3', auth: oauth2Client });
@@ -408,7 +421,7 @@ router.post('/create-contract', async (req, res) => {
   } catch (err) {
     console.error('Contract generation error:', err);
     if (err.message?.includes('insufficientPermissions') || err.code === 403) {
-      return res.status(403).json({ error: 'Insufficient Google permissions. Please disconnect and reconnect Google to grant Drive access.' });
+      return res.status(403).json({ error: 'Google Drive permissions error. Make sure you connected the correct Google account (hello@thebikiniline.co) using the "Connect Google Drive" button in New Batch.' });
     }
     res.status(500).json({ error: err.message });
   }
@@ -477,9 +490,57 @@ router.get('/auth/status', async (req, res) => {
 router.delete('/auth/disconnect', async (req, res) => {
   gmailTokens = null;
   gmailEmail   = null;
+  try { await supabase.from('app_settings').delete().in('key', ['gmail_tokens', 'gmail_email']); } catch (_) {}
+  res.json({ disconnected: true });
+});
+
+// ── Drive-specific auth (separate account for hello@thebikiniline.co) ──
+
+router.get('/drive-auth/url', (req, res) => {
+  if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+    return res.status(500).json({ error: 'Google credentials not configured' });
+  }
+  const client = getDriveOAuthClient();
+  const url = client.generateAuthUrl({
+    access_type: 'offline',
+    scope: [
+      'https://www.googleapis.com/auth/drive',
+      'https://www.googleapis.com/auth/documents'
+    ],
+    prompt: 'consent'
+  });
+  res.json({ url });
+});
+
+router.get('/drive-auth/callback', async (req, res) => {
+  const { code, error } = req.query;
+  const style = `font-family:system-ui,sans-serif;background:#0c0c10;color:#FFF6EB;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;flex-direction:column;gap:12px;text-align:center;padding:24px`;
+  if (error || !code) return res.send(`<html><body style="${style}"><h2 style="color:#f87171">Auth failed</h2><p style="color:#9090aa">You can close this tab.</p></body></html>`);
   try {
-    await supabase.from('app_settings').delete().in('key', ['gmail_tokens', 'gmail_email']);
-  } catch (_) {}
+    const client = getDriveOAuthClient();
+    const { tokens } = await client.getToken(code);
+    driveTokens = tokens;
+    try {
+      client.setCredentials(tokens);
+      const drive = google.drive({ version: 'v3', auth: client });
+      const about = await drive.about.get({ fields: 'user' });
+      driveEmail = about.data.user?.emailAddress || null;
+    } catch (_) {}
+    await persistSettings({ drive_tokens: driveTokens, ...(driveEmail ? { drive_email: { email: driveEmail } } : {}) });
+    res.send(`<html><body style="${style}"><h2>Drive account connected.</h2><p style="color:#9090aa">You can close this tab.</p><script>window.close();</script></body></html>`);
+  } catch (err) {
+    res.send(`<html><body style="${style}"><h2 style="color:#f87171">Error: ${err.message}</h2></body></html>`);
+  }
+});
+
+router.get('/drive-auth/status', (req, res) => {
+  res.json({ connected: !!driveTokens, email: driveEmail });
+});
+
+router.delete('/drive-auth/disconnect', async (req, res) => {
+  driveTokens = null;
+  driveEmail  = null;
+  try { await supabase.from('app_settings').delete().in('key', ['drive_tokens', 'drive_email']); } catch (_) {}
   res.json({ disconnected: true });
 });
 

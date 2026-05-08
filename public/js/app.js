@@ -35,6 +35,8 @@ const nbState = {
   selectedFile:   null,
   gmailConnected: false,
   connectedEmail: null,
+  driveConnected: false,
+  driveEmail:     null,
   draftMode:      'manual',
   savedCount:     0,
   polling:        null
@@ -1248,16 +1250,30 @@ function renderNewBatchView() {
           </div>
 
           ${!nbState.gmailConnected ? `
-            <div class="gmail-status disconnected" style="margin-bottom:10px">
+            <div class="gmail-status disconnected" style="margin-bottom:6px">
               <div class="status-dot"></div>
               <span class="gmail-status-text">Gmail not connected</span>
             </div>
-            <button class="btn btn-secondary btn-full btn-connect-gmail" onclick="connectGmail()" id="nb-connect-btn" style="margin-bottom:10px">Connect Gmail</button>
+            <button class="btn btn-secondary btn-full btn-connect-gmail" onclick="connectGmail()" id="nb-connect-btn" style="margin-bottom:12px">Connect Gmail (for outreach)</button>
           ` : `
-            <div class="gmail-status connected" style="margin-bottom:10px">
+            <div class="gmail-status connected" style="margin-bottom:12px">
               <div class="status-dot"></div>
               <span class="gmail-status-text">${esc(nbState.connectedEmail || 'Gmail connected')}</span>
               <button class="btn btn-secondary btn-sm" onclick="disconnectGmail()" style="font-size:11px;padding:3px 8px;margin-left:auto">Disconnect</button>
+            </div>
+          `}
+
+          ${!nbState.driveConnected ? `
+            <div class="gmail-status disconnected" style="margin-bottom:6px">
+              <div class="status-dot"></div>
+              <span class="gmail-status-text">Drive not connected</span>
+            </div>
+            <button class="btn btn-secondary btn-full" onclick="connectDrive()" id="nb-drive-connect-btn" style="margin-bottom:12px">Connect Google Drive (for contracts)</button>
+          ` : `
+            <div class="gmail-status connected" style="margin-bottom:12px">
+              <div class="status-dot"></div>
+              <span class="gmail-status-text">${esc(nbState.driveEmail || 'Drive connected')}</span>
+              <button class="btn btn-secondary btn-sm" onclick="disconnectDrive()" style="font-size:11px;padding:3px 8px;margin-left:auto">Disconnect</button>
             </div>
           `}
 
@@ -1501,11 +1517,16 @@ function saveNbEdit(i) {
 
 async function checkGmailStatus() {
   try {
-    const data = await fetchAPI(`${API.outreachGen}/auth/status`);
+    const [gmail, drive] = await Promise.all([
+      fetchAPI(`${API.outreachGen}/auth/status`),
+      fetchAPI(`${API.outreachGen}/drive-auth/status`)
+    ]);
     const wasConnected = nbState.gmailConnected;
-    nbState.gmailConnected = data.connected;
-    nbState.connectedEmail = data.email || null;
-    if (data.connected !== wasConnected && state.outreachView === 'new-batch') renderNewBatchView();
+    nbState.gmailConnected = gmail.connected;
+    nbState.connectedEmail = gmail.email || null;
+    nbState.driveConnected = drive.connected;
+    nbState.driveEmail     = drive.email || null;
+    if (gmail.connected !== wasConnected && state.outreachView === 'new-batch') renderNewBatchView();
   } catch (_) {}
 }
 
@@ -1537,6 +1558,45 @@ async function disconnectGmail() {
     nbState.gmailConnected = false;
     renderNewBatchView();
     showToast('Gmail disconnected');
+  } catch (err) { showToast(err.message, 'error'); }
+}
+
+async function checkDriveStatus() {
+  try {
+    const data = await fetchAPI(`${API.outreachGen}/drive-auth/status`);
+    nbState.driveConnected = data.connected;
+    nbState.driveEmail     = data.email || null;
+  } catch (_) {}
+}
+
+async function connectDrive() {
+  const btn = document.getElementById('nb-drive-connect-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Opening...'; }
+  try {
+    const data = await fetchAPI(`${API.outreachGen}/drive-auth/url`);
+    const popup = window.open(data.url, 'drive-auth', 'width=500,height=650,top=100,left=200');
+    const poll = setInterval(async () => {
+      await checkDriveStatus();
+      if (nbState.driveConnected) {
+        clearInterval(poll);
+        if (popup && !popup.closed) popup.close();
+        renderNewBatchView();
+        showToast('Google Drive connected — ' + (nbState.driveEmail || ''));
+      }
+    }, 1500);
+  } catch (err) {
+    showToast(err.message, 'error');
+    if (btn) { btn.disabled = false; btn.textContent = 'Connect Google Drive (for contracts)'; }
+  }
+}
+
+async function disconnectDrive() {
+  try {
+    await fetchAPI(`${API.outreachGen}/drive-auth/disconnect`, { method: 'DELETE' });
+    nbState.driveConnected = false;
+    nbState.driveEmail     = null;
+    renderNewBatchView();
+    showToast('Drive disconnected');
   } catch (err) { showToast(err.message, 'error'); }
 }
 
