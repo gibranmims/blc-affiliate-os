@@ -604,15 +604,6 @@ function renderDetailPanel() {
       </div>
     </div>
 
-    <!-- Outreach email -->
-    ${r.generated_email ? `
-    <div class="dp-section">
-      <div class="dp-section-label">Outreach Email</div>
-      <div class="dp-email-meta">From: ${esc(r.sender || '—')} &nbsp;&middot;&nbsp; Subject: paid opportunity with The Bikini Line Co</div>
-      <div class="dp-email-body" id="dp-email-body">${esc(r.generated_email)}</div>
-      <button class="btn btn-secondary btn-sm" onclick="copyText(document.getElementById('dp-email-body').innerText)">Copy</button>
-    </div>
-    ` : ''}
 
     <!-- Evaluation (shown from "replied" onward) -->
     ${hasReplied ? `
@@ -659,7 +650,12 @@ function renderDetailPanel() {
     </div>
 
     <div class="dp-section">
-      <div class="dp-section-label">Creator Evaluation</div>
+      <div class="dp-section-label-row">
+        <div class="dp-section-label">Creator Evaluation</div>
+        ${(EVAL_QUESTIONS.some(q => r[q.key])) ? `
+          <button class="btn-reset-eval" onclick="resetEvaluation('${r.id}')">Reset</button>
+        ` : ''}
+      </div>
 
       <div class="dp-eval-score-bar">
         <span class="dp-eval-score-num">${evalScore}<span class="dp-eval-score-denom">/12</span></span>
@@ -804,6 +800,17 @@ async function updateOutreachField(id, field, value) {
   } catch (err) {
     showToast(err.message, 'error');
   }
+}
+
+async function resetEvaluation(id) {
+  const r = state.outreach.find(x => x.id === id);
+  if (!r) return;
+  const fields = [...EVAL_QUESTIONS.map(q => q.key), 'tier'];
+  fields.forEach(f => { r[f] = null; });
+  const updates = {};
+  fields.forEach(f => { updates[f] = null; });
+  await fetchAPI(`${API.outreach}/${id}`, { method: 'PUT', body: JSON.stringify(updates) });
+  renderDetailPanel();
 }
 
 async function setEvalField(id, field, value) {

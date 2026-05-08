@@ -1655,6 +1655,27 @@ body {
   margin-bottom: 16px;
 }
 
+.dp-section-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.dp-section-label-row .dp-section-label { margin-bottom: 0; }
+
+.btn-reset-eval {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 3px 10px;
+  cursor: pointer;
+  transition: color 0.12s, border-color 0.12s;
+}
+.btn-reset-eval:hover { color: var(--red); border-color: var(--red); }
+
 .dp-eval-score-bar {
   display: flex;
   align-items: center;
