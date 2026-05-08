@@ -460,6 +460,29 @@ body {
 .badge-purple { background: var(--purple-dim); color: var(--purple); }
 .badge-gray   { background: var(--bg-elevated); color: var(--text-muted); }
 
+.inline-status-select {
+  -webkit-appearance: none;
+  appearance: none;
+  border: none;
+  outline: none;
+  cursor: pointer;
+  padding: 3px 22px 3px 9px;
+  border-radius: 20px;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  background-repeat: no-repeat;
+  background-position: right 7px center;
+  background-size: 8px 5px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 5'%3E%3Cpath fill='rgba(255,255,255,0.35)' d='M0 0l4 5 4-5z'/%3E%3C/svg%3E");
+}
+.inline-status-select.status-key-drafted        { background-color: var(--bg-elevated); color: var(--text-muted); }
+.inline-status-select.status-key-sent           { background-color: var(--blue-dim);    color: var(--blue); }
+.inline-status-select.status-key-replied        { background-color: var(--yellow-dim);  color: var(--yellow); }
+.inline-status-select.status-key-evaluating     { background-color: var(--purple-dim);  color: var(--purple); }
+.inline-status-select.status-key-counter_offered{ background-color: var(--orange-dim);  color: var(--orange); }
+.inline-status-select.status-key-signed         { background-color: var(--green-dim);   color: var(--green); }
+
 /* ============================================================
    BUTTONS
    ============================================================ */

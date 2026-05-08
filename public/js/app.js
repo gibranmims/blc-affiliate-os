@@ -408,7 +408,14 @@ function renderPipelineView() {
                 <td>${fmtGMV(r.last_30d_gmv)}</td>
                 <td>${fmtNum(r.follower_count)}</td>
                 <td>${gradeBadge(r.tier)}</td>
-                <td>${statusBadge(r.status)}</td>
+                <td onclick="event.stopPropagation()">
+                  <select class="inline-status-select status-key-${r.status}"
+                          onchange="updateStatusInline('${r.id}', this.value, this)">
+                    ${STATUSES.filter(s => s.key !== 'archived').map(s =>
+                      `<option value="${s.key}"${r.status === s.key ? ' selected' : ''}>${s.label}</option>`
+                    ).join('')}
+                  </select>
+                </td>
                 <td>${fmtDate(r.created_at)}</td>
               </tr>
             `).join('')}
@@ -436,6 +443,22 @@ function sortTh(col, label) {
   const active = state.outreachSort.col === col;
   const arrow = active ? `<span class="sort-arrow">${state.outreachSort.dir === 'asc' ? '↑' : '↓'}</span>` : '';
   return `<th class="sortable-th${active ? ' sort-active' : ''}" onclick="setOutreachSort('${col}')">${label}${arrow}</th>`;
+}
+
+async function updateStatusInline(id, newStatus, selectEl) {
+  selectEl.className = `inline-status-select status-key-${newStatus}`;
+  try {
+    const rec = await fetchAPI(`${API.outreach}/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ status: newStatus })
+    });
+    const i = state.outreach.findIndex(x => x.id === id);
+    if (i !== -1) state.outreach[i] = rec;
+    renderPipelineView();
+  } catch (err) {
+    showToast(err.message, 'error');
+    renderPipelineView();
+  }
 }
 
 async function bulkChangeStatus() {
