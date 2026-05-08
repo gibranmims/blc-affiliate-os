@@ -696,8 +696,8 @@ function renderDetailPanel() {
 
     <!-- Counter offer -->
     ${(r.tier || autoTier) ? `
-    <div class="dp-section">
-      <div class="dp-section-label">Counter Offer</div>
+    <div class="dp-section dp-section-counter">
+      <div class="dp-section-label dp-section-label-lg">Counter Offer</div>
 
       ${(() => {
         const g = gradeInfo(r.tier || autoTier);
@@ -723,7 +723,7 @@ function renderDetailPanel() {
           placeholder="e.g. ${(gradeInfo(r.tier || autoTier) || {}).perVid || 100}">
       </div>
 
-      <button class="btn btn-primary" id="dp-gen-counter-btn"
+      <button class="btn btn-primary dp-gen-counter-btn" id="dp-gen-counter-btn"
         onclick="generateCounterOffer('${r.id}')">
         Generate Counter Message
       </button>
@@ -781,9 +781,12 @@ function renderDetailPanel() {
     </div>
     ` : ''}
 
-    <!-- Delete -->
-    <div class="dp-delete-zone">
-      <button class="btn btn-danger btn-sm" onclick="deleteOutreach('${r.id}')">Delete Record</button>
+    <!-- Clear Form -->
+    <div class="dp-clear-zone">
+      <button class="btn-clear-form" onclick="clearCreatorForm('${r.id}')">
+        Clear Form
+      </button>
+      <span class="dp-clear-hint">Resets rates, counter message, and evaluation so you can start over</span>
     </div>
   `;
 }
@@ -800,6 +803,23 @@ async function updateOutreachField(id, field, value) {
   } catch (err) {
     showToast(err.message, 'error');
   }
+}
+
+async function clearCreatorForm(id) {
+  if (!confirm('Clear all rates, counter message, and evaluation for this creator? This cannot be undone.')) return;
+  const r = state.outreach.find(x => x.id === id);
+  if (!r) return;
+  const fields = [
+    'asked_rate_3','asked_rate_5','asked_rate_10','asked_rate_custom','asked_rate_custom_count',
+    'counter_offer_amount','counter_offer_email',
+    ...EVAL_QUESTIONS.map(q => q.key), 'tier'
+  ];
+  fields.forEach(f => { r[f] = null; });
+  const updates = {};
+  fields.forEach(f => { updates[f] = null; });
+  await fetchAPI(`${API.outreach}/${id}`, { method: 'PUT', body: JSON.stringify(updates) });
+  showToast('Form cleared');
+  renderDetailPanel();
 }
 
 async function resetEvaluation(id) {

@@ -1895,6 +1895,61 @@ body {
   padding: 16px 20px 20px;
 }
 
+/* Counter offer section — prominent */
+.dp-section-counter {
+  border: 1px solid rgba(255, 246, 235, 0.12);
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+}
+
+.dp-section-label-lg {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+  margin-bottom: 14px;
+  text-transform: uppercase;
+}
+
+.dp-gen-counter-btn {
+  width: 100%;
+  justify-content: center;
+  padding: 12px;
+  font-size: 14px;
+  margin-top: 4px;
+  margin-bottom: 4px;
+}
+
+/* Clear Form footer */
+.dp-clear-zone {
+  padding: 16px 20px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  border-top: 1px solid var(--border);
+}
+
+.btn-clear-form {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 18px;
+  cursor: pointer;
+  transition: color 0.12s, border-color 0.12s;
+}
+.btn-clear-form:hover { color: var(--red); border-color: var(--red); }
+
+.dp-clear-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: center;
+  opacity: 0.6;
+}
+
 /* Panel back link for new-batch view */
 .page-back-row {
   display: flex;
