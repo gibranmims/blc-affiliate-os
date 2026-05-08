@@ -26,7 +26,8 @@ const state = {
   outreachFilter:     'all',
   outreachView:       'pipeline',  // 'pipeline' | 'new-batch'
   selectedOutreachId: null,
-  selectedIds:        new Set()
+  selectedIds:        new Set(),
+  outreachSort:       { col: 'gmv', dir: 'desc' }
 };
 
 const nbState = {
@@ -272,11 +273,25 @@ function renderPipelineView() {
   }, {});
   const allCount = state.outreach.filter(r => r.status !== 'archived').length;
 
-  const filtered = state.outreachFilter === 'all'
+  const filtered = (state.outreachFilter === 'all'
     ? state.outreach.filter(r => r.status !== 'archived')
     : state.outreachFilter === 'archived'
     ? state.outreach.filter(r => r.status === 'archived')
-    : state.outreach.filter(r => r.status === state.outreachFilter);
+    : state.outreach.filter(r => r.status === state.outreachFilter)
+  ).slice().sort((a, b) => {
+    const { col, dir } = state.outreachSort;
+    let av, bv;
+    if (col === 'gmv')       { av = a.last_30d_gmv || 0;    bv = b.last_30d_gmv || 0; }
+    else if (col === 'followers') { av = a.follower_count || 0; bv = b.follower_count || 0; }
+    else if (col === 'name') { av = (a.name || a.handle || '').toLowerCase(); bv = (b.name || b.handle || '').toLowerCase(); }
+    else if (col === 'category') { av = (a.product_category || '').toLowerCase(); bv = (b.product_category || '').toLowerCase(); }
+    else if (col === 'status') { av = a.status || ''; bv = b.status || ''; }
+    else if (col === 'added') { av = a.created_at || ''; bv = b.created_at || ''; }
+    else { av = 0; bv = 0; }
+    if (av < bv) return dir === 'asc' ? -1 : 1;
+    if (av > bv) return dir === 'asc' ? 1 : -1;
+    return 0;
+  });
 
   const inPipeline = ['sent','replied','evaluating','counter_offered']
     .reduce((s, k) => s + (counts[k] || 0), 0);
@@ -331,6 +346,11 @@ function renderPipelineView() {
     <div class="selection-bar" id="selection-bar">
       <span class="selection-count">${state.selectedIds.size} selected</span>
       <div class="selection-actions">
+        <select class="bulk-status-select" id="bulk-status-select">
+          <option value="">Change status…</option>
+          ${STATUSES.filter(s => s.key !== 'archived').map(s => `<option value="${s.key}">${s.label}</option>`).join('')}
+        </select>
+        <button class="btn btn-primary btn-sm" onclick="bulkChangeStatus()">Apply</button>
         ${state.outreachFilter !== 'archived' ? `
           <button class="btn btn-secondary btn-sm" onclick="bulkArchive()">Archive</button>
         ` : ''}
@@ -357,14 +377,13 @@ function renderPipelineView() {
                   ${filtered.every(r => state.selectedIds.has(r.id)) && filtered.length > 0 ? 'checked' : ''}
                   onchange="toggleSelectAll(this.checked, ${JSON.stringify(filtered.map(r => r.id))})">
               </th>
-              <th>Creator</th>
-              <th>Category</th>
-              <th>GMV (30d)</th>
-              <th>Followers</th>
-              <th>Engagement</th>
+              ${sortTh('name', 'Creator')}
+              ${sortTh('category', 'Category')}
+              ${sortTh('gmv', 'GMV (30d)')}
+              ${sortTh('followers', 'Followers')}
               <th>Grade</th>
-              <th>Status</th>
-              <th>Added</th>
+              ${sortTh('status', 'Status')}
+              ${sortTh('added', 'Added')}
             </tr>
           </thead>
           <tbody>
@@ -386,7 +405,6 @@ function renderPipelineView() {
                 <td class="category-cell">${esc((r.product_category || '').split(',')[0].trim()) || '—'}</td>
                 <td>${fmtGMV(r.last_30d_gmv)}</td>
                 <td>${fmtNum(r.follower_count)}</td>
-                <td>${esc(r.avg_engagement || '—')}</td>
                 <td>${gradeBadge(r.tier)}</td>
                 <td>${statusBadge(r.status)}</td>
                 <td>${fmtDate(r.created_at)}</td>
@@ -401,6 +419,46 @@ function renderPipelineView() {
 function setOutreachFilter(f) {
   state.outreachFilter = f;
   renderPipelineView();
+}
+
+function setOutreachSort(col) {
+  if (state.outreachSort.col === col) {
+    state.outreachSort.dir = state.outreachSort.dir === 'asc' ? 'desc' : 'asc';
+  } else {
+    state.outreachSort = { col, dir: 'desc' };
+  }
+  renderPipelineView();
+}
+
+function sortTh(col, label) {
+  const active = state.outreachSort.col === col;
+  const arrow = active ? (state.outreachSort.dir === 'asc' ? ' ↑' : ' ↓') : '';
+  return `<th class="sortable-th${active ? ' sort-active' : ''}" onclick="setOutreachSort('${col}')">${label}${arrow}</th>`;
+}
+
+async function bulkChangeStatus() {
+  const sel = document.getElementById('bulk-status-select');
+  const newStatus = sel ? sel.value : '';
+  if (!newStatus) { showToast('Pick a status first', 'error'); return; }
+  const ids = [...state.selectedIds];
+  if (ids.length === 0) return;
+  try {
+    await Promise.all(ids.map(id =>
+      fetchAPI(`${API.outreach}/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ status: newStatus })
+      }).then(rec => {
+        const i = state.outreach.findIndex(x => x.id === id);
+        if (i !== -1) state.outreach[i] = rec;
+      })
+    ));
+    state.selectedIds.clear();
+    const label = STATUSES.find(s => s.key === newStatus)?.label || newStatus;
+    showToast(`${ids.length} creator${ids.length !== 1 ? 's' : ''} → ${label}`);
+    renderPipelineView();
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
 }
 
 // ============================================================

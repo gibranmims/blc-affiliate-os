@@ -1813,6 +1813,24 @@ body {
   flex-shrink: 0;
 }
 
+.sortable-th {
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+.sortable-th:hover { color: var(--text-primary); }
+.sort-active { color: var(--accent); }
+
+.bulk-status-select {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 12px;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+
 .row-selected {
   background: rgba(255, 246, 235, 0.04) !important;
 }
