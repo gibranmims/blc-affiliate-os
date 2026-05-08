@@ -154,9 +154,11 @@ function statusBadge(status) {
   return `<span class="badge badge-${s.color}">${s.label}</span>`;
 }
 
-function gradeBadge(tier) {
-  if (!tier) return '—';
-  return `<span class="grade-badge grade-badge-${tier}">${tier}</span>`;
+function gradeBadge(grade) {
+  if (!grade) return '—';
+  const color = grade.startsWith('A') ? 'green' : grade.startsWith('B') ? 'blue' : 'yellow';
+  const cls   = grade.replace('+','plus').replace('-','minus');
+  return `<span class="badge badge-${color} grade-badge grade-badge-${cls}">${grade}</span>`;
 }
 
 function rosterStatusBadge(status) {
@@ -190,8 +192,27 @@ const EVAL_QUESTIONS = [
   { key: 'sales_structure',    label: 'Sales Structure',    q: 'Does she know how to structure videos to drive sales?' },
 ];
 
-const TIER_RANGES = { A: '$200–$400/video', B: '$75–$130/video', C: '$0–$50/video' };
-const TIER_COUNTER = { A: 300, B: 100, C: 30 };
+// Each score 0–12 maps to a grade and a suggested per-video counter rate
+const GRADE_SCALE = [
+  { score: 12, grade: 'A+', perVid: 400, tier: 'A', desc: 'Top tier — premium rate' },
+  { score: 11, grade: 'A',  perVid: 300, tier: 'A', desc: 'Strong A — mid A range' },
+  { score: 10, grade: 'A-', perVid: 200, tier: 'A', desc: 'Low A — bottom of A range' },
+  { score:  9, grade: 'B+', perVid: 130, tier: 'B', desc: 'Near A — top of B range' },
+  { score:  8, grade: 'B',  perVid: 100, tier: 'B', desc: 'Solid B — mid B range' },
+  { score:  7, grade: 'B-', perVid:  85, tier: 'B', desc: 'Low B — bottom of B range' },
+  { score:  6, grade: 'B-', perVid:  75, tier: 'B', desc: 'Low B — floor of B range' },
+  { score:  5, grade: 'C+', perVid:  50, tier: 'C', desc: 'Near B — top of C range' },
+  { score:  4, grade: 'C',  perVid:  35, tier: 'C', desc: 'Mid C range' },
+  { score:  3, grade: 'C',  perVid:  25, tier: 'C', desc: 'Low C range' },
+  { score:  2, grade: 'C-', perVid:  15, tier: 'C', desc: 'Very low — reconsider' },
+  { score:  1, grade: 'C-', perVid:   0, tier: 'C', desc: 'Pass' },
+  { score:  0, grade: 'C-', perVid:   0, tier: 'C', desc: 'Pass' },
+];
+
+function gradeInfo(gradeOrScore) {
+  if (typeof gradeOrScore === 'number') return GRADE_SCALE.find(g => g.score === gradeOrScore) || GRADE_SCALE[GRADE_SCALE.length - 1];
+  return GRADE_SCALE.find(g => g.grade === gradeOrScore) || null;
+}
 
 function evalFieldScore(key, val) {
   if (key === 'viral_track_record') {
@@ -209,13 +230,20 @@ function calcEvalScore(r) {
 }
 
 function autoTierFromScore(score) {
-  if (score >= 10) return 'A';
-  if (score >= 6)  return 'B';
-  return 'C';
+  const g = gradeInfo(score);
+  return g ? g.grade : 'C-';
 }
 
-function tierRange(tier) {
-  return TIER_RANGES[tier] || '';
+function tierRange(grade) {
+  const g = gradeInfo(grade);
+  return g ? `$${g.perVid}/vid suggested` : '';
+}
+
+function gradeColor(grade) {
+  if (!grade) return 'gray';
+  if (grade.startsWith('A')) return 'green';
+  if (grade.startsWith('B')) return 'blue';
+  return 'yellow';
 }
 
 // ============================================================
@@ -635,7 +663,10 @@ function renderDetailPanel() {
 
       <div class="dp-eval-score-bar">
         <span class="dp-eval-score-num">${evalScore}<span class="dp-eval-score-denom">/12</span></span>
-        ${allEvalDone ? `<span class="dp-eval-auto-tier">Auto-assigned: ${gradeBadge(autoTier)} ${tierRange(autoTier)}</span>` : `<span class="dp-eval-pending">Answer all 6 to auto-assign tier</span>`}
+        ${allEvalDone ? (() => {
+          const g = gradeInfo(autoTier);
+          return `<span class="dp-eval-auto-tier">${gradeBadge(autoTier)}<span class="dp-eval-grade-desc">${g ? g.desc : ''}</span></span>`;
+        })() : `<span class="dp-eval-pending">Answer all 6 to auto-assign grade</span>`}
       </div>
 
       <div class="dp-rubric">
@@ -672,11 +703,15 @@ function renderDetailPanel() {
     <div class="dp-section">
       <div class="dp-section-label">Counter Offer</div>
 
-      <div class="dp-counter-tier-hint">
-        ${gradeBadge(r.tier || autoTier)}
-        <span>Range: <strong>${tierRange(r.tier || autoTier)}</strong></span>
-        <span class="dp-counter-suggested">Suggested counter: <strong>${fmt$(TIER_COUNTER[r.tier || autoTier])}/video</strong></span>
-      </div>
+      ${(() => {
+        const g = gradeInfo(r.tier || autoTier);
+        if (!g) return '';
+        return `<div class="dp-counter-tier-hint">
+          ${gradeBadge(g.grade)}
+          <span class="dp-counter-desc">${g.desc}</span>
+          <span class="dp-counter-suggested">Counter: <strong>${fmt$(g.perVid)}/vid</strong></span>
+        </div>`;
+      })()}
 
       <div class="dp-counter-rates">
         ${r.asked_rate_3 ? `<div class="dp-form-group"><label>3-vid bundle</label><div class="dp-rate-display">${fmt$(r.asked_rate_3)}</div><div class="dp-rate-per-vid">${fmt$(r.asked_rate_3/3)}/vid</div></div>` : ''}
@@ -688,8 +723,8 @@ function renderDetailPanel() {
       <div class="dp-form-group">
         <label>Our offer ($/video)</label>
         <input type="number" class="dp-input" id="dp-counter-amount"
-          value="${r.counter_offer_amount || TIER_COUNTER[r.tier || autoTier] || ''}"
-          placeholder="e.g. ${TIER_COUNTER[r.tier || autoTier] || 100}">
+          value="${r.counter_offer_amount || (gradeInfo(r.tier || autoTier) || {}).perVid || ''}"
+          placeholder="e.g. ${(gradeInfo(r.tier || autoTier) || {}).perVid || 100}">
       </div>
 
       <button class="btn btn-primary" id="dp-gen-counter-btn"
