@@ -741,7 +741,10 @@ function renderDetailPanel() {
 
       ${r.counter_offer_email ? `
       <div class="dp-counter-preview">
-        <div class="dp-section-label" style="margin-bottom:8px">Counter Message — edit before sending</div>
+        <div class="dp-counter-preview-header">
+          <div class="dp-section-label" style="margin-bottom:0">Counter Message</div>
+          <button class="btn-clear-message" onclick="clearCounterMessage('${r.id}')">Clear</button>
+        </div>
         <textarea class="dp-input dp-textarea dp-counter-ta" id="dp-counter-email-ta"
           onblur="updateOutreachField('${r.id}', 'counter_offer_email', this.value)">${esc(r.counter_offer_email)}</textarea>
         <button class="btn btn-secondary btn-sm" style="margin-top:8px"
@@ -814,6 +817,14 @@ async function updateOutreachField(id, field, value) {
   } catch (err) {
     showToast(err.message, 'error');
   }
+}
+
+async function clearCounterMessage(id) {
+  const r = state.outreach.find(x => x.id === id);
+  if (!r) return;
+  r.counter_offer_email = null;
+  await fetchAPI(`${API.outreach}/${id}`, { method: 'PUT', body: JSON.stringify({ counter_offer_email: null }) });
+  renderDetailPanel();
 }
 
 async function clearCreatorForm(id) {
