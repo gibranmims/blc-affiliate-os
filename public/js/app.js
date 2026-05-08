@@ -293,6 +293,8 @@ function renderPipelineView() {
     return 0;
   });
 
+  state.filteredIds = filtered.map(r => r.id);
+
   const inPipeline = ['sent','replied','evaluating','counter_offered']
     .reduce((s, k) => s + (counts[k] || 0), 0);
 
@@ -375,7 +377,7 @@ function renderPipelineView() {
               <th style="width:36px;padding-right:0">
                 <input type="checkbox" class="row-checkbox" id="select-all-cb"
                   ${filtered.every(r => state.selectedIds.has(r.id)) && filtered.length > 0 ? 'checked' : ''}
-                  onchange="toggleSelectAll(this.checked, ${JSON.stringify(filtered.map(r => r.id))})">
+                  onchange="toggleSelectAll(this.checked)">
               </th>
               ${sortTh('name', 'Creator')}
               ${sortTh('category', 'Category')}
@@ -432,7 +434,7 @@ function setOutreachSort(col) {
 
 function sortTh(col, label) {
   const active = state.outreachSort.col === col;
-  const arrow = active ? (state.outreachSort.dir === 'asc' ? ' ↑' : ' ↓') : '';
+  const arrow = active ? `<span class="sort-arrow">${state.outreachSort.dir === 'asc' ? '↑' : '↓'}</span>` : '';
   return `<th class="sortable-th${active ? ' sort-active' : ''}" onclick="setOutreachSort('${col}')">${label}${arrow}</th>`;
 }
 
@@ -763,7 +765,8 @@ function toggleRowSelect(id, checked) {
   renderPipelineView();
 }
 
-function toggleSelectAll(checked, ids) {
+function toggleSelectAll(checked) {
+  const ids = state.filteredIds || [];
   if (checked) ids.forEach(id => state.selectedIds.add(id));
   else ids.forEach(id => state.selectedIds.delete(id));
   renderPipelineView();

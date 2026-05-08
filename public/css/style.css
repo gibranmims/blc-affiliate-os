@@ -1817,9 +1817,19 @@ body {
   cursor: pointer;
   user-select: none;
   white-space: nowrap;
+  transition: color 0.12s;
 }
 .sortable-th:hover { color: var(--text-primary); }
-.sort-active { color: var(--accent); }
+.sort-active {
+  color: var(--accent);
+  background: rgba(255, 246, 235, 0.06);
+  border-radius: 4px;
+}
+.sort-arrow {
+  margin-left: 5px;
+  font-size: 10px;
+  opacity: 0.8;
+}
 
 .bulk-status-select {
   background: var(--bg-tertiary);
