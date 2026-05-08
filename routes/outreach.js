@@ -11,7 +11,8 @@ const FIELDS = [
   'handle', 'name', 'email', 'product_category', 'follower_count',
   'last_30d_gmv', 'avg_engagement', 'estimated_post_rate', 'profile_url',
   'status', 'generated_email', 'sender', 'asked_rate_3', 'asked_rate_5', 'asked_rate_10',
-  'on_camera', 'feels_natural', 'viral_potential', 'tier', 'evaluation_notes',
+  'product_fit', 'on_camera_energy', 'production_quality', 'viral_track_record', 'viral_potential', 'sales_structure',
+  'on_camera', 'feels_natural', 'tier', 'evaluation_notes',
   'counter_offer_amount', 'counter_offer_email',
   'video_count', 'start_date'
 ];

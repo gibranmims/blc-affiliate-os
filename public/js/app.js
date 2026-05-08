@@ -180,15 +180,42 @@ function copyText(text) {
     .catch(() => showToast('Copy failed — select and copy manually', 'error'));
 }
 
-function getSuggestedTier(r) {
-  if (r.on_camera === 'no') return 'C';
-  if (r.viral_potential === 'yes' && r.feels_natural === 'natural') return 'A';
-  if (r.viral_potential === 'no') return 'C';
-  return 'B';
+const EVAL_QUESTIONS = [
+  { key: 'product_fit',        label: 'Product Fit',        q: 'Does she match the demographic or creator type that could sell BLC?' },
+  { key: 'on_camera_energy',   label: 'On Camera Energy',   q: 'Authentic, good delivery, fast pace, believable?' },
+  { key: 'production_quality', label: 'Production Quality', q: 'Good lighting, audio, native captions, understands viral video basics?' },
+  { key: 'viral_track_record', label: 'Viral Track Record', q: 'How many videos over 1M views?',
+    opts: ['none','1to3','4plus'], optLabels: ['None','1–3','4+'] },
+  { key: 'viral_potential',    label: 'Viral Potential',    q: 'Can you imagine her going viral specifically for BLC?' },
+  { key: 'sales_structure',    label: 'Sales Structure',    q: 'Does she know how to structure videos to drive sales?' },
+];
+
+const TIER_RANGES = { A: '$200–$400/video', B: '$75–$130/video', C: '$0–$50/video' };
+const TIER_COUNTER = { A: 300, B: 100, C: 30 };
+
+function evalFieldScore(key, val) {
+  if (key === 'viral_track_record') {
+    if (val === '4plus') return 2;
+    if (val === '1to3') return 1;
+    return 0;
+  }
+  if (val === 'yes') return 2;
+  if (val === 'maybe') return 1;
+  return 0;
+}
+
+function calcEvalScore(r) {
+  return EVAL_QUESTIONS.reduce((sum, q) => sum + evalFieldScore(q.key, r[q.key] || ''), 0);
+}
+
+function autoTierFromScore(score) {
+  if (score >= 10) return 'A';
+  if (score >= 6)  return 'B';
+  return 'C';
 }
 
 function tierRange(tier) {
-  return { A: '$150–$250', B: '$75–$130', C: 'low cost / skip' }[tier] || '';
+  return TIER_RANGES[tier] || '';
 }
 
 // ============================================================
@@ -514,7 +541,9 @@ function renderDetailPanel() {
   document.getElementById('detail-drawer-title').textContent = 'Creator Detail';
 
   const hasReplied = ['replied','evaluating','counter_offered','signed','ghosted'].includes(r.status);
-  const suggested  = (r.on_camera && r.feels_natural && r.viral_potential) ? getSuggestedTier(r) : null;
+  const evalScore  = calcEvalScore(r);
+  const allEvalDone = EVAL_QUESTIONS.every(q => r[q.key]);
+  const autoTier   = allEvalDone ? autoTierFromScore(evalScore) : null;
 
   document.getElementById('detail-drawer-body').innerHTML = `
 
@@ -586,57 +615,30 @@ function renderDetailPanel() {
     <div class="dp-section">
       <div class="dp-section-label">Creator Evaluation</div>
 
+      <div class="dp-eval-score-bar">
+        <span class="dp-eval-score-num">${evalScore}<span class="dp-eval-score-denom">/12</span></span>
+        ${allEvalDone ? `<span class="dp-eval-auto-tier">Auto-assigned: ${gradeBadge(autoTier)} ${tierRange(autoTier)}</span>` : `<span class="dp-eval-pending">Answer all 6 to auto-assign tier</span>`}
+      </div>
+
       <div class="dp-rubric">
-        <div class="dp-rubric-step">
-          <div class="dp-rubric-question">Can she talk on camera?</div>
-          <div class="dp-rubric-options">
-            <button class="dp-opt-btn ${r.on_camera === 'yes' ? 'active':''}"
-              onclick="setEvalField('${r.id}', 'on_camera', 'yes')">Yes</button>
-            <button class="dp-opt-btn ${r.on_camera === 'no' ? 'active':''}"
-              onclick="setEvalField('${r.id}', 'on_camera', 'no')">No</button>
-          </div>
-        </div>
-
-        <div class="dp-rubric-step">
-          <div class="dp-rubric-question">Does she feel natural on camera?</div>
-          <div class="dp-rubric-options">
-            <button class="dp-opt-btn ${r.feels_natural === 'natural' ? 'active':''}"
-              onclick="setEvalField('${r.id}', 'feels_natural', 'natural')">Natural</button>
-            <button class="dp-opt-btn ${r.feels_natural === 'forced' ? 'active':''}"
-              onclick="setEvalField('${r.id}', 'feels_natural', 'forced')">Forced</button>
-          </div>
-        </div>
-
-        <div class="dp-rubric-step">
-          <div class="dp-rubric-question">Can you imagine her going viral?</div>
-          <div class="dp-rubric-options">
-            <button class="dp-opt-btn ${r.viral_potential === 'yes' ? 'active':''}"
-              onclick="setEvalField('${r.id}', 'viral_potential', 'yes')">Yes</button>
-            <button class="dp-opt-btn ${r.viral_potential === 'maybe' ? 'active':''}"
-              onclick="setEvalField('${r.id}', 'viral_potential', 'maybe')">Maybe</button>
-            <button class="dp-opt-btn ${r.viral_potential === 'no' ? 'active':''}"
-              onclick="setEvalField('${r.id}', 'viral_potential', 'no')">No</button>
-          </div>
-        </div>
-      </div>
-
-      ${suggested ? `
-      <div class="dp-tier-suggestion">
-        <span class="dp-tier-suggestion-label">Suggested:</span>
-        ${gradeBadge(suggested)}
-        <span style="font-size:12px;color:var(--text-muted)">${tierRange(suggested)}</span>
-      </div>
-      ` : ''}
-
-      <div class="dp-section-label" style="margin-bottom:8px">Assign Grade</div>
-      <div class="dp-grade-options">
-        ${['A','B','C'].map(t => `
-          <button class="dp-grade-btn grade-${t} ${r.tier === t ? 'active':''}"
-            onclick="setEvalField('${r.id}', 'tier', '${t}')">
-            ${t}
-            <span class="dp-grade-range">${tierRange(t)}</span>
-          </button>
-        `).join('')}
+        ${EVAL_QUESTIONS.map(q => {
+          const opts  = q.opts      || ['yes','maybe','no'];
+          const lbls  = q.optLabels || ['Yes','Maybe','No'];
+          const cur   = r[q.key] || '';
+          return `
+          <div class="dp-rubric-step">
+            <div class="dp-rubric-label">${q.label}</div>
+            <div class="dp-rubric-question">${q.q}</div>
+            <div class="dp-rubric-options">
+              ${opts.map((o, i) => `
+                <button class="dp-opt-btn ${cur === o ? 'active' : ''}"
+                  onclick="setEvalField('${r.id}', '${q.key}', '${o}')">
+                  ${lbls[i]}${cur === o ? ` <span class="dp-opt-pts">(${evalFieldScore(q.key, o)}pt)</span>` : ''}
+                </button>
+              `).join('')}
+            </div>
+          </div>`;
+        }).join('')}
       </div>
 
       <div class="dp-form-group" style="margin-top:14px">
@@ -648,39 +650,50 @@ function renderDetailPanel() {
     </div>
 
     <!-- Counter offer -->
-    ${r.tier ? `
+    ${(r.tier || autoTier) ? `
     <div class="dp-section">
       <div class="dp-section-label">Counter Offer</div>
+
+      <div class="dp-counter-tier-hint">
+        ${gradeBadge(r.tier || autoTier)}
+        <span>Range: <strong>${tierRange(r.tier || autoTier)}</strong></span>
+        <span class="dp-counter-suggested">Suggested counter: <strong>${fmt$(TIER_COUNTER[r.tier || autoTier])}/video</strong></span>
+      </div>
+
       <div class="dp-counter-rates">
         <div class="dp-form-group">
-          <label>3 vids</label>
+          <label>3 vids (their ask)</label>
           <div class="dp-rate-display">${r.asked_rate_3 ? fmt$(r.asked_rate_3) : '—'}</div>
         </div>
         <div class="dp-form-group">
-          <label>5 vids</label>
+          <label>5 vids (their ask)</label>
           <div class="dp-rate-display">${r.asked_rate_5 ? fmt$(r.asked_rate_5) : '—'}</div>
         </div>
         <div class="dp-form-group">
-          <label>10 vids</label>
+          <label>10 vids (their ask)</label>
           <div class="dp-rate-display">${r.asked_rate_10 ? fmt$(r.asked_rate_10) : '—'}</div>
         </div>
-        <div class="dp-form-group">
-          <label>Our offer ($)</label>
-          <input type="number" class="dp-input" id="dp-counter-amount"
-            value="${r.counter_offer_amount || ''}" placeholder="e.g. 200">
-        </div>
       </div>
+
+      <div class="dp-form-group">
+        <label>Our offer ($/video)</label>
+        <input type="number" class="dp-input" id="dp-counter-amount"
+          value="${r.counter_offer_amount || TIER_COUNTER[r.tier || autoTier] || ''}"
+          placeholder="e.g. ${TIER_COUNTER[r.tier || autoTier] || 100}">
+      </div>
+
       <button class="btn btn-primary" id="dp-gen-counter-btn"
         onclick="generateCounterOffer('${r.id}')">
-        Generate Counter Offer
+        Generate Counter Message
       </button>
 
       ${r.counter_offer_email ? `
       <div class="dp-counter-preview">
-        <div class="dp-section-label" style="margin-bottom:8px">Preview — copy and reply manually in Gmail thread</div>
-        <div class="dp-email-body" id="dp-counter-email-body">${esc(r.counter_offer_email)}</div>
+        <div class="dp-section-label" style="margin-bottom:8px">Counter Message — edit before sending</div>
+        <textarea class="dp-input dp-textarea dp-counter-ta" id="dp-counter-email-ta"
+          onblur="updateOutreachField('${r.id}', 'counter_offer_email', this.value)">${esc(r.counter_offer_email)}</textarea>
         <button class="btn btn-secondary btn-sm" style="margin-top:8px"
-          onclick="copyText(document.getElementById('dp-counter-email-body').innerText)">Copy</button>
+          onclick="copyText(document.getElementById('dp-counter-email-ta').value)">Copy</button>
       </div>
       ` : ''}
     </div>
@@ -749,7 +762,22 @@ async function updateOutreachField(id, field, value) {
 }
 
 async function setEvalField(id, field, value) {
-  await updateOutreachField(id, field, value);
+  const r = state.outreach.find(x => x.id === id);
+  if (!r) return;
+  r[field] = value;
+  const allDone = EVAL_QUESTIONS.every(q => r[q.key]);
+  if (allDone) {
+    const score = calcEvalScore(r);
+    const tier  = autoTierFromScore(score);
+    r.tier = tier;
+    await Promise.all([
+      updateOutreachField(id, field, value),
+      updateOutreachField(id, 'tier', tier)
+    ]);
+  } else {
+    await updateOutreachField(id, field, value);
+  }
+  renderDetailPanel();
 }
 
 async function generateCounterOffer(id) {
