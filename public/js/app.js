@@ -68,7 +68,7 @@ function showToast(message, type = 'success') {
   }, 3200);
 }
 
-function showDraftSuccessModal(savedCount, addedCount, gmailEmail, isSingle = false) {
+function showDraftSuccessModal(savedCount, addedCount, gmailEmail, isSingle = false, pipelineError = null) {
   const existing = document.getElementById('draft-success-modal');
   if (existing) existing.remove();
 
@@ -86,6 +86,10 @@ function showDraftSuccessModal(savedCount, addedCount, gmailEmail, isSingle = fa
         and <span>${addedCount} creator${addedCount !== 1 ? 's' : ''}</span> added to your pipeline.
       </div>
       <hr class="draft-modal-divider">
+      ${pipelineError ? `
+      <div style="background:rgba(248,113,113,0.1);border:1px solid rgba(248,113,113,0.3);border-radius:6px;padding:10px 14px;margin-bottom:14px;font-size:12.5px;color:var(--red);text-align:left">
+        <strong>Pipeline error:</strong> ${esc(pipelineError)}
+      </div>` : ''}
       <div class="draft-modal-reminder">
         Don't forget to go into Gmail and <strong>manually send each draft</strong> when you're ready. Once sent, come back and move each creator from <strong>Drafted → Sent</strong> in your pipeline.
       </div>
@@ -1129,10 +1133,10 @@ async function saveOneDraft(i) {
       method: 'POST',
       body: JSON.stringify({ emails: [e] })
     });
-    await addOneToPipeline(e);
+    const result = await addOneToPipeline(e);
     if (btn) { btn.disabled = true; btn.textContent = 'Saved ✓'; btn.classList.add('saved'); }
     nbState.savedCount = (nbState.savedCount || 0) + 1;
-    showDraftSuccessModal(1, 1, nbState.connectedEmail, true);
+    showDraftSuccessModal(1, result.ok ? 1 : 0, nbState.connectedEmail, true, result.ok ? null : result.error);
   } catch (err) {
     if (btn) { btn.disabled = false; btn.textContent = 'Save to Gmail'; }
     if (err.message.includes('not connected') || err.message.includes('invalid_grant')) {
@@ -1227,11 +1231,10 @@ async function addOneToPipeline(e) {
       })
     });
     state.outreach.unshift(rec);
-    return true;
+    return { ok: true };
   } catch (err) {
     console.error('Failed to add to pipeline:', e.handle, err.message);
-    showToast(`Pipeline error (${e.handle}): ${err.message}`, 'error');
-    return false;
+    return { ok: false, error: err.message };
   }
 }
 
@@ -1265,15 +1268,17 @@ async function nbSaveDrafts() {
 
     if (btn) { btn.textContent = 'Adding to pipeline...'; }
     let added = 0;
+    let firstError = null;
     for (const e of toSave) {
-      const ok = await addOneToPipeline(e);
-      if (ok) added++;
+      const result = await addOneToPipeline(e);
+      if (result.ok) added++;
+      else if (!firstError) firstError = result.error;
     }
 
     nbState.savedCount = (nbState.savedCount || 0) + res.saved;
     nbState.emails = [];
     renderNewBatchView();
-    showDraftSuccessModal(res.saved, added, nbState.connectedEmail);
+    showDraftSuccessModal(res.saved, added, nbState.connectedEmail, false, firstError);
   } catch (err) {
     if (err.message.includes('not connected') || err.message.includes('invalid_grant')) {
       nbState.gmailConnected = false;
