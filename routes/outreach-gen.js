@@ -262,43 +262,44 @@ router.post('/counter-offer', async (req, res) => {
   try {
     const msg = await anthropic.messages.create({
       model: 'claude-opus-4-7',
-      max_tokens: 350,
+      max_tokens: 300,
       messages: [{
         role: 'user',
-        content: `You are writing a counter offer message for The Bikini Line Co (BLC).
+        content: `Write a counter offer message following this structure and tone EXACTLY.
 
-CONTEXT:
-Creator: ${firstName} (@${handle || ''})
+Example output (use this as your template):
+
+Hey Jayden,
+
+Appreciate you sending this over.
+
+I was thinking we could start with a batch to test what actually hits and then scale from there.
+
+Would you be open to doing 10 videos for $1,000 to start?
+
+We'll also help guide on angles we've seen convert well so you can maximize what you make on commission.
+
+Let me know your thoughts.
+
+Best,
+Lu
+
+---
+
+Now write the same message for this deal:
+
+Creator first name: ${firstName}
 Their asked rates: ${ratesLine}
-Our counter offer: ${ourOffer}
+Our counter offer: ${counterVideos} videos for $${Number(counterTotal).toLocaleString('en-US')} total
 
-WRITING RULES — follow every single one:
-
-1. First line is exactly: Hey ${firstName},
-2. Last line is exactly: ${senderName}
-3. NEVER use em dashes or en dashes. Ever.
-4. Total length: 60 to 90 words. Short and skimmable.
-5. One blank line between every sentence or two. Easy to scan.
-6. Do NOT open with "Thanks for getting back to me" or similar filler. Acknowledge briefly or skip it.
-
-TONE AND FRAMING:
-- Sound like a real person, not a brand or an AI. Write how Tamar or Lu would actually text a creator.
-- Never say "I'd like" — use "I was thinking we could", "What if we started with", "Would you be open to"
-- Frame the counter as a specific proposal: ${counterVideos} videos for $${Number(counterTotal).toLocaleString('en-US')} total
-- Present the total amount, not the per-video rate — say "5 videos for $1,500" not "$300 per video"
-- Frame it as starting with a test batch, not as their rate being too high
-- Never say: "lower entry point", "since this is new for you", "your rate is high", "before we commit more"
-- Do say things like: "start with a batch to test what hits", "scale from there if it performs", "help guide angles we've seen convert"
-- Sell upside without overpromising. No guarantees.
-- End with a clear easy-to-answer question: "Would you be open to that?" or "Does that work for you?"
-
-STRUCTURE (in this order):
-1. Brief warm acknowledgment (1 line max, or skip it)
-2. Counter: propose ${counterVideos} videos for $${Number(counterTotal).toLocaleString('en-US')} total, frame as a test batch to start
-3. The upside: we'll help with angles that convert, more commission potential
-4. Close with one clear question
-
-Output ONLY the message. No subject line. No preamble. Start with Hey ${firstName},`
+Rules:
+- Replace "Jayden" with "${firstName}" and "Lu" with "${senderName}"
+- Replace the video count and dollar amount with the actual numbers above
+- You may vary the exact wording slightly so it doesn't sound copy-pasted, but keep every paragraph as short as in the example
+- NEVER use em dashes or en dashes
+- Do NOT say "I'd like" — say "I was thinking we could" or "Would you be open to"
+- Do NOT mention their rate or negotiate against them. Frame it as a test batch.
+- Output only the message. No subject line. No extra commentary.`
       }]
     });
 

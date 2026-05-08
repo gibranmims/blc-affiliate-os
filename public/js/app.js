@@ -10,13 +10,12 @@ const API = {
 };
 
 const STATUSES = [
-  { key: 'drafted',        label: 'In Drafts',  color: 'gray'   },
-  { key: 'sent',           label: 'Sent',       color: 'blue'   },
-  { key: 'replied',        label: 'Replied',    color: 'yellow' },
-  { key: 'evaluating',     label: 'Evaluating', color: 'purple' },
-  { key: 'counter_offered',label: 'Countered',  color: 'orange' },
-  { key: 'signed',         label: 'Signed',     color: 'green'  },
-  { key: 'archived',       label: 'Archived',   color: 'gray'   }
+  { key: 'drafted',        label: 'In Drafts', color: 'gray'   },
+  { key: 'sent',           label: 'Sent',      color: 'blue'   },
+  { key: 'replied',        label: 'Replied',   color: 'yellow' },
+  { key: 'counter_offered',label: 'Countered', color: 'orange' },
+  { key: 'signed',         label: 'Signed',    color: 'green'  },
+  { key: 'archived',       label: 'Archived',  color: 'gray'   }
 ];
 
 const state = {
@@ -358,7 +357,7 @@ function renderPipelineView() {
     const { col, dir } = state.outreachSort;
     let av, bv;
     if (col === 'followers') { av = a.follower_count || 0; bv = b.follower_count || 0; }
-    else if (col === 'avgrate') { av = avgRatePerVid(a) || 0; bv = avgRatePerVid(b) || 0; }
+    else if (col === 'rates') { av = avgRatePerVid(a) || 0; bv = avgRatePerVid(b) || 0; }
     else if (col === 'name') { av = (a.name || a.handle || '').toLowerCase(); bv = (b.name || b.handle || '').toLowerCase(); }
     else if (col === 'status') { av = a.status || ''; bv = b.status || ''; }
     else { av = 0; bv = 0; }
@@ -369,7 +368,7 @@ function renderPipelineView() {
 
   state.filteredIds = filtered.map(r => r.id);
 
-  const inPipeline = ['sent','replied','evaluating','counter_offered']
+  const inPipeline = ['sent','replied','counter_offered']
     .reduce((s, k) => s + (counts[k] || 0), 0);
 
   const anySelected = state.selectedIds.size > 0;
@@ -455,7 +454,7 @@ function renderPipelineView() {
               </th>
               ${sortTh('name', 'Creator')}
               ${sortTh('followers', 'Followers')}
-              ${sortTh('avgrate', 'Avg Rate/Vid')}
+              ${sortTh('rates', '$/vid')}
               <th>Grade</th>
               ${sortTh('status', 'Status')}
             </tr>
@@ -477,7 +476,15 @@ function renderPipelineView() {
                   </div>
                 </td>
                 <td>${fmtNum(r.follower_count)}</td>
-                <td class="avg-rate-cell">${avgRatePerVid(r) !== null ? fmt$(avgRatePerVid(r)) : '—'}</td>
+                <td class="rate-cell">${(() => {
+                  const hasReq = ['replied','counter_offered','signed'].includes(r.status);
+                  const hasCtr = ['counter_offered','signed'].includes(r.status);
+                  const req = avgRatePerVid(r);
+                  if (!hasReq || req === null) return '—';
+                  if (!hasCtr) return `<span class="rate-req">${fmt$(req)}</span>`;
+                  const ctr = r.counter_offer_amount;
+                  return `<div class="rate-stack"><span class="rate-req">Req: ${fmt$(req)}</span><span class="rate-ctr">Ctr: ${ctr ? fmt$(ctr) : '—'}</span></div>`;
+                })()}</td>
                 <td>${gradeBadge(r.tier)}</td>
                 <td onclick="event.stopPropagation()">
                   <select class="inline-status-select status-key-${r.status}"
@@ -596,7 +603,7 @@ function renderDetailPanel() {
 
   document.getElementById('detail-drawer-title').textContent = 'Creator Detail';
 
-  const hasReplied = ['replied','evaluating','counter_offered','signed','ghosted'].includes(r.status);
+  const hasReplied = ['replied','counter_offered','signed','ghosted'].includes(r.status);
   const evalScore  = calcEvalScore(r);
   const allEvalDone = EVAL_QUESTIONS.every(q => r[q.key]);
   const autoTier   = allEvalDone ? autoTierFromScore(evalScore) : null;
