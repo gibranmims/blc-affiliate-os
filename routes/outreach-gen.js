@@ -239,21 +239,25 @@ router.post('/generate', upload.single('csv'), async (req, res) => {
 
 // POST /api/outreach-gen/counter-offer
 router.post('/counter-offer', async (req, res) => {
-  const { name, handle, askedRate3, askedRate5, askedRate10, askedRateCustom, askedRateCustomCount, counterOfferAmount, tier, sender } = req.body;
-  if (!name || !counterOfferAmount) return res.status(400).json({ error: 'name and counterOfferAmount required' });
+  const { name, handle, askedRate3, askedRate5, askedRate10, askedRateCustom, askedRateCustomCount,
+          counterVideos, counterTotal, counterPerVid, tier, sender } = req.body;
+  if (!name || !counterVideos || !counterTotal) return res.status(400).json({ error: 'name, counterVideos, and counterTotal required' });
   if (!process.env.ANTHROPIC_API_KEY) return res.status(500).json({ error: 'ANTHROPIC_API_KEY not configured' });
 
   const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-  const firstName = cleanFirstName(name);
+  const firstName  = cleanFirstName(name);
   const senderName = sender || 'Tamar';
+  const perVid     = counterPerVid || (counterTotal / counterVideos);
 
-  const pvd = (total, n) => `$${total} total ($${Math.round(total/n)}/vid avg)`;
+  const pvd = (total, n) => `$${Number(total).toLocaleString('en-US')} total ($${Math.round(total/n).toLocaleString('en-US')}/vid avg)`;
   const ratesLine = [
     askedRate3  ? `3 videos: ${pvd(askedRate3, 3)}`   : null,
     askedRate5  ? `5 videos: ${pvd(askedRate5, 5)}`   : null,
     askedRate10 ? `10 videos: ${pvd(askedRate10, 10)}` : null,
     askedRateCustom && askedRateCustomCount ? `${askedRateCustomCount} videos: ${pvd(askedRateCustom, askedRateCustomCount)}` : null
   ].filter(Boolean).join('; ') || '(rates not specified)';
+
+  const ourOffer = `${counterVideos} videos for $${Number(counterTotal).toLocaleString('en-US')} total ($${Math.round(perVid).toLocaleString('en-US')}/vid avg)`;
 
   try {
     const msg = await anthropic.messages.create({
@@ -266,7 +270,7 @@ router.post('/counter-offer', async (req, res) => {
 CONTEXT:
 Creator: ${firstName} (@${handle || ''})
 Their asked rates: ${ratesLine}
-Our counter offer: $${counterOfferAmount}/video
+Our counter offer: ${ourOffer}
 
 WRITING RULES — follow every single one:
 
@@ -280,15 +284,17 @@ WRITING RULES — follow every single one:
 TONE AND FRAMING:
 - Sound like a real person, not a brand or an AI. Write how Tamar or Lu would actually text a creator.
 - Never say "I'd like" — use "I was thinking we could", "What if we started with", "Would you be open to"
-- Frame the counter around starting with a test batch, not around their rate being too high
+- Frame the counter as a specific proposal: ${counterVideos} videos for $${Number(counterTotal).toLocaleString('en-US')} total
+- Present the total amount, not the per-video rate — say "5 videos for $1,500" not "$300 per video"
+- Frame it as starting with a test batch, not as their rate being too high
 - Never say: "lower entry point", "since this is new for you", "your rate is high", "before we commit more"
 - Do say things like: "start with a batch to test what hits", "scale from there if it performs", "help guide angles we've seen convert"
 - Sell upside without overpromising. No guarantees.
-- End with a clear easy-to-answer question: "Would you be open to that?" or "Let me know if that works."
+- End with a clear easy-to-answer question: "Would you be open to that?" or "Does that work for you?"
 
 STRUCTURE (in this order):
 1. Brief warm acknowledgment (1 line max, or skip it)
-2. Counter: propose $${counterOfferAmount}/video, frame as a test batch to start
+2. Counter: propose ${counterVideos} videos for $${Number(counterTotal).toLocaleString('en-US')} total, frame as a test batch to start
 3. The upside: we'll help with angles that convert, more commission potential
 4. Close with one clear question
 

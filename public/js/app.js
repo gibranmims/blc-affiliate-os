@@ -638,24 +638,33 @@ function renderDetailPanel() {
       <div class="dp-section" style="border:none;padding-top:0">
       <div class="dp-rates-grid">
         <div class="dp-form-group">
-          <label>3-video bundle ($)</label>
-          <input type="number" class="dp-input" placeholder="e.g. 1200"
-            value="${r.asked_rate_3 || ''}"
-            onblur="updateOutreachField('${r.id}', 'asked_rate_3', this.value)">
+          <label>3-video bundle</label>
+          <div class="dp-input-money">
+            <span class="dp-money-prefix">$</span>
+            <input type="number" class="dp-input" placeholder="e.g. 1200"
+              value="${r.asked_rate_3 || ''}"
+              onblur="updateOutreachField('${r.id}', 'asked_rate_3', this.value)">
+          </div>
           ${r.asked_rate_3 ? `<div class="dp-rate-per-vid">${fmt$(r.asked_rate_3/3)}/vid avg</div>` : ''}
         </div>
         <div class="dp-form-group">
-          <label>5-video bundle ($)</label>
-          <input type="number" class="dp-input" placeholder="e.g. 1750"
-            value="${r.asked_rate_5 || ''}"
-            onblur="updateOutreachField('${r.id}', 'asked_rate_5', this.value)">
+          <label>5-video bundle</label>
+          <div class="dp-input-money">
+            <span class="dp-money-prefix">$</span>
+            <input type="number" class="dp-input" placeholder="e.g. 1750"
+              value="${r.asked_rate_5 || ''}"
+              onblur="updateOutreachField('${r.id}', 'asked_rate_5', this.value)">
+          </div>
           ${r.asked_rate_5 ? `<div class="dp-rate-per-vid">${fmt$(r.asked_rate_5/5)}/vid avg</div>` : ''}
         </div>
         <div class="dp-form-group">
-          <label>10-video bundle ($)</label>
-          <input type="number" class="dp-input" placeholder="e.g. 2500"
-            value="${r.asked_rate_10 || ''}"
-            onblur="updateOutreachField('${r.id}', 'asked_rate_10', this.value)">
+          <label>10-video bundle</label>
+          <div class="dp-input-money">
+            <span class="dp-money-prefix">$</span>
+            <input type="number" class="dp-input" placeholder="e.g. 2500"
+              value="${r.asked_rate_10 || ''}"
+              onblur="updateOutreachField('${r.id}', 'asked_rate_10', this.value)">
+          </div>
           ${r.asked_rate_10 ? `<div class="dp-rate-per-vid">${fmt$(r.asked_rate_10/10)}/vid avg</div>` : ''}
         </div>
       </div>
@@ -667,10 +676,13 @@ function renderDetailPanel() {
             onblur="updateOutreachField('${r.id}', 'asked_rate_custom_count', this.value)">
         </div>
         <div class="dp-form-group" style="flex:1">
-          <label>Custom bundle ($) <span class="dp-label-hint">optional</span></label>
-          <input type="number" class="dp-input" placeholder="e.g. 2100"
-            value="${r.asked_rate_custom || ''}"
-            onblur="updateOutreachField('${r.id}', 'asked_rate_custom', this.value)">
+          <label>Custom bundle <span class="dp-label-hint">optional</span></label>
+          <div class="dp-input-money">
+            <span class="dp-money-prefix">$</span>
+            <input type="number" class="dp-input" placeholder="e.g. 2100"
+              value="${r.asked_rate_custom || ''}"
+              onblur="updateOutreachField('${r.id}', 'asked_rate_custom', this.value)">
+          </div>
           ${r.asked_rate_custom && r.asked_rate_custom_count ? `<div class="dp-rate-per-vid">${fmt$(r.asked_rate_custom/r.asked_rate_custom_count)}/vid avg</div>` : ''}
         </div>
       </div>
@@ -759,12 +771,30 @@ function renderDetailPanel() {
         ${r.asked_rate_custom && r.asked_rate_custom_count ? `<div class="dp-form-group"><label>${r.asked_rate_custom_count}-vid bundle</label><div class="dp-rate-display">${fmt$(r.asked_rate_custom)}</div><div class="dp-rate-per-vid">${fmt$(r.asked_rate_custom/r.asked_rate_custom_count)}/vid</div></div>` : ''}
       </div>
 
-      <div class="dp-form-group">
-        <label>Our offer ($/video)</label>
-        <input type="number" class="dp-input" id="dp-counter-amount"
-          value="${r.counter_offer_amount || (gradeInfo(r.tier || autoTier) || {}).perVid || ''}"
-          placeholder="e.g. ${(gradeInfo(r.tier || autoTier) || {}).perVid || 100}">
+      <div class="dp-counter-offer-fields">
+        <div class="dp-form-group">
+          <label># Videos</label>
+          <input type="number" class="dp-input" id="dp-counter-videos"
+            value="${r.video_count || ''}"
+            placeholder="e.g. 5"
+            oninput="updateCounterCalc()">
+        </div>
+        <div class="dp-form-group">
+          <label>Total Offer</label>
+          <div class="dp-input-money">
+            <span class="dp-money-prefix">$</span>
+            <input type="number" class="dp-input" id="dp-counter-total"
+              value="${r.counter_offer_amount && r.video_count ? Math.round(r.counter_offer_amount * r.video_count) : ''}"
+              placeholder="${(gradeInfo(r.tier || autoTier) || {}).perVid ? (gradeInfo(r.tier || autoTier).perVid * 5) : 'e.g. 1500'}"
+              oninput="updateCounterCalc()">
+          </div>
+        </div>
       </div>
+      <div class="dp-counter-per-vid" id="dp-counter-per-vid">${
+        r.counter_offer_amount && r.video_count
+          ? `<span class="dp-per-vid-calc">${fmt$(r.counter_offer_amount)}/vid avg</span>`
+          : (gradeInfo(r.tier || autoTier) ? `Suggested: ${fmt$((gradeInfo(r.tier || autoTier) || {}).perVid)}/vid` : '')
+      }</div>
 
       <button class="btn btn-primary dp-gen-counter-btn" id="dp-gen-counter-btn"
         onclick="generateCounterOffer('${r.id}')">
@@ -907,42 +937,69 @@ async function setEvalField(id, field, value) {
   renderDetailPanel();
 }
 
+function updateCounterCalc() {
+  const vids  = parseInt(document.getElementById('dp-counter-videos')?.value);
+  const total = parseFloat(document.getElementById('dp-counter-total')?.value);
+  const el    = document.getElementById('dp-counter-per-vid');
+  if (!el) return;
+  if (vids > 0 && total > 0) {
+    el.innerHTML = `<span class="dp-per-vid-calc">${fmt$(total / vids)}/vid avg</span>`;
+  } else {
+    el.innerHTML = '';
+  }
+}
+
 async function generateCounterOffer(id) {
   const r = state.outreach.find(x => x.id === id);
   if (!r) return;
 
-  const amountEl = document.getElementById('dp-counter-amount');
-  const amount = amountEl?.value;
-  if (!amount) { showToast('Enter our offer amount first', 'error'); return; }
+  const videos = parseInt(document.getElementById('dp-counter-videos')?.value);
+  const total  = parseFloat(document.getElementById('dp-counter-total')?.value);
+
+  if (!videos || isNaN(videos)) { showToast('Enter # of videos first', 'error'); return; }
+  if (!total  || isNaN(total))  { showToast('Enter total offer amount first', 'error'); return; }
+
+  const perVid = total / videos;
 
   const btn = document.getElementById('dp-gen-counter-btn');
   if (btn) { btn.disabled = true; btn.textContent = 'Generating...'; }
 
-  // Save the amount first
-  await updateOutreachField(id, 'counter_offer_amount', amount);
+  // Save deal details first
+  const saved = await fetchAPI(`${API.outreach}/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify({ counter_offer_amount: perVid, video_count: videos })
+  }).catch(() => null);
+  if (saved) {
+    const i = state.outreach.findIndex(x => x.id === id);
+    if (i !== -1) state.outreach[i] = { ...state.outreach[i], counter_offer_amount: perVid, video_count: videos };
+  }
 
   try {
     const { email } = await fetchAPI(`${API.outreachGen}/counter-offer`, {
       method: 'POST',
       body: JSON.stringify({
-        name:               r.name,
-        handle:             r.handle,
-        askedRate3:              r.asked_rate_3,
-        askedRate5:              r.asked_rate_5,
-        askedRate10:             r.asked_rate_10,
-        askedRateCustom:         r.asked_rate_custom,
-        askedRateCustomCount:    r.asked_rate_custom_count,
-        counterOfferAmount: amount,
-        tier:               r.tier,
-        sender:             r.sender || 'Tamar'
+        name:                 r.name,
+        handle:               r.handle,
+        askedRate3:           r.asked_rate_3,
+        askedRate5:           r.asked_rate_5,
+        askedRate10:          r.asked_rate_10,
+        askedRateCustom:      r.asked_rate_custom,
+        askedRateCustomCount: r.asked_rate_custom_count,
+        counterVideos:        videos,
+        counterTotal:         total,
+        counterPerVid:        perVid,
+        tier:                 r.tier,
+        sender:               r.sender || 'Tamar'
       })
     });
 
-    await updateOutreachField(id, 'counter_offer_email', email);
+    const j = state.outreach.findIndex(x => x.id === id);
+    if (j !== -1) state.outreach[j] = { ...state.outreach[j], counter_offer_email: email };
+    renderDetailPanel();
     showToast('Counter offer generated');
   } catch (err) {
     showToast(err.message, 'error');
-    if (btn) { btn.disabled = false; btn.textContent = 'Generate Counter Offer'; }
+    if (btn) { btn.disabled = false; btn.textContent = 'Generate Counter Message'; }
   }
 }
 
