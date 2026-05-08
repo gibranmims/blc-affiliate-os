@@ -10,7 +10,7 @@ const API = {
 };
 
 const STATUSES = [
-  { key: 'drafted',        label: 'Drafted',    color: 'gray'   },
+  { key: 'drafted',        label: 'In Drafts',  color: 'gray'   },
   { key: 'sent',           label: 'Sent',       color: 'blue'   },
   { key: 'replied',        label: 'Replied',    color: 'yellow' },
   { key: 'evaluating',     label: 'Evaluating', color: 'purple' },
@@ -560,12 +560,26 @@ function renderDetailPanel() {
     <!-- Evaluation (shown from "replied" onward) -->
     ${hasReplied ? `
     <div class="dp-section">
-      <div class="dp-section-label">Their Rate</div>
-      <div class="dp-form-group">
-        <label>Asked rate per video ($)</label>
-        <input type="number" class="dp-input" id="dp-asked-rate"
-          value="${r.asked_rate || ''}" placeholder="e.g. 500"
-          onblur="updateOutreachField('${r.id}', 'asked_rate', this.value)">
+      <div class="dp-section-label">Their Asked Rates</div>
+      <div class="dp-rates-grid">
+        <div class="dp-form-group">
+          <label>3 videos ($/vid)</label>
+          <input type="number" class="dp-input" placeholder="e.g. 400"
+            value="${r.asked_rate_3 || ''}"
+            onblur="updateOutreachField('${r.id}', 'asked_rate_3', this.value)">
+        </div>
+        <div class="dp-form-group">
+          <label>5 videos ($/vid)</label>
+          <input type="number" class="dp-input" placeholder="e.g. 350"
+            value="${r.asked_rate_5 || ''}"
+            onblur="updateOutreachField('${r.id}', 'asked_rate_5', this.value)">
+        </div>
+        <div class="dp-form-group">
+          <label>10 videos ($/vid)</label>
+          <input type="number" class="dp-input" placeholder="e.g. 300"
+            value="${r.asked_rate_10 || ''}"
+            onblur="updateOutreachField('${r.id}', 'asked_rate_10', this.value)">
+        </div>
       </div>
     </div>
 
@@ -639,8 +653,16 @@ function renderDetailPanel() {
       <div class="dp-section-label">Counter Offer</div>
       <div class="dp-counter-rates">
         <div class="dp-form-group">
-          <label>Their rate</label>
-          <div class="dp-rate-display">${r.asked_rate ? fmt$(r.asked_rate) : '—'}</div>
+          <label>3 vids</label>
+          <div class="dp-rate-display">${r.asked_rate_3 ? fmt$(r.asked_rate_3) : '—'}</div>
+        </div>
+        <div class="dp-form-group">
+          <label>5 vids</label>
+          <div class="dp-rate-display">${r.asked_rate_5 ? fmt$(r.asked_rate_5) : '—'}</div>
+        </div>
+        <div class="dp-form-group">
+          <label>10 vids</label>
+          <div class="dp-rate-display">${r.asked_rate_10 ? fmt$(r.asked_rate_10) : '—'}</div>
         </div>
         <div class="dp-form-group">
           <label>Our offer ($)</label>
@@ -673,7 +695,7 @@ function renderDetailPanel() {
         <div class="dp-form-group">
           <label>Rate per video ($)</label>
           <input type="number" class="dp-input" id="dp-final-rate"
-            value="${r.counter_offer_amount || r.asked_rate || ''}"
+            value="${r.counter_offer_amount || ''}"
             placeholder="e.g. 150"
             onblur="updateOutreachField('${r.id}', 'counter_offer_amount', this.value)">
         </div>
@@ -691,10 +713,10 @@ function renderDetailPanel() {
           value="${r.start_date ? r.start_date.split('T')[0] : ''}"
           onblur="updateOutreachField('${r.id}', 'start_date', this.value)">
       </div>
-      ${(r.counter_offer_amount || r.asked_rate) && r.video_count ? `
+      ${r.counter_offer_amount && r.video_count ? `
       <div class="dp-deal-summary">
-        <span>Total: <strong>${fmt$(parseFloat(r.counter_offer_amount || r.asked_rate) * parseInt(r.video_count))}</strong></span>
-        <span class="dp-deal-half">50% upfront: ${fmt$(parseFloat(r.counter_offer_amount || r.asked_rate) * parseInt(r.video_count) / 2)}</span>
+        <span>Total: <strong>${fmt$(parseFloat(r.counter_offer_amount) * parseInt(r.video_count))}</strong></span>
+        <span class="dp-deal-half">50% upfront: ${fmt$(parseFloat(r.counter_offer_amount) * parseInt(r.video_count) / 2)}</span>
       </div>
       ` : ''}
       <button class="btn btn-primary" style="margin-top:12px;width:100%;justify-content:center"
@@ -750,7 +772,9 @@ async function generateCounterOffer(id) {
       body: JSON.stringify({
         name:               r.name,
         handle:             r.handle,
-        askedRate:          r.asked_rate,
+        askedRate3:         r.asked_rate_3,
+        askedRate5:         r.asked_rate_5,
+        askedRate10:        r.asked_rate_10,
         counterOfferAmount: amount,
         tier:               r.tier,
         sender:             r.sender || 'Tamar'

@@ -239,13 +239,19 @@ router.post('/generate', upload.single('csv'), async (req, res) => {
 
 // POST /api/outreach-gen/counter-offer
 router.post('/counter-offer', async (req, res) => {
-  const { name, handle, askedRate, counterOfferAmount, tier, sender } = req.body;
+  const { name, handle, askedRate3, askedRate5, askedRate10, counterOfferAmount, tier, sender } = req.body;
   if (!name || !counterOfferAmount) return res.status(400).json({ error: 'name and counterOfferAmount required' });
   if (!process.env.ANTHROPIC_API_KEY) return res.status(500).json({ error: 'ANTHROPIC_API_KEY not configured' });
 
   const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
   const firstName = cleanFirstName(name);
   const senderName = sender || 'Tamar';
+
+  const ratesLine = [
+    askedRate3  ? `3 videos: $${askedRate3}/vid`  : null,
+    askedRate5  ? `5 videos: $${askedRate5}/vid`  : null,
+    askedRate10 ? `10 videos: $${askedRate10}/vid` : null
+  ].filter(Boolean).join(', ') || '(rates not specified)';
 
   try {
     const msg = await anthropic.messages.create({
@@ -257,7 +263,7 @@ router.post('/counter-offer', async (req, res) => {
 
 Creator first name: ${firstName}
 Handle: @${handle || ''}
-Their asked rate: $${askedRate || '?'}/video
+Their asked rates: ${ratesLine}
 Our counter offer: $${counterOfferAmount}/video
 
 Hard rules:
