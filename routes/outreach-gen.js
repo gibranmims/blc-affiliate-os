@@ -258,28 +258,41 @@ router.post('/counter-offer', async (req, res) => {
   try {
     const msg = await anthropic.messages.create({
       model: 'claude-opus-4-7',
-      max_tokens: 300,
+      max_tokens: 350,
       messages: [{
         role: 'user',
-        content: `Write a short counter offer email from ${senderName} at The Bikini Line Co to a creator who replied with their rates.
+        content: `You are writing a counter offer message for The Bikini Line Co (BLC).
 
-Creator first name: ${firstName}
-Handle: @${handle || ''}
+CONTEXT:
+Creator: ${firstName} (@${handle || ''})
 Their asked rates: ${ratesLine}
 Our counter offer: $${counterOfferAmount}/video
 
-Hard rules:
-1. First line must be exactly: Hey ${firstName},
-2. NEVER use em dashes or en dashes. Not once.
-3. Sound like a real 28-year-old woman texting a friend, not a marketer
-4. Total length: 50 to 80 words max
-5. Put one blank line between every 1 to 2 sentences
-6. Acknowledge their reply naturally (short, not over the top)
-7. State our counter offer of $${counterOfferAmount}/video clearly
-8. Keep it warm and open so they feel comfortable responding
-9. Last line is only: ${senderName}
+WRITING RULES — follow every single one:
 
-Output only the email body. No subject line. No preamble. Start with Hey ${firstName},`
+1. First line is exactly: Hey ${firstName},
+2. Last line is exactly: ${senderName}
+3. NEVER use em dashes or en dashes. Ever.
+4. Total length: 60 to 90 words. Short and skimmable.
+5. One blank line between every sentence or two. Easy to scan.
+6. Do NOT open with "Thanks for getting back to me" or similar filler. Acknowledge briefly or skip it.
+
+TONE AND FRAMING:
+- Sound like a real person, not a brand or an AI. Write how Tamar or Lu would actually text a creator.
+- Never say "I'd like" — use "I was thinking we could", "What if we started with", "Would you be open to"
+- Frame the counter around starting with a test batch, not around their rate being too high
+- Never say: "lower entry point", "since this is new for you", "your rate is high", "before we commit more"
+- Do say things like: "start with a batch to test what hits", "scale from there if it performs", "help guide angles we've seen convert"
+- Sell upside without overpromising. No guarantees.
+- End with a clear easy-to-answer question: "Would you be open to that?" or "Let me know if that works."
+
+STRUCTURE (in this order):
+1. Brief warm acknowledgment (1 line max, or skip it)
+2. Counter: propose $${counterOfferAmount}/video, frame as a test batch to start
+3. The upside: we'll help with angles that convert, more commission potential
+4. Close with one clear question
+
+Output ONLY the message. No subject line. No preamble. Start with Hey ${firstName},`
       }]
     });
 
