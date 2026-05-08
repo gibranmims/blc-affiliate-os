@@ -1230,6 +1230,7 @@ async function addOneToPipeline(e) {
     return true;
   } catch (err) {
     console.error('Failed to add to pipeline:', e.handle, err.message);
+    showToast(`Pipeline error (${e.handle}): ${err.message}`, 'error');
     return false;
   }
 }
