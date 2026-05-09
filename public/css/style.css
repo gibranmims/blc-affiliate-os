@@ -2513,3 +2513,144 @@ body {
   from { opacity: 0; transform: scale(0.92) translateY(8px); }
   to   { opacity: 1; transform: scale(1) translateY(0); }
 }
+
+/* ============================================================
+   ROSTER v2 — DETAIL PANEL
+   ============================================================ */
+
+/* Grade badge in table */
+.grade-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: 700;
+}
+.grade-badge.grade-A { background: rgba(34,197,94,0.15); color: var(--green); }
+.grade-badge.grade-B { background: rgba(234,179,8,0.15);  color: var(--yellow); }
+.grade-badge.grade-C { background: rgba(249,115,22,0.15); color: var(--orange); }
+
+/* Deal column */
+.deal-cell { font-size: 12px; color: var(--text-secondary); }
+
+/* Status select colors for roster */
+.inline-status-select.status-key-rs-active   { background-color: var(--green-dim);   color: var(--green); }
+.inline-status-select.status-key-rs-watching { background-color: var(--blue-dim);    color: var(--blue); }
+.inline-status-select.status-key-rs-paused   { background-color: var(--yellow-dim);  color: var(--yellow); }
+.inline-status-select.status-key-rs-inactive { background-color: var(--bg-elevated); color: var(--text-muted); }
+
+/* No-deal indicator in table */
+.deal-cell-none { font-size: 12px; color: var(--text-muted); font-style: italic; }
+
+/* Section hint subtitle */
+.dp-section-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+  margin-top: -6px;
+}
+
+/* Top Performing Videos list */
+.rs-video-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.rs-video-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-elevated);
+  border-radius: 6px;
+  padding: 8px 10px;
+}
+
+.rs-video-link {
+  flex: 1;
+  font-size: 12px;
+  color: var(--accent);
+  text-decoration: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rs-video-link:hover { text-decoration: underline; }
+
+.rs-remove-btn {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: color 0.15s;
+  line-height: 1;
+}
+.rs-remove-btn:hover { color: #ef4444; }
+
+/* Add video input row */
+.rs-add-video-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.rs-add-video-row .dp-input { flex: 1; }
+
+/* Dictation button */
+.rs-dictate-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  border-radius: 6px;
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.rs-dictate-btn:hover { border-color: var(--accent); color: var(--accent); }
+.rs-dictate-btn.recording {
+  background: rgba(239,68,68,0.1);
+  border-color: #ef4444;
+  color: #ef4444;
+  animation: dictate-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes dictate-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.65; }
+}
+
+/* Assessment textarea */
+.rs-assessment-ta {
+  min-height: 120px;
+  resize: vertical;
+}
+
+/* Danger outline button */
+.btn-danger-outline {
+  background: transparent;
+  border: 1px solid rgba(239,68,68,0.4);
+  color: #ef4444;
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.btn-danger-outline:hover {
+  background: rgba(239,68,68,0.08);
+  border-color: #ef4444;
+}

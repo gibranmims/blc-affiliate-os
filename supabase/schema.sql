@@ -95,3 +95,19 @@ ALTER TABLE app_settings DISABLE ROW LEVEL SECURITY;
 -- Disable RLS (internal tool — no user auth layer)
 ALTER TABLE outreach DISABLE ROW LEVEL SECURITY;
 ALTER TABLE roster DISABLE ROW LEVEL SECURITY;
+
+-- ============================================================
+-- Roster v2 — run these ALTER statements after initial setup
+-- ============================================================
+ALTER TABLE roster ADD COLUMN IF NOT EXISTS name TEXT;
+ALTER TABLE roster ADD COLUMN IF NOT EXISTS tier TEXT;
+ALTER TABLE roster ADD COLUMN IF NOT EXISTS video_count INTEGER;
+ALTER TABLE roster ADD COLUMN IF NOT EXISTS start_date DATE;
+ALTER TABLE roster ADD COLUMN IF NOT EXISTS per_vid_rate NUMERIC(10,2);
+ALTER TABLE roster ADD COLUMN IF NOT EXISTS top_videos JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE roster ADD COLUMN IF NOT EXISTS creator_assessment TEXT;
+
+-- Drop the old 3-value status CHECK and replace with 4-value version
+ALTER TABLE roster DROP CONSTRAINT IF EXISTS roster_status_check;
+ALTER TABLE roster ADD CONSTRAINT roster_status_check
+  CHECK (status IN ('active', 'inactive', 'paused', 'watching'));

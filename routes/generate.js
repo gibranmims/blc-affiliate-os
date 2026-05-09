@@ -67,9 +67,8 @@ router.post('/script', async (req, res) => {
 - Platform: ${creator.platform}
 - Niche: ${creator.niche || 'Not specified'}
 - Followers: ${creator.followers ? creator.followers.toLocaleString() : 'Unknown'}
-- Content Style: ${creator.content_style || 'Not specified'}
+- Creator Assessment & Vision: ${creator.creator_assessment || creator.content_style || 'Not specified'}
 - Audience: ${creator.audience_demographics || 'Not specified'}
-- Notes: ${creator.notes || 'None'}
 
 **Script Parameters:**
 - Product: ${productFocus || 'BLC Bikini Line Shave Serum (their choice of product)'}

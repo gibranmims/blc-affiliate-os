@@ -25,6 +25,7 @@ const state = {
   outreachFilter:     'all',
   outreachView:       'pipeline',  // 'pipeline' | 'new-batch'
   selectedOutreachId: null,
+  activeRosterId:     null,
   selectedIds:        new Set(),
   outreachSort:       { col: 'followers', dir: 'desc' },
   dpAccordion:        { rates: false, eval: true, counter: true }
@@ -173,8 +174,9 @@ function gradeBadge(grade) {
 }
 
 function rosterStatusBadge(status) {
-  const map = { active: 'green', inactive: 'gray', paused: 'yellow' };
-  return `<span class="badge badge-${map[status] || 'gray'}">${esc(status)}</span>`;
+  const map    = { active: 'green', watching: 'blue', paused: 'yellow', inactive: 'gray' };
+  const labels = { active: 'Active', watching: 'Watching', paused: 'Paused', inactive: 'Inactive' };
+  return `<span class="badge badge-${map[status] || 'gray'}">${labels[status] || esc(status)}</span>`;
 }
 
 function platformIcon(p) {
@@ -594,7 +596,9 @@ function toggleAccordion(key) {
 }
 
 function closeDetailPanel() {
+  stopDictation();
   state.selectedOutreachId = null;
+  state.activeRosterId     = null;
   document.getElementById('detail-panel').style.display = 'none';
   document.querySelectorAll('.clickable-row').forEach(r => r.classList.remove('row-active'));
 }
@@ -1156,17 +1160,26 @@ async function generateContractAndMoveToRoster(id) {
 }
 
 async function moveToRoster(r, rate, videoCount) {
+  const startDate = r.start_date ? r.start_date.split('T')[0] : null;
   const rec = await fetchAPI(API.roster, {
     method: 'POST',
     body: JSON.stringify({
-      handle:          r.handle,
-      platform:        'TikTok',
-      niche:           (r.product_category || '').split(',')[0].trim() || null,
-      followers:       r.follower_count || null,
-      email:           r.email || null,
-      status:          'active',
-      commission_rate: 0,
-      notes:           `Signed ${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}. Rate: $${rate}/video × ${videoCount} videos.`
+      handle:            r.handle,
+      name:              r.name || null,
+      platform:          'TikTok',
+      niche:             (r.product_category || '').split(',')[0].trim() || null,
+      followers:         r.follower_count || null,
+      email:             r.email || null,
+      status:            'active',
+      tier:              r.tier || null,
+      video_count:       videoCount,
+      start_date:        startDate,
+      per_vid_rate:      rate,
+      commission_rate:   20,
+      content_submitted: 0,
+      gmv:               0,
+      top_videos:        [],
+      creator_assessment: null
     })
   });
   state.roster.unshift(rec);
@@ -1699,7 +1712,7 @@ function renderRosterPage() {
     <div class="page-header">
       <div>
         <h1 class="page-title">Roster</h1>
-        <p class="page-subtitle">Active affiliate database — fully editable</p>
+        <p class="page-subtitle">Active affiliate database</p>
       </div>
       <button class="btn btn-primary" onclick="openAddRosterModal()">+ Add Affiliate</button>
     </div>
@@ -1728,7 +1741,7 @@ function renderRosterPage() {
         <div class="empty-state">
           <div class="empty-icon">👥</div>
           <h3>No affiliates yet</h3>
-          <p>Add your first affiliate to the roster</p>
+          <p>Signed creators move here automatically when you generate their contract</p>
           <button class="btn btn-primary" onclick="openAddRosterModal()">+ Add Affiliate</button>
         </div>
       ` : `
@@ -1736,148 +1749,406 @@ function renderRosterPage() {
           <thead>
             <tr>
               <th>Creator</th>
-              <th>Platform</th>
-              <th>Niche</th>
-              <th>Followers</th>
+              <th>Grade</th>
+              <th>Deal</th>
+              <th>Start Date</th>
               <th>Posts</th>
               <th>GMV</th>
-              <th>Commission</th>
               <th>Status</th>
-              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
-            ${state.roster.map(r => `
-              <tr>
+            ${state.roster.map(r => {
+              const isActive = r.id === state.activeRosterId;
+              const startFmt = r.start_date
+                ? new Date(r.start_date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                : '—';
+              return `
+              <tr class="clickable-row${isActive ? ' row-active' : ''}" onclick="openRosterDetail('${r.id}')">
                 <td>
                   <div class="creator-cell">
                     <span class="creator-handle">@${esc(r.handle)}</span>
-                    ${r.email ? `<span class="creator-email">${esc(r.email)}</span>` : ''}
+                    ${r.name ? `<span class="creator-email">${esc(r.name)}</span>` : ''}
                   </div>
                 </td>
-                <td><span class="platform-tag">${platformIcon(r.platform)} ${esc(r.platform)}</span></td>
-                <td>${esc(r.niche) || '—'}</td>
-                <td>${fmtNum(r.followers)}</td>
+                <td>${r.tier ? `<span class="grade-badge grade-${r.tier}">${r.tier}</span>` : '—'}</td>
+                <td>${r.video_count && r.per_vid_rate
+                  ? `<span class="deal-cell">${r.video_count} vids · ${fmt$(r.per_vid_rate)}/vid</span>`
+                  : `<span class="deal-cell-none">No deal</span>`}</td>
+                <td>${startFmt}</td>
                 <td>${r.content_submitted || 0}</td>
                 <td><span class="gmv-value">${fmt$(r.gmv)}</span></td>
-                <td>${r.commission_rate ? r.commission_rate + '%' : '—'}</td>
                 <td>${rosterStatusBadge(r.status)}</td>
-                <td>
-                  <div class="action-buttons">
-                    <button class="btn-icon" onclick="openEditRosterModal('${r.id}')" title="Edit">✏️</button>
-                    <button class="btn-icon btn-icon-danger" onclick="deleteRoster('${r.id}')" title="Delete">🗑️</button>
-                  </div>
-                </td>
-              </tr>
-              ${r.notes ? `
-                <tr class="notes-row">
-                  <td colspan="9"><div class="notes-content">💬 ${esc(r.notes)}</div></td>
-                </tr>` : ''}
-            `).join('')}
+              </tr>`;
+            }).join('')}
           </tbody>
         </table>
       `}
     </div>`;
+
+  if (state.activeRosterId && state.roster.find(r => r.id === state.activeRosterId)) {
+    const panel = document.getElementById('detail-panel');
+    panel.style.display = 'flex';
+    renderRosterDetailPanel();
+  }
 }
 
 // ============================================================
-// ROSTER — CRUD
+// ROSTER — DETAIL PANEL
 // ============================================================
 
-function rosterFormHTML(r = {}) {
-  const platforms = [['TikTok','TikTok'],['Instagram','Instagram'],['YouTube','YouTube'],['Pinterest','Pinterest']];
-  const statuses  = [['active','Active'],['inactive','Inactive'],['paused','Paused']];
-  return `
+function openRosterDetail(id) {
+  state.activeRosterId = id;
+  const panel = document.getElementById('detail-panel');
+  panel.style.display = 'flex';
+  renderRosterDetailPanel();
+  document.querySelectorAll('.data-table tbody .clickable-row').forEach(tr => {
+    tr.classList.toggle('row-active', tr.getAttribute('onclick') === `openRosterDetail('${id}')`);
+  });
+}
+
+function renderRosterDetailPanel() {
+  const r = state.roster.find(x => x.id === state.activeRosterId);
+  if (!r) { closeDetailPanel(); return; }
+
+  document.getElementById('detail-drawer-title').textContent = 'Affiliate Profile';
+
+  const videos    = Array.isArray(r.top_videos) ? r.top_videos : [];
+  const startISO  = r.start_date ? r.start_date.split('T')[0] : '';
+  const endISO    = startISO ? (() => {
+    const d = new Date(startISO + 'T12:00:00'); d.setDate(d.getDate() + 60);
+    return d.toISOString().split('T')[0];
+  })() : '';
+  const total = (parseFloat(r.per_vid_rate) || 0) * (parseInt(r.video_count) || 0);
+  const ROSTER_STATUSES = [['active','Active'],['watching','Watching'],['paused','Paused'],['inactive','Inactive']];
+
+  document.getElementById('detail-drawer-body').innerHTML = `
+
+    <!-- Header -->
+    <div class="dp-creator-header">
+      <div class="dp-header-top">
+        <div class="dp-name">${esc(r.name || r.handle)}</div>
+        <select class="inline-status-select status-key-rs-${r.status} dp-status-inline"
+          onchange="saveRosterField('${r.id}','status',this.value); this.className='inline-status-select status-key-rs-'+this.value+' dp-status-inline'">
+          ${ROSTER_STATUSES.map(([k,l]) => `<option value="${k}" ${r.status===k?'selected':''}>${l}</option>`).join('')}
+        </select>
+      </div>
+      <div class="dp-handle-row">
+        <span class="dp-handle-plain">@${esc(r.handle)}</span>
+      </div>
+      <div class="dp-chips">
+        ${r.tier     ? `<span class="dp-chip"><b>${r.tier}</b> grade</span>` : ''}
+        ${r.followers ? `<span class="dp-chip">${fmtNum(r.followers)} followers</span>` : ''}
+        ${r.email    ? `<span class="dp-chip dp-chip-email">${esc(r.email)}</span>` : ''}
+        ${r.niche    ? `<span class="dp-chip">${esc(r.niche)}</span>` : ''}
+      </div>
+    </div>
+
+    <!-- Deal Details -->
+    <div class="dp-section">
+      <div class="dp-section-label">Deal Details</div>
+      <div class="dp-signed-grid">
+        <div class="dp-form-group">
+          <label># Videos</label>
+          <input type="number" class="dp-input" value="${r.video_count || ''}" placeholder="e.g. 5"
+            onblur="saveRosterField('${r.id}','video_count',this.value)">
+        </div>
+        <div class="dp-form-group">
+          <label>Rate / Video</label>
+          <div class="dp-input-money">
+            <span class="dp-money-prefix">$</span>
+            <input type="number" class="dp-input" value="${r.per_vid_rate || ''}" placeholder="e.g. 200"
+              onblur="saveRosterField('${r.id}','per_vid_rate',this.value)">
+          </div>
+        </div>
+        <div class="dp-form-group">
+          <label>Start Date</label>
+          <input type="date" class="dp-input" value="${startISO}"
+            onblur="saveRosterField('${r.id}','start_date',this.value)">
+        </div>
+        <div class="dp-form-group">
+          <label>End Date</label>
+          <input type="date" class="dp-input" value="${endISO}"
+            onblur="saveRosterField('${r.id}','end_date',this.value)">
+        </div>
+      </div>
+      ${total > 0 ? `<div class="dp-deal-summary">Total flat: <b>${fmt$(total)}</b> &nbsp;·&nbsp; ${r.video_count} videos @ ${fmt$(r.per_vid_rate)}/vid</div>` : ''}
+    </div>
+
+    <!-- Performance -->
+    <div class="dp-section">
+      <div class="dp-section-label">Performance</div>
+      <div class="dp-signed-grid">
+        <div class="dp-form-group">
+          <label>Posts Submitted</label>
+          <input type="number" min="0" class="dp-input" value="${r.content_submitted || 0}"
+            onblur="saveRosterField('${r.id}','content_submitted',this.value)">
+        </div>
+        <div class="dp-form-group">
+          <label>GMV Earned</label>
+          <div class="dp-input-money">
+            <span class="dp-money-prefix">$</span>
+            <input type="number" step="0.01" min="0" class="dp-input" value="${r.gmv || 0}"
+              onblur="saveRosterField('${r.id}','gmv',this.value)">
+          </div>
+        </div>
+        <div class="dp-form-group">
+          <label>Commission Rate</label>
+          <input type="number" step="0.1" min="0" max="100" class="dp-input"
+            value="${r.commission_rate ?? 20}" placeholder="20"
+            onblur="saveRosterField('${r.id}','commission_rate',this.value)">
+          <div class="dp-rate-per-vid">% on affiliate sales</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Top Performing Videos -->
+    <div class="dp-section">
+      <div class="dp-section-label">Top Performing TikTok Shop Videos</div>
+      <div class="dp-section-hint">Their best-performing TikTok Shop content (not just ours)</div>
+      <div id="rs-videos-list" class="rs-video-list">
+        ${videos.map((url, i) => `
+          <div class="rs-video-item" data-idx="${i}">
+            <a href="${esc(url)}" target="_blank" class="rs-video-link" title="${esc(url)}">${esc(url)}</a>
+            <button class="rs-remove-btn" onclick="removeTopVideo('${r.id}',${i})" title="Remove">✕</button>
+          </div>`).join('')}
+      </div>
+      <div class="rs-add-video-row">
+        <input type="url" class="dp-input" id="rs-new-video-url" placeholder="Paste TikTok URL..."
+          onkeydown="if(event.key==='Enter'){addTopVideo('${r.id}');event.preventDefault();}">
+        <button class="btn btn-secondary btn-sm" onclick="addTopVideo('${r.id}')">Add</button>
+      </div>
+    </div>
+
+    <!-- Creator Assessment & Vision -->
+    <div class="dp-section">
+      <div class="dp-section-label-row">
+        <div class="dp-section-label">Creator Assessment &amp; Vision</div>
+        <button class="rs-dictate-btn" id="rs-dictate-btn" onclick="toggleDictation('${r.id}')">
+          <span>🎤</span> Dictate
+        </button>
+      </div>
+      <div class="dp-section-hint">Used by the script generator to personalize content</div>
+      <textarea class="dp-textarea rs-assessment-ta" id="rs-assessment"
+        placeholder="Describe this creator — their energy, style, what they're good at, how they sell, what angles work for them..."
+        onblur="saveRosterField('${r.id}','creator_assessment',this.value)">${esc(r.creator_assessment || '')}</textarea>
+    </div>
+
+    <!-- Remove -->
+    <div class="dp-delete-zone">
+      <button class="btn btn-danger-outline" onclick="deleteRosterFromPanel('${r.id}')">Remove from Roster</button>
+    </div>
+  `;
+}
+
+// ============================================================
+// ROSTER — SAVE / CRUD
+// ============================================================
+
+async function saveRosterField(id, field, value) {
+  try {
+    const body = { [field]: value === '' ? null : value };
+    const rec = await fetchAPI(`${API.roster}/${id}`, { method: 'PUT', body: JSON.stringify(body) });
+    const i = state.roster.findIndex(x => x.id === id);
+    if (i !== -1) state.roster[i] = rec;
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+function addTopVideo(rosterId) {
+  const input = document.getElementById('rs-new-video-url');
+  const url   = input?.value?.trim();
+  if (!url) return;
+
+  const r = state.roster.find(x => x.id === rosterId);
+  if (!r) return;
+
+  const videos = [...(Array.isArray(r.top_videos) ? r.top_videos : []), url];
+  input.value  = '';
+  r.top_videos = videos;
+  saveRosterField(rosterId, 'top_videos', videos);
+
+  const list = document.getElementById('rs-videos-list');
+  if (list) {
+    const idx = videos.length - 1;
+    const div = document.createElement('div');
+    div.className    = 'rs-video-item';
+    div.dataset.idx  = idx;
+    div.innerHTML    = `
+      <a href="${esc(url)}" target="_blank" class="rs-video-link" title="${esc(url)}">${esc(url)}</a>
+      <button class="rs-remove-btn" onclick="removeTopVideo('${rosterId}',${idx})" title="Remove">✕</button>`;
+    list.appendChild(div);
+  }
+}
+
+function removeTopVideo(rosterId, idx) {
+  const r = state.roster.find(x => x.id === rosterId);
+  if (!r) return;
+
+  const videos = (Array.isArray(r.top_videos) ? r.top_videos : []).filter((_, i) => i !== idx);
+  r.top_videos = videos;
+  saveRosterField(rosterId, 'top_videos', videos);
+
+  const list = document.getElementById('rs-videos-list');
+  if (list) {
+    list.innerHTML = videos.map((url, i) => `
+      <div class="rs-video-item" data-idx="${i}">
+        <a href="${esc(url)}" target="_blank" class="rs-video-link" title="${esc(url)}">${esc(url)}</a>
+        <button class="rs-remove-btn" onclick="removeTopVideo('${rosterId}',${i})" title="Remove">✕</button>
+      </div>`).join('');
+  }
+}
+
+async function deleteRosterFromPanel(id) {
+  if (!confirm('Remove this affiliate from the roster?')) return;
+  try {
+    await fetchAPI(`${API.roster}/${id}`, { method: 'DELETE' });
+    state.roster         = state.roster.filter(r => r.id !== id);
+    state.activeRosterId = null;
+    closeDetailPanel();
+    renderRosterPage();
+    showToast('Affiliate removed');
+  } catch (err) { showToast(err.message, 'error'); }
+}
+
+// ============================================================
+// ROSTER — MANUAL ADD MODAL
+// ============================================================
+
+function openAddRosterModal() {
+  const platforms = [['TikTok','TikTok'],['Instagram','Instagram'],['YouTube','YouTube']];
+  const tiers     = [['','— none —'],['A','A'],['B','B'],['C','C']];
+  const statuses  = [['active','Active — signed deal'],['watching','Watching — no deal yet'],['paused','Paused'],['inactive','Inactive']];
+  const html = `
     <form id="modal-form">
       <div class="form-grid">
         <div class="form-group">
           <label>Handle *</label>
-          <input name="handle" value="${esc(r.handle || '')}" placeholder="username" required>
+          <input name="handle" placeholder="username" required>
         </div>
         <div class="form-group">
-          <label>Platform</label>
-          <select name="platform">${selectOpts(platforms, r.platform || 'TikTok')}</select>
-        </div>
-        <div class="form-group">
-          <label>Niche</label>
-          <input name="niche" value="${esc(r.niche || '')}" placeholder="e.g. Skincare, Lifestyle">
-        </div>
-        <div class="form-group">
-          <label>Followers</label>
-          <input type="number" name="followers" value="${r.followers || ''}" placeholder="e.g. 50000">
-        </div>
-        <div class="form-group">
-          <label>Email</label>
-          <input type="email" name="email" value="${esc(r.email || '')}" placeholder="creator@email.com">
+          <label>Name</label>
+          <input name="name" placeholder="Creator name">
         </div>
         <div class="form-group">
           <label>Status</label>
-          <select name="status">${selectOpts(statuses, r.status || 'active')}</select>
+          <select name="status" id="add-roster-status" onchange="toggleDealFields(this.value)">
+            ${selectOpts(statuses, 'active')}
+          </select>
         </div>
         <div class="form-group">
-          <label>Posts Submitted</label>
-          <input type="number" min="0" name="content_submitted" value="${r.content_submitted || 0}">
+          <label>Platform</label>
+          <select name="platform">${selectOpts(platforms, 'TikTok')}</select>
         </div>
         <div class="form-group">
-          <label>GMV ($)</label>
-          <input type="number" step="0.01" min="0" name="gmv" value="${r.gmv || 0}">
+          <label>Niche</label>
+          <input name="niche" placeholder="e.g. Skincare">
         </div>
-        <div class="form-group form-group-full">
-          <label>Commission Rate (%)</label>
-          <input type="number" step="0.1" min="0" max="100" name="commission_rate" value="${r.commission_rate || 15}">
+        <div class="form-group">
+          <label>Followers</label>
+          <input type="number" name="followers" placeholder="e.g. 50000">
         </div>
-        <div class="form-group form-group-full">
-          <label>Content Style</label>
-          <textarea name="content_style" placeholder="How they create — vibe, format, typical style...">${esc(r.content_style || '')}</textarea>
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" name="email" placeholder="creator@email.com">
         </div>
-        <div class="form-group form-group-full">
-          <label>Audience Demographics</label>
-          <textarea name="audience_demographics" placeholder="Age range, location, interests, skin concerns...">${esc(r.audience_demographics || '')}</textarea>
+        <div class="form-group">
+          <label>Grade</label>
+          <select name="tier">${selectOpts(tiers, '')}</select>
         </div>
-        <div class="form-group form-group-full">
-          <label>Notes</label>
-          <textarea name="notes" placeholder="Additional notes...">${esc(r.notes || '')}</textarea>
+      </div>
+      <div id="deal-fields">
+        <div style="font-size:11px;color:var(--text-muted);margin:12px 0 8px;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;">Deal Details</div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label># Videos</label>
+            <input type="number" name="video_count" placeholder="e.g. 5">
+          </div>
+          <div class="form-group">
+            <label>Rate / Video ($)</label>
+            <input type="number" name="per_vid_rate" placeholder="e.g. 200">
+          </div>
+          <div class="form-group">
+            <label>Start Date</label>
+            <input type="date" name="start_date">
+          </div>
+          <div class="form-group">
+            <label>Commission Rate (%)</label>
+            <input type="number" step="0.1" name="commission_rate" value="20">
+          </div>
         </div>
       </div>
       <div class="form-actions">
         <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
-        <button type="submit" class="btn btn-primary">${r.id ? 'Save Changes' : 'Add Affiliate'}</button>
+        <button type="submit" class="btn btn-primary">Add to Roster</button>
       </div>
     </form>`;
-}
-
-function openAddRosterModal() {
-  openModal('Add Affiliate to Roster', rosterFormHTML(), async (e) => {
+  openModal('Add to Roster', html, async (e) => {
     const data = Object.fromEntries(new FormData(e.target));
     try {
       const rec = await fetchAPI(API.roster, { method: 'POST', body: JSON.stringify(data) });
       state.roster.unshift(rec);
-      closeModal(); renderRosterPage(); showToast('Affiliate added!');
+      closeModal(); renderRosterPage(); showToast('Added to roster!');
     } catch (err) { showToast(err.message, 'error'); }
   });
 }
 
-function openEditRosterModal(id) {
-  const r = state.roster.find(x => x.id === id);
-  if (!r) return;
-  openModal('Edit Affiliate', rosterFormHTML(r), async (e) => {
-    const data = Object.fromEntries(new FormData(e.target));
-    try {
-      const rec = await fetchAPI(`${API.roster}/${id}`, { method: 'PUT', body: JSON.stringify(data) });
-      const i = state.roster.findIndex(x => x.id === id);
-      if (i !== -1) state.roster[i] = rec;
-      closeModal(); renderRosterPage(); showToast('Affiliate updated!');
-    } catch (err) { showToast(err.message, 'error'); }
-  });
+function toggleDealFields(status) {
+  const el = document.getElementById('deal-fields');
+  if (el) el.style.display = status === 'watching' ? 'none' : '';
 }
 
-async function deleteRoster(id) {
-  if (!confirm('Remove this affiliate from the roster? This cannot be undone.')) return;
-  try {
-    await fetchAPI(`${API.roster}/${id}`, { method: 'DELETE' });
-    state.roster = state.roster.filter(r => r.id !== id);
-    renderRosterPage(); showToast('Affiliate removed');
-  } catch (err) { showToast(err.message, 'error'); }
+// ============================================================
+// DICTATION (Web Speech API)
+// ============================================================
+
+let _dictation = null;
+
+function toggleDictation(rosterId) {
+  if (_dictation) { stopDictation(); } else { startDictation(rosterId); }
+}
+
+function startDictation(rosterId) {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { showToast('Voice dictation requires Chrome or Edge', 'error'); return; }
+
+  const ta  = document.getElementById('rs-assessment');
+  const btn = document.getElementById('rs-dictate-btn');
+  if (!ta || !btn) return;
+
+  _dictation = new SR();
+  _dictation.continuous     = true;
+  _dictation.interimResults = true;
+  _dictation.lang           = 'en-US';
+
+  let committed = ta.value;
+
+  _dictation.onstart = () => {
+    btn.classList.add('recording');
+    btn.innerHTML = '<span>⏹</span> Stop';
+  };
+
+  _dictation.onresult = (e) => {
+    let interim = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      if (e.results[i].isFinal) committed += (committed ? ' ' : '') + e.results[i][0].transcript;
+      else                       interim   += e.results[i][0].transcript;
+    }
+    ta.value = committed + (interim ? ' ' + interim : '');
+  };
+
+  _dictation.onend = () => {
+    if (btn) { btn.classList.remove('recording'); btn.innerHTML = '<span>🎤</span> Dictate'; }
+    _dictation = null;
+    if (ta) saveRosterField(rosterId, 'creator_assessment', ta.value.trim());
+  };
+
+  _dictation.start();
+}
+
+function stopDictation() {
+  if (_dictation) { try { _dictation.stop(); } catch(_) {} }
 }
 
 // ============================================================
@@ -2000,10 +2271,10 @@ function updatePreview(type) {
         <span class="preview-label">Followers</span>
         <span class="preview-value">${fmtNum(c.followers)}</span>
       </div>
-      ${c.content_style ? `
+      ${c.creator_assessment ? `
         <div class="preview-row preview-row-full">
-          <span class="preview-label">Content Style</span>
-          <span class="preview-value">${esc(c.content_style)}</span>
+          <span class="preview-label">Assessment</span>
+          <span class="preview-value">${esc(c.creator_assessment)}</span>
         </div>` : ''}
     </div>`;
 }

@@ -7,14 +7,37 @@ const supabase = createClient(
   process.env.SUPABASE_ANON_KEY
 );
 
-// GET all roster records
+const FIELDS = [
+  'handle', 'name', 'platform', 'niche', 'followers', 'email', 'status',
+  'tier', 'video_count', 'start_date', 'per_vid_rate',
+  'content_submitted', 'gmv', 'commission_rate',
+  'top_videos', 'creator_assessment',
+  'content_style', 'audience_demographics', 'notes'
+];
+
+function buildRosterRecord(body) {
+  const rec = {};
+  for (const f of FIELDS) {
+    if (body[f] === undefined) continue;
+    if (f === 'handle') rec.handle = String(body.handle).replace(/^@/, '').trim();
+    else if (['followers', 'video_count', 'content_submitted'].includes(f))
+      rec[f] = body[f] !== '' && body[f] !== null ? parseInt(body[f]) : null;
+    else if (['gmv', 'commission_rate', 'per_vid_rate'].includes(f))
+      rec[f] = body[f] !== '' && body[f] !== null ? parseFloat(body[f]) : null;
+    else if (f === 'top_videos')
+      rec[f] = Array.isArray(body[f]) ? body[f] : (body[f] ? JSON.parse(body[f]) : []);
+    else rec[f] = body[f] !== '' ? body[f] : null;
+  }
+  return rec;
+}
+
+// GET all
 router.get('/', async (req, res) => {
   try {
     const { data, error } = await supabase
       .from('roster')
       .select('*')
       .order('created_at', { ascending: false });
-
     if (error) throw error;
     res.json(data);
   } catch (err) {
@@ -22,36 +45,20 @@ router.get('/', async (req, res) => {
   }
 });
 
-// POST create new roster record
+// POST create
 router.post('/', async (req, res) => {
   try {
-    const {
-      handle, platform, niche, followers, content_style,
-      audience_demographics, content_submitted, gmv,
-      commission_rate, status, email, notes
-    } = req.body;
-
-    if (!handle) return res.status(400).json({ error: 'Handle is required' });
+    if (!req.body.handle) return res.status(400).json({ error: 'Handle is required' });
+    const rec = buildRosterRecord(req.body);
+    if (!rec.status)   rec.status   = 'active';
+    if (!rec.platform) rec.platform = 'TikTok';
+    if (!rec.top_videos) rec.top_videos = [];
 
     const { data, error } = await supabase
       .from('roster')
-      .insert([{
-        handle: handle.replace(/^@/, ''),
-        platform: platform || 'TikTok',
-        niche: niche || null,
-        followers: followers ? parseInt(followers) : null,
-        content_style: content_style || null,
-        audience_demographics: audience_demographics || null,
-        content_submitted: content_submitted ? parseInt(content_submitted) : 0,
-        gmv: gmv ? parseFloat(gmv) : 0,
-        commission_rate: commission_rate ? parseFloat(commission_rate) : 15,
-        status: status || 'active',
-        email: email || null,
-        notes: notes || null
-      }])
+      .insert([rec])
       .select()
       .single();
-
     if (error) throw error;
     res.status(201).json(data);
   } catch (err) {
@@ -59,36 +66,16 @@ router.post('/', async (req, res) => {
   }
 });
 
-// PUT update roster record
+// PUT update
 router.put('/:id', async (req, res) => {
   try {
-    const { id } = req.params;
-    const {
-      handle, platform, niche, followers, content_style,
-      audience_demographics, content_submitted, gmv,
-      commission_rate, status, email, notes
-    } = req.body;
-
+    const updates = buildRosterRecord(req.body);
     const { data, error } = await supabase
       .from('roster')
-      .update({
-        handle: handle ? handle.replace(/^@/, '') : undefined,
-        platform,
-        niche: niche || null,
-        followers: followers ? parseInt(followers) : null,
-        content_style: content_style || null,
-        audience_demographics: audience_demographics || null,
-        content_submitted: content_submitted ? parseInt(content_submitted) : 0,
-        gmv: gmv ? parseFloat(gmv) : 0,
-        commission_rate: commission_rate ? parseFloat(commission_rate) : 15,
-        status,
-        email: email || null,
-        notes: notes || null
-      })
-      .eq('id', id)
+      .update(updates)
+      .eq('id', req.params.id)
       .select()
       .single();
-
     if (error) throw error;
     res.json(data);
   } catch (err) {
@@ -96,14 +83,13 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-// DELETE roster record
+// DELETE
 router.delete('/:id', async (req, res) => {
   try {
     const { error } = await supabase
       .from('roster')
       .delete()
       .eq('id', req.params.id);
-
     if (error) throw error;
     res.json({ success: true });
   } catch (err) {
