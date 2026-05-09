@@ -2362,6 +2362,7 @@ function renderGeneratorTab() {
       <div class="generator-form-panel">
         <div class="panel">
           <h3 class="panel-title">Script Settings</h3>
+
           <div class="form-group">
             <label>Select Creator *</label>
             <select id="script-creator" onchange="updatePreview()">
@@ -2371,19 +2372,61 @@ function renderGeneratorTab() {
               ).join('')}
             </select>
           </div>
+
           <div id="script-preview" class="creator-preview hidden"></div>
+
           <div class="form-group">
-            <label>Product to Feature</label>
-            <input id="script-product" placeholder="e.g. Ingrown Hair Serum">
-          </div>
-          <div class="form-group">
-            <label>Script Length</label>
-            <select id="script-length">
-              <option value="short">Short — 15–30 sec (hook/teaser)</option>
-              <option value="medium" selected>Medium — 45–60 sec (product feature)</option>
-              <option value="long">Long — 2–3 min (tutorial/review)</option>
+            <label>Pain point focus</label>
+            <select id="script-pain-point">
+              <option value="Ingrown hairs">Ingrown hairs</option>
+              <option value="Discoloration">Discoloration / dark spots</option>
+              <option value="Irritation and redness">Irritation and redness</option>
+              <option value="All three equally">All three equally</option>
             </select>
           </div>
+
+          <div class="form-group">
+            <label>Entry point</label>
+            <select id="script-entry-point">
+              <option value="Pain point">Pain point — lead with the problem</option>
+              <option value="Dream outcome">Dream outcome — lead with the result</option>
+              <option value="Customer identity">Customer identity — lead with who she is</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Creator's personal experience <span style="color:var(--text-muted);font-weight:400">(1–2 sentences)</span></label>
+            <textarea id="script-experience" class="dp-textarea" rows="3"
+              placeholder="e.g. I used to always wear a coverup at the beach because I had ingrowns and dark spots all along my bikini line…"></textarea>
+          </div>
+
+          <div class="form-group">
+            <label>Filming location</label>
+            <select id="script-location">
+              <option value="Beach or pool">Beach or pool</option>
+              <option value="Home" selected>Home</option>
+              <option value="Studio">Studio</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Script length</label>
+            <select id="script-length">
+              <option value="short">Short — under 30 sec</option>
+              <option value="medium" selected>Medium — 30–60 sec</option>
+              <option value="long">Long — 60–90 sec</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Mention specific ingredients?</label>
+            <select id="script-ingredients">
+              <option value="Yes, name them">Yes — name the ingredients</option>
+              <option value="Keep it simple">Keep it simple — benefits only</option>
+            </select>
+          </div>
+
           <button class="btn btn-primary btn-full" id="script-btn" onclick="generateScript()">
             Generate Script
           </button>
@@ -2540,9 +2583,13 @@ function renderBLCVideosTab() {
 }
 
 async function generateScript() {
-  const creatorId    = document.getElementById('script-creator').value;
-  const productFocus = document.getElementById('script-product').value;
-  const scriptLength = document.getElementById('script-length').value;
+  const creatorId          = document.getElementById('script-creator').value;
+  const painPoint          = document.getElementById('script-pain-point')?.value;
+  const entryPoint         = document.getElementById('script-entry-point')?.value;
+  const personalExperience = document.getElementById('script-experience')?.value?.trim();
+  const filmingLocation    = document.getElementById('script-location')?.value;
+  const scriptLength       = document.getElementById('script-length').value;
+  const mentionIngredients = document.getElementById('script-ingredients')?.value;
 
   if (!creatorId) { showToast('Please select a creator', 'error'); return; }
 
@@ -2556,7 +2603,7 @@ async function generateScript() {
   try {
     const res = await fetchAPI(`${API.generate}/script`, {
       method: 'POST',
-      body: JSON.stringify({ creatorId, productFocus, scriptLength })
+      body: JSON.stringify({ creatorId, painPoint, entryPoint, personalExperience, filmingLocation, scriptLength, mentionIngredients })
     });
     output.innerHTML = `<div class="output-content">${renderMarkdown(res.script)}</div>`;
     document.getElementById('copy-script-btn').classList.remove('hidden');
@@ -2570,7 +2617,7 @@ async function generateScript() {
         id:             res.scriptId,
         creator_id:     creatorId,
         creator_handle: creator?.handle || '',
-        product_focus:  productFocus || 'BLC Product',
+        product_focus:  `BBL Serum — ${painPoint || 'Ingrowns'}`,
         script_length:  { short: 'Short', medium: 'Medium', long: 'Long' }[scriptLength] || 'Medium',
         content:        res.script,
         created_at:     new Date().toISOString()
