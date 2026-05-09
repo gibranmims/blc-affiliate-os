@@ -1890,6 +1890,27 @@ function renderRosterDetailPanel() {
       ${total > 0 ? `<div class="dp-deal-summary">Total flat: <b>${fmt$(total)}</b> &nbsp;·&nbsp; ${r.video_count} videos @ ${fmt$(r.per_vid_rate)}/vid</div>` : ''}
     </div>
 
+    <!-- Posting Schedule (right after deal) -->
+    <div class="dp-section">
+      <div class="dp-section-label">Posting Schedule</div>
+      <div class="dp-section-hint">Track when each video is due and whether it's been posted</div>
+      <div id="rs-schedule-list" class="rs-schedule-list">
+        ${schedule.map((entry, i) => `
+          <div class="rs-schedule-entry${entry.posted ? ' rs-entry-posted' : ''}" data-idx="${i}">
+            <input type="date" class="dp-input rs-schedule-date" value="${esc(entry.date || '')}"
+              onblur="updateScheduleEntry('${r.id}',${i},'date',this.value)">
+            <input type="text" class="dp-input rs-schedule-note" value="${esc(entry.note || '')}" placeholder="e.g. Video #1 — Shave Serum"
+              onblur="updateScheduleEntry('${r.id}',${i},'note',this.value)">
+            <label class="rs-posted-label" title="Mark as posted">
+              <input type="checkbox" ${entry.posted ? 'checked' : ''} onchange="toggleSchedulePosted('${r.id}',${i},this.checked)">
+              <span>Posted</span>
+            </label>
+            <button class="rs-remove-btn" onclick="removeScheduleEntry('${r.id}',${i})" title="Remove">✕</button>
+          </div>`).join('')}
+      </div>
+      <button class="rs-add-schedule-btn" onclick="addScheduleEntry('${r.id}')">+ Add Entry</button>
+    </div>
+
     <!-- Performance -->
     <div class="dp-section">
       <div class="dp-section-label">Performance</div>
@@ -1912,7 +1933,7 @@ function renderRosterDetailPanel() {
           <input type="number" step="0.1" min="0" max="100" class="dp-input"
             value="${r.commission_rate ?? 20}" placeholder="20"
             onblur="saveRosterField('${r.id}','commission_rate',this.value)">
-          <div class="dp-rate-per-vid">% on affiliate sales</div>
+          <div class="dp-rate-per-vid">% organic · 10% on Spark Ads</div>
         </div>
       </div>
     </div>
@@ -1957,27 +1978,6 @@ function renderRosterDetailPanel() {
       <div class="dp-section-label">BLC Videos</div>
       <div class="dp-section-hint">Videos they've posted specifically for us</div>
       ${videoListHTML(blcVids, 'rs-blc-videos-list', 'removeBLCVideo', 'rs-new-blc-url', 'addBLCVideo')}
-    </div>
-
-    <!-- Posting Schedule -->
-    <div class="dp-section">
-      <div class="dp-section-label">Posting Schedule</div>
-      <div class="dp-section-hint">Track when each video is due and whether it's been posted</div>
-      <div id="rs-schedule-list" class="rs-schedule-list">
-        ${schedule.map((entry, i) => `
-          <div class="rs-schedule-entry${entry.posted ? ' rs-entry-posted' : ''}" data-idx="${i}">
-            <input type="date" class="dp-input rs-schedule-date" value="${esc(entry.date || '')}"
-              onblur="updateScheduleEntry('${r.id}',${i},'date',this.value)">
-            <input type="text" class="dp-input rs-schedule-note" value="${esc(entry.note || '')}" placeholder="e.g. Video #1 — Shave Serum"
-              onblur="updateScheduleEntry('${r.id}',${i},'note',this.value)">
-            <label class="rs-posted-label" title="Mark as posted">
-              <input type="checkbox" ${entry.posted ? 'checked' : ''} onchange="toggleSchedulePosted('${r.id}',${i},this.checked)">
-              <span>Posted</span>
-            </label>
-            <button class="rs-remove-btn" onclick="removeScheduleEntry('${r.id}',${i})" title="Remove">✕</button>
-          </div>`).join('')}
-      </div>
-      <button class="rs-add-schedule-btn" onclick="addScheduleEntry('${r.id}')">+ Add Entry</button>
     </div>
 
     <!-- Remove -->
