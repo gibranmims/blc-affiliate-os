@@ -28,7 +28,8 @@ const state = {
   activeRosterId:     null,
   selectedIds:        new Set(),
   outreachSort:       { col: 'followers', dir: 'desc' },
-  dpAccordion:        { rates: false, eval: true, counter: true }
+  dpAccordion:        { rates: false, eval: true, counter: true },
+  tiktokConnected:    false
 };
 
 const nbState = {
@@ -1699,6 +1700,27 @@ async function loadRoster() {
   state.roster = await fetchAPI(API.roster);
 }
 
+async function checkTikTokStatus() {
+  try {
+    const data = await fetchAPI('/api/tiktok/status');
+    state.tiktokConnected = data.connected && !data.expired;
+  } catch { state.tiktokConnected = false; }
+}
+
+async function syncTikTokGMV() {
+  const btn = document.getElementById('tiktok-sync-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Syncing...'; }
+  try {
+    const result = await fetchAPI('/api/tiktok/sync', { method: 'POST' });
+    await loadRoster();
+    renderRosterPage();
+    showToast(`Synced — ${result.updated} creator(s) updated (${result.total_orders} orders).`);
+  } catch (err) {
+    showToast(err.message, 'error');
+    if (btn) { btn.disabled = false; btn.textContent = '↻ Sync GMV'; }
+  }
+}
+
 // ============================================================
 // ROSTER — RENDER
 // ============================================================
@@ -1714,7 +1736,13 @@ function renderRosterPage() {
         <h1 class="page-title">Roster</h1>
         <p class="page-subtitle">Active affiliate database</p>
       </div>
-      <button class="btn btn-primary" onclick="openAddRosterModal()">+ Add Affiliate</button>
+      <div style="display:flex;gap:8px;align-items:center;">
+        ${state.tiktokConnected
+          ? `<button class="btn btn-secondary" id="tiktok-sync-btn" onclick="syncTikTokGMV()">↻ Sync TikTok GMV</button>`
+          : `<button class="btn btn-secondary" onclick="window.location.href='/api/tiktok/auth'" title="Connect your TikTok Shop seller account to sync affiliate GMV">Connect TikTok Shop</button>`
+        }
+        <button class="btn btn-primary" onclick="openAddRosterModal()">+ Add Affiliate</button>
+      </div>
     </div>
 
     <div class="stat-cards">
@@ -2437,7 +2465,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   await loadOutreach().catch(err => console.error('Outreach load failed:', err));
-  await loadRoster().catch(err => console.error('Roster load failed:', err));
+  await Promise.all([
+    loadRoster().catch(err => console.error('Roster load failed:', err)),
+    checkTikTokStatus().catch(() => {})
+  ]);
 
-  navigate('outreach');
+  const params = new URLSearchParams(window.location.search);
+  const tiktokResult = params.get('tiktok');
+  const startPage = params.get('page') || 'outreach';
+  if (tiktokResult === 'connected') showToast('TikTok Shop connected!');
+  if (tiktokResult === 'error')     showToast('TikTok connection failed. Try again.', 'error');
+  if (tiktokResult) window.history.replaceState({}, '', '/');
+
+  navigate(startPage);
 });

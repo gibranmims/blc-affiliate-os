@@ -7,6 +7,7 @@ const outreachRoutes = require('./routes/outreach');
 const rosterRoutes = require('./routes/roster');
 const generateRoutes = require('./routes/generate');
 const outreachGenRoutes = require('./routes/outreach-gen');
+const tiktokRoutes = require('./routes/tiktok');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -21,6 +22,7 @@ app.use('/api/outreach', outreachRoutes);
 app.use('/api/roster', rosterRoutes);
 app.use('/api/generate', generateRoutes);
 app.use('/api/outreach-gen', outreachGenRoutes);
+app.use('/api/tiktok', tiktokRoutes);
 
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
