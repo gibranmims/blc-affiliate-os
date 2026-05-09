@@ -2638,6 +2638,84 @@ body {
   resize: vertical;
 }
 
+/* Posting schedule */
+.rs-schedule-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.rs-schedule-entry {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-elevated);
+  border-radius: 6px;
+  padding: 8px 10px;
+  transition: opacity 0.2s;
+}
+
+.rs-schedule-entry.rs-entry-posted {
+  opacity: 0.45;
+}
+
+.rs-schedule-entry.rs-entry-posted .rs-schedule-date,
+.rs-schedule-entry.rs-entry-posted .rs-schedule-note {
+  text-decoration: line-through;
+  color: var(--text-muted);
+}
+
+.rs-schedule-date {
+  flex: 0 0 140px;
+  font-size: 12px;
+}
+
+.rs-schedule-note {
+  flex: 1;
+  font-size: 12px;
+}
+
+.rs-posted-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+}
+
+.rs-posted-label input[type="checkbox"] {
+  accent-color: var(--green);
+  width: 13px;
+  height: 13px;
+  cursor: pointer;
+}
+
+.rs-add-schedule-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: 1px dashed var(--border);
+  color: var(--text-muted);
+  border-radius: 6px;
+  padding: 7px 14px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  width: 100%;
+  justify-content: center;
+  transition: all 0.15s;
+}
+
+.rs-add-schedule-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
 /* Danger outline button */
 .btn-danger-outline {
   background: transparent;

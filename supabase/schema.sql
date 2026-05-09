@@ -105,6 +105,8 @@ ALTER TABLE roster ADD COLUMN IF NOT EXISTS video_count INTEGER;
 ALTER TABLE roster ADD COLUMN IF NOT EXISTS start_date DATE;
 ALTER TABLE roster ADD COLUMN IF NOT EXISTS per_vid_rate NUMERIC(10,2);
 ALTER TABLE roster ADD COLUMN IF NOT EXISTS top_videos JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE roster ADD COLUMN IF NOT EXISTS blc_videos JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE roster ADD COLUMN IF NOT EXISTS posting_schedule JSONB DEFAULT '[]'::jsonb;
 ALTER TABLE roster ADD COLUMN IF NOT EXISTS creator_assessment TEXT;
 
 -- Drop the old 3-value status CHECK and replace with 4-value version

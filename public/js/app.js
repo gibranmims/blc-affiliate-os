@@ -1813,14 +1813,30 @@ function renderRosterDetailPanel() {
 
   document.getElementById('detail-drawer-title').textContent = 'Affiliate Profile';
 
-  const videos    = Array.isArray(r.top_videos) ? r.top_videos : [];
-  const startISO  = r.start_date ? r.start_date.split('T')[0] : '';
-  const endISO    = startISO ? (() => {
+  const topVids  = Array.isArray(r.top_videos)      ? r.top_videos      : [];
+  const blcVids  = Array.isArray(r.blc_videos)       ? r.blc_videos      : [];
+  const schedule = Array.isArray(r.posting_schedule) ? r.posting_schedule : [];
+  const startISO = r.start_date ? r.start_date.split('T')[0] : '';
+  const endISO   = startISO ? (() => {
     const d = new Date(startISO + 'T12:00:00'); d.setDate(d.getDate() + 60);
     return d.toISOString().split('T')[0];
   })() : '';
   const total = (parseFloat(r.per_vid_rate) || 0) * (parseInt(r.video_count) || 0);
   const ROSTER_STATUSES = [['active','Active'],['watching','Watching'],['paused','Paused'],['inactive','Inactive']];
+
+  const videoListHTML = (videos, listId, removeFn, inputId, addFn) => `
+    <div id="${listId}" class="rs-video-list">
+      ${videos.map((url, i) => `
+        <div class="rs-video-item" data-idx="${i}">
+          <a href="${esc(url)}" target="_blank" class="rs-video-link" title="${esc(url)}">${esc(url)}</a>
+          <button class="rs-remove-btn" onclick="${removeFn}('${r.id}',${i})" title="Remove">✕</button>
+        </div>`).join('')}
+    </div>
+    <div class="rs-add-video-row">
+      <input type="url" class="dp-input" id="${inputId}" placeholder="Paste TikTok URL..."
+        onkeydown="if(event.key==='Enter'){${addFn}('${r.id}');event.preventDefault();}">
+      <button class="btn btn-secondary btn-sm" onclick="${addFn}('${r.id}')">+ Add</button>
+    </div>`;
 
   document.getElementById('detail-drawer-body').innerHTML = `
 
@@ -1837,10 +1853,9 @@ function renderRosterDetailPanel() {
         <span class="dp-handle-plain">@${esc(r.handle)}</span>
       </div>
       <div class="dp-chips">
-        ${r.tier     ? `<span class="dp-chip"><b>${r.tier}</b> grade</span>` : ''}
+        ${r.tier      ? `<span class="dp-chip"><b>${r.tier}</b> grade</span>` : ''}
         ${r.followers ? `<span class="dp-chip">${fmtNum(r.followers)} followers</span>` : ''}
-        ${r.email    ? `<span class="dp-chip dp-chip-email">${esc(r.email)}</span>` : ''}
-        ${r.niche    ? `<span class="dp-chip">${esc(r.niche)}</span>` : ''}
+        ${r.email     ? `<span class="dp-chip dp-chip-email">${esc(r.email)}</span>` : ''}
       </div>
     </div>
 
@@ -1902,36 +1917,67 @@ function renderRosterDetailPanel() {
       </div>
     </div>
 
-    <!-- Top Performing Videos -->
-    <div class="dp-section">
-      <div class="dp-section-label">Top Performing TikTok Shop Videos</div>
-      <div class="dp-section-hint">Their best-performing TikTok Shop content (not just ours)</div>
-      <div id="rs-videos-list" class="rs-video-list">
-        ${videos.map((url, i) => `
-          <div class="rs-video-item" data-idx="${i}">
-            <a href="${esc(url)}" target="_blank" class="rs-video-link" title="${esc(url)}">${esc(url)}</a>
-            <button class="rs-remove-btn" onclick="removeTopVideo('${r.id}',${i})" title="Remove">✕</button>
-          </div>`).join('')}
-      </div>
-      <div class="rs-add-video-row">
-        <input type="url" class="dp-input" id="rs-new-video-url" placeholder="Paste TikTok URL..."
-          onkeydown="if(event.key==='Enter'){addTopVideo('${r.id}');event.preventDefault();}">
-        <button class="btn btn-secondary btn-sm" onclick="addTopVideo('${r.id}')">Add</button>
-      </div>
-    </div>
-
-    <!-- Creator Assessment & Vision -->
+    <!-- Content Style -->
     <div class="dp-section">
       <div class="dp-section-label-row">
-        <div class="dp-section-label">Creator Assessment &amp; Vision</div>
-        <button class="rs-dictate-btn" id="rs-dictate-btn" onclick="toggleDictation('${r.id}')">
+        <div class="dp-section-label">Content Style</div>
+        <button class="rs-dictate-btn" id="rs-dictate-btn-style" onclick="toggleDictation('${r.id}','rs-content-style','rs-dictate-btn-style','content_style')">
           <span>🎤</span> Dictate
         </button>
       </div>
-      <div class="dp-section-hint">Used by the script generator to personalize content</div>
-      <textarea class="dp-textarea rs-assessment-ta" id="rs-assessment"
-        placeholder="Describe this creator — their energy, style, what they're good at, how they sell, what angles work for them..."
+      <div class="dp-section-hint">How they create — format, vibe, energy, what makes them work</div>
+      <textarea class="dp-textarea rs-assessment-ta" id="rs-content-style"
+        placeholder="e.g. Casual get-ready-with-me style, lots of close-ups, speaks directly to camera, authentic and unfiltered, good at showing before/after..."
+        onblur="saveRosterField('${r.id}','content_style',this.value)">${esc(r.content_style || '')}</textarea>
+    </div>
+
+    <!-- BLC Vision -->
+    <div class="dp-section">
+      <div class="dp-section-label-row">
+        <div class="dp-section-label">BLC Vision</div>
+        <button class="rs-dictate-btn" id="rs-dictate-btn-vision" onclick="toggleDictation('${r.id}','rs-blc-vision','rs-dictate-btn-vision','creator_assessment')">
+          <span>🎤</span> Dictate
+        </button>
+      </div>
+      <div class="dp-section-hint">How do we think she can succeed as a BLC affiliate?</div>
+      <textarea class="dp-textarea rs-assessment-ta" id="rs-blc-vision"
+        placeholder="e.g. Her audience is exactly our demo — young women dealing with ingrowns. She should lead with the Ingrown Serum, do a before/after, and link in first comment..."
         onblur="saveRosterField('${r.id}','creator_assessment',this.value)">${esc(r.creator_assessment || '')}</textarea>
+    </div>
+
+    <!-- Best Performing TikTok Shop Videos -->
+    <div class="dp-section">
+      <div class="dp-section-label">Best Performing TikTok Shop Videos</div>
+      <div class="dp-section-hint">Their top TikTok Shop content — any brand, not just ours</div>
+      ${videoListHTML(topVids, 'rs-videos-list', 'removeTopVideo', 'rs-new-video-url', 'addTopVideo')}
+    </div>
+
+    <!-- BLC Videos -->
+    <div class="dp-section">
+      <div class="dp-section-label">BLC Videos</div>
+      <div class="dp-section-hint">Videos they've posted specifically for us</div>
+      ${videoListHTML(blcVids, 'rs-blc-videos-list', 'removeBLCVideo', 'rs-new-blc-url', 'addBLCVideo')}
+    </div>
+
+    <!-- Posting Schedule -->
+    <div class="dp-section">
+      <div class="dp-section-label">Posting Schedule</div>
+      <div class="dp-section-hint">Track when each video is due and whether it's been posted</div>
+      <div id="rs-schedule-list" class="rs-schedule-list">
+        ${schedule.map((entry, i) => `
+          <div class="rs-schedule-entry${entry.posted ? ' rs-entry-posted' : ''}" data-idx="${i}">
+            <input type="date" class="dp-input rs-schedule-date" value="${esc(entry.date || '')}"
+              onblur="updateScheduleEntry('${r.id}',${i},'date',this.value)">
+            <input type="text" class="dp-input rs-schedule-note" value="${esc(entry.note || '')}" placeholder="e.g. Video #1 — Shave Serum"
+              onblur="updateScheduleEntry('${r.id}',${i},'note',this.value)">
+            <label class="rs-posted-label" title="Mark as posted">
+              <input type="checkbox" ${entry.posted ? 'checked' : ''} onchange="toggleSchedulePosted('${r.id}',${i},this.checked)">
+              <span>Posted</span>
+            </label>
+            <button class="rs-remove-btn" onclick="removeScheduleEntry('${r.id}',${i})" title="Remove">✕</button>
+          </div>`).join('')}
+      </div>
+      <button class="rs-add-schedule-btn" onclick="addScheduleEntry('${r.id}')">+ Add Entry</button>
     </div>
 
     <!-- Remove -->
@@ -1956,46 +2002,111 @@ async function saveRosterField(id, field, value) {
   }
 }
 
-function addTopVideo(rosterId) {
-  const input = document.getElementById('rs-new-video-url');
+function _addVideoToList(rosterId, field, inputId, listId, removeFn) {
+  const input = document.getElementById(inputId);
   const url   = input?.value?.trim();
   if (!url) return;
-
   const r = state.roster.find(x => x.id === rosterId);
   if (!r) return;
-
-  const videos = [...(Array.isArray(r.top_videos) ? r.top_videos : []), url];
-  input.value  = '';
-  r.top_videos = videos;
-  saveRosterField(rosterId, 'top_videos', videos);
-
-  const list = document.getElementById('rs-videos-list');
+  const videos = [...(Array.isArray(r[field]) ? r[field] : []), url];
+  input.value = '';
+  r[field] = videos;
+  saveRosterField(rosterId, field, videos);
+  const list = document.getElementById(listId);
   if (list) {
     const idx = videos.length - 1;
     const div = document.createElement('div');
-    div.className    = 'rs-video-item';
-    div.dataset.idx  = idx;
-    div.innerHTML    = `
+    div.className   = 'rs-video-item';
+    div.dataset.idx = idx;
+    div.innerHTML   = `
       <a href="${esc(url)}" target="_blank" class="rs-video-link" title="${esc(url)}">${esc(url)}</a>
-      <button class="rs-remove-btn" onclick="removeTopVideo('${rosterId}',${idx})" title="Remove">✕</button>`;
+      <button class="rs-remove-btn" onclick="${removeFn}('${rosterId}',${idx})" title="Remove">✕</button>`;
     list.appendChild(div);
   }
 }
 
-function removeTopVideo(rosterId, idx) {
+function _removeVideoFromList(rosterId, field, idx, listId, removeFn) {
   const r = state.roster.find(x => x.id === rosterId);
   if (!r) return;
-
-  const videos = (Array.isArray(r.top_videos) ? r.top_videos : []).filter((_, i) => i !== idx);
-  r.top_videos = videos;
-  saveRosterField(rosterId, 'top_videos', videos);
-
-  const list = document.getElementById('rs-videos-list');
+  const videos = (Array.isArray(r[field]) ? r[field] : []).filter((_, i) => i !== idx);
+  r[field] = videos;
+  saveRosterField(rosterId, field, videos);
+  const list = document.getElementById(listId);
   if (list) {
     list.innerHTML = videos.map((url, i) => `
       <div class="rs-video-item" data-idx="${i}">
         <a href="${esc(url)}" target="_blank" class="rs-video-link" title="${esc(url)}">${esc(url)}</a>
-        <button class="rs-remove-btn" onclick="removeTopVideo('${rosterId}',${i})" title="Remove">✕</button>
+        <button class="rs-remove-btn" onclick="${removeFn}('${rosterId}',${i})" title="Remove">✕</button>
+      </div>`).join('');
+  }
+}
+
+function addTopVideo(id)    { _addVideoToList(id, 'top_videos', 'rs-new-video-url', 'rs-videos-list', 'removeTopVideo'); }
+function removeTopVideo(id, i) { _removeVideoFromList(id, 'top_videos', i, 'rs-videos-list', 'removeTopVideo'); }
+function addBLCVideo(id)    { _addVideoToList(id, 'blc_videos', 'rs-new-blc-url', 'rs-blc-videos-list', 'removeBLCVideo'); }
+function removeBLCVideo(id, i) { _removeVideoFromList(id, 'blc_videos', i, 'rs-blc-videos-list', 'removeBLCVideo'); }
+
+// ── Posting Schedule ──────────────────────────────────────────
+
+function addScheduleEntry(rosterId) {
+  const r = state.roster.find(x => x.id === rosterId);
+  if (!r) return;
+  const entry    = { date: '', note: '', posted: false };
+  const schedule = [...(Array.isArray(r.posting_schedule) ? r.posting_schedule : []), entry];
+  r.posting_schedule = schedule;
+  saveRosterField(rosterId, 'posting_schedule', schedule);
+  const idx  = schedule.length - 1;
+  const list = document.getElementById('rs-schedule-list');
+  if (list) {
+    const div = document.createElement('div');
+    div.className   = 'rs-schedule-entry';
+    div.dataset.idx = idx;
+    div.innerHTML   = _scheduleEntryHTML(rosterId, entry, idx);
+    list.appendChild(div);
+    div.querySelector('.rs-schedule-date')?.focus();
+  }
+}
+
+function _scheduleEntryHTML(rosterId, entry, idx) {
+  return `
+    <input type="date" class="dp-input rs-schedule-date" value="${esc(entry.date || '')}"
+      onblur="updateScheduleEntry('${rosterId}',${idx},'date',this.value)">
+    <input type="text" class="dp-input rs-schedule-note" value="${esc(entry.note || '')}" placeholder="e.g. Video #1 — Shave Serum"
+      onblur="updateScheduleEntry('${rosterId}',${idx},'note',this.value)">
+    <label class="rs-posted-label" title="Mark as posted">
+      <input type="checkbox" ${entry.posted ? 'checked' : ''} onchange="toggleSchedulePosted('${rosterId}',${idx},this.checked)">
+      <span>Posted</span>
+    </label>
+    <button class="rs-remove-btn" onclick="removeScheduleEntry('${rosterId}',${idx})" title="Remove">✕</button>`;
+}
+
+function updateScheduleEntry(rosterId, idx, field, value) {
+  const r = state.roster.find(x => x.id === rosterId);
+  if (!r || !r.posting_schedule?.[idx]) return;
+  r.posting_schedule[idx][field] = value;
+  saveRosterField(rosterId, 'posting_schedule', r.posting_schedule);
+}
+
+function toggleSchedulePosted(rosterId, idx, checked) {
+  const r = state.roster.find(x => x.id === rosterId);
+  if (!r || !r.posting_schedule?.[idx]) return;
+  r.posting_schedule[idx].posted = checked;
+  saveRosterField(rosterId, 'posting_schedule', r.posting_schedule);
+  const entry = document.querySelector(`#rs-schedule-list .rs-schedule-entry[data-idx="${idx}"]`);
+  if (entry) entry.classList.toggle('rs-entry-posted', checked);
+}
+
+function removeScheduleEntry(rosterId, idx) {
+  const r = state.roster.find(x => x.id === rosterId);
+  if (!r) return;
+  const schedule = (Array.isArray(r.posting_schedule) ? r.posting_schedule : []).filter((_, i) => i !== idx);
+  r.posting_schedule = schedule;
+  saveRosterField(rosterId, 'posting_schedule', schedule);
+  const list = document.getElementById('rs-schedule-list');
+  if (list) {
+    list.innerHTML = schedule.map((entry, i) => `
+      <div class="rs-schedule-entry${entry.posted ? ' rs-entry-posted' : ''}" data-idx="${i}">
+        ${_scheduleEntryHTML(rosterId, entry, i)}
       </div>`).join('');
   }
 }
@@ -2103,21 +2214,28 @@ function toggleDealFields(status) {
 // DICTATION (Web Speech API)
 // ============================================================
 
-let _dictation = null;
+let _dictation     = null;
+let _dictationMeta = null; // { rosterId, taId, dbField }
 
-function toggleDictation(rosterId) {
-  if (_dictation) { stopDictation(); } else { startDictation(rosterId); }
+function toggleDictation(rosterId, taId, btnId, dbField) {
+  if (_dictation && _dictationMeta?.taId === taId) {
+    stopDictation();
+  } else {
+    if (_dictation) stopDictation();
+    startDictation(rosterId, taId, btnId, dbField);
+  }
 }
 
-function startDictation(rosterId) {
+function startDictation(rosterId, taId, btnId, dbField) {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR) { showToast('Voice dictation requires Chrome or Edge', 'error'); return; }
 
-  const ta  = document.getElementById('rs-assessment');
-  const btn = document.getElementById('rs-dictate-btn');
+  const ta  = document.getElementById(taId);
+  const btn = document.getElementById(btnId);
   if (!ta || !btn) return;
 
-  _dictation = new SR();
+  _dictationMeta = { rosterId, taId, dbField };
+  _dictation     = new SR();
   _dictation.continuous     = true;
   _dictation.interimResults = true;
   _dictation.lang           = 'en-US';
@@ -2140,8 +2258,9 @@ function startDictation(rosterId) {
 
   _dictation.onend = () => {
     if (btn) { btn.classList.remove('recording'); btn.innerHTML = '<span>🎤</span> Dictate'; }
-    _dictation = null;
-    if (ta) saveRosterField(rosterId, 'creator_assessment', ta.value.trim());
+    if (ta && _dictationMeta) saveRosterField(_dictationMeta.rosterId, _dictationMeta.dbField, ta.value.trim());
+    _dictation     = null;
+    _dictationMeta = null;
   };
 
   _dictation.start();

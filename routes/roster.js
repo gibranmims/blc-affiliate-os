@@ -11,9 +11,11 @@ const FIELDS = [
   'handle', 'name', 'platform', 'niche', 'followers', 'email', 'status',
   'tier', 'video_count', 'start_date', 'per_vid_rate',
   'content_submitted', 'gmv', 'commission_rate',
-  'top_videos', 'creator_assessment',
+  'top_videos', 'blc_videos', 'posting_schedule', 'creator_assessment',
   'content_style', 'audience_demographics', 'notes'
 ];
+
+const JSON_FIELDS = ['top_videos', 'blc_videos', 'posting_schedule'];
 
 function buildRosterRecord(body) {
   const rec = {};
@@ -24,7 +26,7 @@ function buildRosterRecord(body) {
       rec[f] = body[f] !== '' && body[f] !== null ? parseInt(body[f]) : null;
     else if (['gmv', 'commission_rate', 'per_vid_rate'].includes(f))
       rec[f] = body[f] !== '' && body[f] !== null ? parseFloat(body[f]) : null;
-    else if (f === 'top_videos')
+    else if (JSON_FIELDS.includes(f))
       rec[f] = Array.isArray(body[f]) ? body[f] : (body[f] ? JSON.parse(body[f]) : []);
     else rec[f] = body[f] !== '' ? body[f] : null;
   }
