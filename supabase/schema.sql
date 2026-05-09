@@ -113,3 +113,19 @@ ALTER TABLE roster ADD COLUMN IF NOT EXISTS creator_assessment TEXT;
 ALTER TABLE roster DROP CONSTRAINT IF EXISTS roster_status_check;
 ALTER TABLE roster ADD CONSTRAINT roster_status_check
   CHECK (status IN ('active', 'inactive', 'paused', 'watching'));
+
+-- ============================================================
+-- Content Lab — saved scripts
+-- ============================================================
+CREATE TABLE IF NOT EXISTS scripts (
+  id             UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  creator_id     UUID,
+  creator_handle TEXT,
+  product_focus  TEXT,
+  script_length  TEXT,
+  content        TEXT NOT NULL,
+  created_at     TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE scripts DISABLE ROW LEVEL SECURITY;
+GRANT ALL ON TABLE scripts TO anon;
+GRANT ALL ON TABLE scripts TO authenticated;

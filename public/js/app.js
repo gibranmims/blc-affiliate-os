@@ -29,7 +29,10 @@ const state = {
   selectedIds:        new Set(),
   outreachSort:       { col: 'followers', dir: 'desc' },
   dpAccordion:        { rates: false, eval: true, counter: true },
-  tiktokConnected:    false
+  tiktokConnected:    false,
+  scripts:            [],
+  scriptsLoaded:      false,
+  contentLabTab:      'generator'
 };
 
 const nbState = {
@@ -2302,25 +2305,69 @@ function stopDictation() {
 // SCRIPT GENERATOR
 // ============================================================
 
+// ============================================================
+// CONTENT LAB
+// ============================================================
+
+async function loadScripts() {
+  state.scripts = await fetchAPI(`${API.generate}/scripts`);
+  state.scriptsLoaded = true;
+}
+
+function switchContentLabTab(tab) {
+  state.contentLabTab = tab;
+  if (tab === 'library' && !state.scriptsLoaded) {
+    const body = document.getElementById('cl-body');
+    if (body) body.innerHTML = `<div class="cl-loading"><div class="spinner"></div><p>Loading saved scripts...</p></div>`;
+    loadScripts().then(() => renderScriptsPage());
+    return;
+  }
+  renderScriptsPage();
+}
+
 function renderScriptsPage() {
+  const libCount = state.scripts.length;
+  const blcCount = state.roster.reduce((s, r) => s + (Array.isArray(r.blc_videos) ? r.blc_videos.length : 0), 0);
+
   document.getElementById('page-content').innerHTML = `
     <div class="page-header">
       <div>
-        <h1 class="page-title">Script Generator</h1>
-        <p class="page-subtitle">Generate ready-to-film video scripts personalized to each creator</p>
+        <h1 class="page-title">Content Lab</h1>
+        <p class="page-subtitle">Generate, save, and manage all your affiliate content</p>
       </div>
     </div>
 
+    <div class="cl-tabs">
+      <button class="cl-tab ${state.contentLabTab === 'generator' ? 'active' : ''}" onclick="switchContentLabTab('generator')">Script Generator</button>
+      <button class="cl-tab ${state.contentLabTab === 'library'   ? 'active' : ''}" onclick="switchContentLabTab('library')">Saved Scripts${libCount > 0 ? ` <span class="cl-tab-count">${libCount}</span>` : ''}</button>
+      <button class="cl-tab ${state.contentLabTab === 'videos'    ? 'active' : ''}" onclick="switchContentLabTab('videos')">BLC Videos${blcCount > 0 ? ` <span class="cl-tab-count">${blcCount}</span>` : ''}</button>
+    </div>
+
+    <div id="cl-body">
+      ${renderContentLabTab()}
+    </div>`;
+}
+
+function renderContentLabTab() {
+  switch (state.contentLabTab) {
+    case 'library': return renderLibraryTab();
+    case 'videos':  return renderBLCVideosTab();
+    default:        return renderGeneratorTab();
+  }
+}
+
+function renderGeneratorTab() {
+  return `
     <div class="generator-layout">
       <div class="generator-form-panel">
         <div class="panel">
           <h3 class="panel-title">Script Settings</h3>
           <div class="form-group">
             <label>Select Creator *</label>
-            <select id="script-creator" onchange="updatePreview('script')">
+            <select id="script-creator" onchange="updatePreview()">
               <option value="">— Choose a creator —</option>
               ${state.roster.map(c =>
-                `<option value="${c.id}">${platformIcon(c.platform)} @${esc(c.handle)}${c.niche ? ' · ' + esc(c.niche) : ''}</option>`
+                `<option value="${c.id}">${platformIcon(c.platform)} @${esc(c.handle)}${c.niche ? ' · ' + esc(c.niche) : ''}${c.tier ? ' · ' + c.tier : ''}</option>`
               ).join('')}
             </select>
           </div>
@@ -2340,7 +2387,7 @@ function renderScriptsPage() {
           <button class="btn btn-primary btn-full" id="script-btn" onclick="generateScript()">
             Generate Script
           </button>
-          ${state.roster.length === 0 ? `<div class="info-box" style="margin-top:16px">Add creators to your Roster first — the generator pulls their profile to personalize the script.</div>` : ''}
+          ${state.roster.length === 0 ? `<div class="info-box" style="margin-top:16px">Add creators to your Roster first.</div>` : ''}
         </div>
       </div>
 
@@ -2348,7 +2395,10 @@ function renderScriptsPage() {
         <div class="panel">
           <div class="panel-header">
             <h3 class="panel-title">Generated Script</h3>
-            <button class="btn btn-secondary btn-sm hidden" id="copy-script-btn" onclick="copyOutput('script-output')">Copy</button>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <span class="cl-saved-badge hidden" id="cl-saved-badge">✓ Saved to Library</span>
+              <button class="btn btn-secondary btn-sm hidden" id="copy-script-btn" onclick="copyOutput('script-output')">Copy</button>
+            </div>
           </div>
           <div id="script-output" class="output-area">
             <div class="output-placeholder">
@@ -2358,6 +2408,134 @@ function renderScriptsPage() {
           </div>
         </div>
       </div>
+    </div>`;
+}
+
+function renderLibraryTab() {
+  if (!state.scriptsLoaded) {
+    return `<div class="cl-loading"><div class="spinner"></div><p>Loading saved scripts...</p></div>`;
+  }
+  if (state.scripts.length === 0) {
+    return `<div class="empty-state">
+      <div class="empty-icon">📄</div>
+      <h3>No scripts yet</h3>
+      <p>Generated scripts are automatically saved here</p>
+      <button class="btn btn-primary" onclick="switchContentLabTab('generator')">Generate a Script</button>
+    </div>`;
+  }
+
+  const creators = [...new Set(state.scripts.map(s => s.creator_handle))].sort();
+
+  return `
+    <div class="cl-library">
+      <div class="cl-library-toolbar">
+        <select id="cl-filter-creator" onchange="filterLibrary()" class="cl-filter-select">
+          <option value="">All creators (${state.scripts.length})</option>
+          ${creators.map(h => `<option value="${h}">@${esc(h)}</option>`).join('')}
+        </select>
+      </div>
+      <div id="cl-scripts-list">
+        ${state.scripts.map(s => scriptCardHTML(s)).join('')}
+      </div>
+    </div>`;
+}
+
+function scriptCardHTML(s) {
+  const date = new Date(s.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  const preview = s.content.replace(/[#*\-_`]/g, '').replace(/\n/g, ' ').slice(0, 160).trim();
+  return `
+    <div class="script-card" id="sc-${s.id}">
+      <div class="script-card-header" onclick="toggleScriptCard('${s.id}')">
+        <div class="script-card-meta">
+          <span class="script-card-handle">@${esc(s.creator_handle)}</span>
+          <span class="script-card-dot">·</span>
+          <span class="script-card-product">${esc(s.product_focus)}</span>
+          <span class="script-card-dot">·</span>
+          <span class="script-card-length">${esc(s.script_length)}</span>
+        </div>
+        <div class="script-card-actions">
+          <span class="script-card-date">${date}</span>
+          <button class="rs-remove-btn" onclick="deleteScript(event,'${s.id}')" title="Delete">✕</button>
+          <span class="script-card-chevron" id="chev-${s.id}">›</span>
+        </div>
+      </div>
+      <div class="script-card-preview">${esc(preview)}…</div>
+      <div class="script-card-body hidden" id="scb-${s.id}">
+        <div class="output-content">${renderMarkdown(s.content)}</div>
+        <button class="btn btn-secondary btn-sm" style="margin-top:12px" onclick="navigator.clipboard.writeText(document.getElementById('scb-${s.id}').innerText)">Copy Script</button>
+      </div>
+    </div>`;
+}
+
+function toggleScriptCard(id) {
+  const body  = document.getElementById(`scb-${id}`);
+  const chev  = document.getElementById(`chev-${id}`);
+  const card  = document.getElementById(`sc-${id}`);
+  const open  = !body.classList.contains('hidden');
+  body.classList.toggle('hidden', open);
+  card.classList.toggle('expanded', !open);
+  if (chev) chev.textContent = open ? '›' : '⌄';
+}
+
+function filterLibrary() {
+  const handle = document.getElementById('cl-filter-creator')?.value || '';
+  const filtered = handle ? state.scripts.filter(s => s.creator_handle === handle) : state.scripts;
+  const list = document.getElementById('cl-scripts-list');
+  if (list) list.innerHTML = filtered.map(s => scriptCardHTML(s)).join('');
+}
+
+async function deleteScript(e, id) {
+  e.stopPropagation();
+  try {
+    await fetchAPI(`${API.generate}/scripts/${id}`, { method: 'DELETE' });
+    state.scripts = state.scripts.filter(s => s.id !== id);
+    const card = document.getElementById(`sc-${id}`);
+    if (card) card.remove();
+    showToast('Script deleted');
+    // update tab count
+    document.querySelectorAll('.cl-tab').forEach((btn, i) => {
+      if (i === 1) btn.innerHTML = `Saved Scripts${state.scripts.length > 0 ? ` <span class="cl-tab-count">${state.scripts.length}</span>` : ''}`;
+    });
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+function renderBLCVideosTab() {
+  const creatorsWithVideos = state.roster.filter(r =>
+    Array.isArray(r.blc_videos) && r.blc_videos.length > 0
+  );
+
+  if (creatorsWithVideos.length === 0) {
+    return `<div class="empty-state">
+      <div class="empty-icon">🎵</div>
+      <h3>No BLC videos yet</h3>
+      <p>Add them through each creator's profile in the Roster</p>
+      <button class="btn btn-primary" onclick="navigate('roster')">Go to Roster</button>
+    </div>`;
+  }
+
+  return `
+    <div class="blc-videos-all">
+      <div class="blc-videos-summary">
+        ${creatorsWithVideos.length} creator${creatorsWithVideos.length !== 1 ? 's' : ''} ·
+        ${creatorsWithVideos.reduce((s, r) => s + r.blc_videos.length, 0)} total videos
+      </div>
+      ${creatorsWithVideos.map(r => `
+        <div class="blc-creator-section">
+          <div class="blc-creator-header">
+            <span class="blc-creator-handle">@${esc(r.handle)}</span>
+            ${r.tier ? `<span class="grade-badge grade-${r.tier}">${r.tier}</span>` : ''}
+            <span class="blc-video-count">${r.blc_videos.length} video${r.blc_videos.length !== 1 ? 's' : ''}</span>
+          </div>
+          <div class="blc-videos-grid">
+            ${r.blc_videos.map(url => `
+              <a href="${esc(url)}" target="_blank" class="blc-video-link">
+                <span class="blc-video-icon">🎵</span>
+                <span class="blc-video-url">${esc(url.replace('https://www.tiktok.com/', '').replace('https://tiktok.com/', ''))}</span>
+              </a>`).join('')}
+          </div>
+        </div>`).join('')}
     </div>`;
 }
 
@@ -2382,7 +2560,24 @@ async function generateScript() {
     });
     output.innerHTML = `<div class="output-content">${renderMarkdown(res.script)}</div>`;
     document.getElementById('copy-script-btn').classList.remove('hidden');
-    showToast('Script generated!');
+
+    // Show saved badge + add to local state
+    const badge = document.getElementById('cl-saved-badge');
+    if (badge) badge.classList.remove('hidden');
+    if (res.scriptId) {
+      const creator = state.roster.find(c => c.id === creatorId);
+      state.scripts.unshift({
+        id:             res.scriptId,
+        creator_id:     creatorId,
+        creator_handle: creator?.handle || '',
+        product_focus:  productFocus || 'BLC Product',
+        script_length:  { short: 'Short', medium: 'Medium', long: 'Long' }[scriptLength] || 'Medium',
+        content:        res.script,
+        created_at:     new Date().toISOString()
+      });
+      state.scriptsLoaded = true;
+    }
+    showToast('Script generated and saved!');
   } catch (err) {
     output.innerHTML = `<div class="output-error">⚠️ ${esc(err.message)}</div>`;
     showToast(err.message, 'error');
@@ -2392,12 +2587,15 @@ async function generateScript() {
   }
 }
 
-function updatePreview(type) {
-  const id      = document.getElementById(`${type}-creator`).value;
-  const preview = document.getElementById(`${type}-preview`);
+function updatePreview() {
+  const id      = document.getElementById('script-creator').value;
+  const preview = document.getElementById('script-preview');
   if (!id) { preview.classList.add('hidden'); return; }
   const c = state.roster.find(x => x.id === id);
   if (!c) return;
+
+  const topCount = Array.isArray(c.top_videos) ? c.top_videos.length : 0;
+  const blcCount = Array.isArray(c.blc_videos) ? c.blc_videos.length : 0;
 
   preview.classList.remove('hidden');
   preview.innerHTML = `
@@ -2417,6 +2615,14 @@ function updatePreview(type) {
       <div class="preview-row">
         <span class="preview-label">Followers</span>
         <span class="preview-value">${fmtNum(c.followers)}</span>
+      </div>
+      <div class="preview-row">
+        <span class="preview-label">Top Videos</span>
+        <span class="preview-value">${topCount} on file</span>
+      </div>
+      <div class="preview-row">
+        <span class="preview-label">BLC Videos</span>
+        <span class="preview-value">${blcCount} on file</span>
       </div>
       ${c.creator_assessment ? `
         <div class="preview-row preview-row-full">
