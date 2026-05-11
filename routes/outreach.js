@@ -17,10 +17,11 @@ const FIELDS = [
   'counter_offer_amount', 'counter_offer_email',
   'video_count', 'start_date',
   'sent_date', 'followup1_date', 'followup1_sent', 'followup1_sent_date',
-  'followup2_date', 'followup2_sent', 'followup2_sent_date'
+  'followup2_date', 'followup2_sent', 'followup2_sent_date',
+  'payment_sent', 'payment_sent_date'
 ];
 
-const BOOL_FIELDS  = ['followup1_sent', 'followup2_sent'];
+const BOOL_FIELDS  = ['followup1_sent', 'followup2_sent', 'payment_sent'];
 const DATE_FIELDS  = ['sent_date', 'followup1_date', 'followup1_sent_date', 'followup2_date', 'followup2_sent_date', 'start_date'];
 const INT_FIELDS   = ['follower_count', 'video_count', 'asked_rate_custom_count'];
 const FLOAT_FIELDS = ['last_30d_gmv', 'asked_rate_3', 'asked_rate_5', 'asked_rate_10', 'asked_rate_custom', 'counter_offer_amount'];
@@ -108,6 +109,9 @@ router.put('/:id', async (req, res) => {
     }
     if (updates.followup2_sent === true && !updates.followup2_sent_date) {
       updates.followup2_sent_date = today();
+    }
+    if (updates.payment_sent === true && !updates.payment_sent_date) {
+      updates.payment_sent_date = today();
     }
 
     const { data, error } = await supabase

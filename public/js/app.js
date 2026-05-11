@@ -575,6 +575,12 @@ async function updateStatusInline(id, newStatus, selectEl) {
     });
     const i = state.outreach.findIndex(x => x.id === id);
     if (i !== -1) state.outreach[i] = rec;
+    if (newStatus === 'signed') {
+      const deposit = rec.counter_offer_amount && rec.video_count
+        ? fmt$(parseFloat(rec.counter_offer_amount) * parseInt(rec.video_count) / 2)
+        : null;
+      showToast(`🎉 Signed! Send the 50% deposit${deposit ? ' — ' + deposit : ''} before generating the contract.`);
+    }
     renderPipelineView();
   } catch (err) {
     showToast(err.message, 'error');
@@ -958,12 +964,30 @@ function renderDetailPanel() {
           value="${r.start_date ? r.start_date.split('T')[0] : ''}"
           onblur="updateOutreachField('${r.id}', 'start_date', this.value)">
       </div>
-      ${r.counter_offer_amount && r.video_count ? `
-      <div class="dp-deal-summary">
-        <span>Total: <strong>${fmt$(parseFloat(r.counter_offer_amount) * parseInt(r.video_count))}</strong></span>
-        <span class="dp-deal-half">50% upfront: ${fmt$(parseFloat(r.counter_offer_amount) * parseInt(r.video_count) / 2)}</span>
-      </div>
-      ` : ''}
+      ${r.counter_offer_amount && r.video_count ? (() => {
+        const total    = parseFloat(r.counter_offer_amount) * parseInt(r.video_count);
+        const deposit  = total / 2;
+        return `
+        <div class="dp-deal-summary">
+          <span>Total deal: <strong>${fmt$(total)}</strong></span>
+        </div>
+
+        <!-- 50% Payment Tracking -->
+        <div class="payment-block ${r.payment_sent ? 'payment-block-done' : 'payment-block-pending'}">
+          <div class="payment-block-top">
+            <div>
+              <div class="payment-block-label">50% deposit due</div>
+              <div class="payment-block-amount">${fmt$(deposit)}</div>
+            </div>
+            ${r.payment_sent
+              ? `<div class="payment-sent-badge">✓ Sent${r.payment_sent_date ? ' ' + fmtDateShort(r.payment_sent_date) : ''}</div>`
+              : `<button class="payment-mark-btn" onclick="markPaymentSent('${r.id}')">Mark Sent</button>`
+            }
+          </div>
+          ${!r.payment_sent ? `<div class="payment-block-hint">Send this before the contract is generated</div>` : ''}
+        </div>`;
+      })() : `<div class="dp-section-hint" style="margin-top:8px">Enter rate and video count above to calculate the deposit.</div>`}
+
       <button class="btn btn-primary" style="margin-top:12px;width:100%;justify-content:center"
         id="dp-contract-btn"
         onclick="generateContractAndMoveToRoster('${r.id}')">
@@ -991,6 +1015,22 @@ async function updateOutreachField(id, field, value) {
     const i = state.outreach.findIndex(x => x.id === id);
     if (i !== -1) state.outreach[i] = rec;
     renderDetailPanel();
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+async function markPaymentSent(id) {
+  try {
+    const rec = await fetchAPI(`${API.outreach}/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ payment_sent: true })
+    });
+    const i = state.outreach.findIndex(x => x.id === id);
+    if (i !== -1) state.outreach[i] = rec;
+    renderDetailPanel();
+    if (state.outreachView === 'pipeline') renderPipelineView();
+    showToast('50% deposit marked as sent ✓');
   } catch (err) {
     showToast(err.message, 'error');
   }

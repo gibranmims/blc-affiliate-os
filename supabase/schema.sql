@@ -117,6 +117,10 @@ ALTER TABLE roster ADD CONSTRAINT roster_status_check
 -- ============================================================
 -- Outreach follow-up tracking
 -- ============================================================
+-- Payment tracking (50% deposit when signed)
+ALTER TABLE outreach ADD COLUMN IF NOT EXISTS payment_sent      BOOLEAN DEFAULT FALSE;
+ALTER TABLE outreach ADD COLUMN IF NOT EXISTS payment_sent_date DATE;
+
 ALTER TABLE outreach ADD COLUMN IF NOT EXISTS sent_date          DATE;
 ALTER TABLE outreach ADD COLUMN IF NOT EXISTS followup1_date     DATE;
 ALTER TABLE outreach ADD COLUMN IF NOT EXISTS followup1_sent     BOOLEAN DEFAULT FALSE;
