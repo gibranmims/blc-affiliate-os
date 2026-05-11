@@ -422,7 +422,10 @@ function renderPipelineView() {
         <h1 class="page-title">Outreach</h1>
         <p class="page-subtitle">Track creator pipeline from first email to signed deal</p>
       </div>
-      <button class="btn btn-primary" onclick="openNewBatch()">+ New Batch</button>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-secondary" onclick="openAddOutreachModal()">+ Add Creator</button>
+        <button class="btn btn-primary" onclick="openNewBatch()">+ New Batch</button>
+      </div>
     </div>
 
     <div class="stat-cards">
@@ -2318,6 +2321,68 @@ async function deleteRosterFromPanel(id) {
 // ============================================================
 // ROSTER — MANUAL ADD MODAL
 // ============================================================
+
+function openAddOutreachModal() {
+  const statuses = [
+    ['drafted',        'In Drafts'],
+    ['sent',           'Sent'],
+    ['replied',        'Replied'],
+    ['counter_offered','Countered'],
+    ['signed',         'Signed']
+  ];
+  const html = `
+    <form id="modal-form">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Handle *</label>
+          <input name="handle" placeholder="@username" required>
+        </div>
+        <div class="form-group">
+          <label>Name</label>
+          <input name="name" placeholder="Creator name">
+        </div>
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" name="email" placeholder="creator@email.com">
+        </div>
+        <div class="form-group">
+          <label>Followers</label>
+          <input type="number" name="follower_count" placeholder="e.g. 85000">
+        </div>
+        <div class="form-group">
+          <label>Profile URL</label>
+          <input name="profile_url" placeholder="https://tiktok.com/@username">
+        </div>
+        <div class="form-group">
+          <label>Niche / Category</label>
+          <input name="product_category" placeholder="e.g. Skincare, Lifestyle">
+        </div>
+        <div class="form-group">
+          <label>30-day GMV ($)</label>
+          <input type="number" step="0.01" name="last_30d_gmv" placeholder="e.g. 4200">
+        </div>
+        <div class="form-group">
+          <label>Pipeline Status</label>
+          <select name="status">${selectOpts(statuses, 'drafted')}</select>
+        </div>
+      </div>
+      <div class="form-actions">
+        <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+        <button type="submit" class="btn btn-primary">Add to Pipeline</button>
+      </div>
+    </form>`;
+
+  openModal('Add Creator', html, async (e) => {
+    const data = Object.fromEntries(new FormData(e.target));
+    try {
+      const rec = await fetchAPI(API.outreach, { method: 'POST', body: JSON.stringify(data) });
+      state.outreach.unshift(rec);
+      closeModal();
+      renderPipelineView();
+      showToast('Creator added to pipeline!');
+    } catch (err) { showToast(err.message, 'error'); }
+  });
+}
 
 function openAddRosterModal() {
   const platforms = [['TikTok','TikTok'],['Instagram','Instagram'],['YouTube','YouTube']];
