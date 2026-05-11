@@ -566,8 +566,12 @@ router.post('/save-drafts', async (req, res) => {
 
     const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
 
-    const results = await Promise.all(
-      toSave.map(async (e) => {
+    // Process sequentially to stay under Gmail's rate limit
+    const results = [];
+    const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+    for (const e of toSave) {
+      try {
         const htmlBody = bodyToHtml(e.body);
         const mime = [
           `To: ${e.email}`,
@@ -589,11 +593,20 @@ router.post('/save-drafts', async (req, res) => {
           requestBody: { message: { raw: encoded } }
         });
 
-        return { handle: e.handle, saved: true };
-      })
-    );
+        results.push({ handle: e.handle, saved: true });
+      } catch (draftErr) {
+        console.error(`Draft failed for ${e.handle}:`, draftErr.message);
+        results.push({ handle: e.handle, saved: false, error: draftErr.message });
+      }
 
-    res.json({ saved: results.length, skipped: emails.length - toSave.length, results });
+      // 150ms gap keeps well under Gmail's 10 req/sec per-user limit
+      await sleep(150);
+    }
+
+    const saved   = results.filter(r => r.saved).length;
+    const failed  = results.filter(r => !r.saved).length;
+
+    res.json({ saved, failed, skipped: emails.length - toSave.length, results });
   } catch (err) {
     console.error('Save drafts error:', err);
     if (err.message?.includes('invalid_grant') || err.message?.includes('Token has been expired')) {

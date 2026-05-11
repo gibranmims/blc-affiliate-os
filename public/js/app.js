@@ -1820,7 +1820,11 @@ async function nbSaveDrafts() {
   if (toSave.length === 0) { showToast('No valid emails to save', 'error'); return; }
 
   const btn = document.getElementById('nb-save-btn');
-  if (btn) { btn.disabled = true; btn.textContent = 'Saving drafts...'; }
+  const estSecs = Math.ceil(toSave.length * 0.15) + 2;
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = `Saving ${toSave.length} drafts… (~${estSecs}s)`;
+  }
 
   try {
     const res = await fetchAPI(`${API.outreachGen}/save-drafts`, {
@@ -1828,6 +1832,7 @@ async function nbSaveDrafts() {
       body: JSON.stringify({ emails: toSave })
     });
 
+    if (res.failed > 0) showToast(`${res.failed} draft(s) failed — check Railway logs`, 'error');
     if (btn) { btn.textContent = 'Adding to pipeline...'; }
     let added = 0;
     let firstError = null;
