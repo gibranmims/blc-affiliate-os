@@ -115,6 +115,17 @@ ALTER TABLE roster ADD CONSTRAINT roster_status_check
   CHECK (status IN ('active', 'inactive', 'paused', 'watching'));
 
 -- ============================================================
+-- Outreach follow-up tracking
+-- ============================================================
+ALTER TABLE outreach ADD COLUMN IF NOT EXISTS sent_date          DATE;
+ALTER TABLE outreach ADD COLUMN IF NOT EXISTS followup1_date     DATE;
+ALTER TABLE outreach ADD COLUMN IF NOT EXISTS followup1_sent     BOOLEAN DEFAULT FALSE;
+ALTER TABLE outreach ADD COLUMN IF NOT EXISTS followup1_sent_date DATE;
+ALTER TABLE outreach ADD COLUMN IF NOT EXISTS followup2_date     DATE;
+ALTER TABLE outreach ADD COLUMN IF NOT EXISTS followup2_sent     BOOLEAN DEFAULT FALSE;
+ALTER TABLE outreach ADD COLUMN IF NOT EXISTS followup2_sent_date DATE;
+
+-- ============================================================
 -- Content Lab — saved scripts
 -- ============================================================
 CREATE TABLE IF NOT EXISTS scripts (

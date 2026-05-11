@@ -142,7 +142,42 @@ function fmtGMV(val) {
 
 function fmtDate(d) {
   if (!d) return '—';
-  return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  return new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function fmtDateShort(d) {
+  if (!d) return '—';
+  return new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+function todayStr() {
+  return new Date().toISOString().split('T')[0];
+}
+
+// Returns CSS class based on whether a date is overdue, today, or upcoming
+function fuDateClass(dateStr) {
+  if (!dateStr) return '';
+  const t = todayStr();
+  if (dateStr < t) return 'fu-overdue';
+  if (dateStr === t) return 'fu-today';
+  return 'fu-upcoming';
+}
+
+function renderFUBadge(r) {
+  if (!r.sent_date) return '';
+  const t = todayStr();
+  if (!r.followup1_sent && r.followup1_date) {
+    const cls = r.followup1_date < t ? 'fu-badge-overdue' : r.followup1_date === t ? 'fu-badge-today' : 'fu-badge-dim';
+    return `<div class="fu-badge ${cls}">FU1 · ${fmtDateShort(r.followup1_date)}</div>`;
+  }
+  if (r.followup1_sent && !r.followup2_sent && r.followup2_date) {
+    const cls = r.followup2_date < t ? 'fu-badge-overdue' : r.followup2_date === t ? 'fu-badge-today' : 'fu-badge-dim';
+    return `<div class="fu-badge ${cls}">FU2 · ${fmtDateShort(r.followup2_date)}</div>`;
+  }
+  if (r.followup2_sent) {
+    return `<div class="fu-badge fu-badge-done">All FUs sent ✓</div>`;
+  }
+  return '';
 }
 
 function avgRatePerVid(r) {
@@ -481,6 +516,7 @@ function renderPipelineView() {
                   <div class="creator-cell">
                     <div class="creator-name">${esc(r.name || r.handle)}</div>
                     <div class="creator-handle-small">@${esc(r.handle)}</div>
+                    ${r.status === 'sent' ? renderFUBadge(r) : ''}
                   </div>
                 </td>
                 <td>${fmtNum(r.follower_count)}</td>
@@ -643,6 +679,67 @@ function renderDetailPanel() {
       ${r.product_category ? `<div class="dp-category">${esc(r.product_category)}</div>` : ''}
     </div>
 
+    <!-- Follow-up Tracker (shown when sent or follow-up data exists) -->
+    ${(r.status === 'sent' || r.sent_date) ? `
+    <div class="dp-section">
+      <div class="dp-section-label">Follow-up Tracker</div>
+      <div class="fu-timeline">
+
+        <!-- First outreach -->
+        <div class="fu-row">
+          <div class="fu-step-dot fu-dot-sent"></div>
+          <div class="fu-step-body">
+            <div class="fu-step-label">First outreach</div>
+            ${r.sent_date
+              ? `<div class="fu-step-date">${fmtDate(r.sent_date)}</div>`
+              : `<input type="date" class="dp-input fu-date-input" placeholder="Set send date"
+                   onchange="updateOutreachField('${r.id}', 'sent_date', this.value)">`
+            }
+          </div>
+          <div class="fu-step-status fu-status-sent">✓ Sent</div>
+        </div>
+
+        <div class="fu-connector"></div>
+
+        <!-- Follow-up 1 -->
+        <div class="fu-row ${r.followup1_date ? fuDateClass(r.followup1_date) : ''}">
+          <div class="fu-step-dot ${r.followup1_sent ? 'fu-dot-sent' : 'fu-dot-pending'}"></div>
+          <div class="fu-step-body">
+            <div class="fu-step-label">Follow-up 1</div>
+            ${r.followup1_date ? `<div class="fu-step-date">${fmtDate(r.followup1_date)}</div>` : ''}
+          </div>
+          <div class="fu-step-action">
+            ${r.followup1_sent
+              ? `<span class="fu-status-sent">✓ Sent ${r.followup1_sent_date ? fmtDateShort(r.followup1_sent_date) : ''}</span>`
+              : r.sent_date
+                ? `<button class="fu-mark-btn" onclick="markFollowupSent('${r.id}', 1)">Mark Sent</button>`
+                : `<span class="fu-locked-hint">Set send date first</span>`
+            }
+          </div>
+        </div>
+
+        <div class="fu-connector"></div>
+
+        <!-- Follow-up 2 -->
+        <div class="fu-row ${r.followup2_date && r.followup1_sent ? fuDateClass(r.followup2_date) : 'fu-locked'}">
+          <div class="fu-step-dot ${r.followup2_sent ? 'fu-dot-sent' : r.followup1_sent ? 'fu-dot-pending' : 'fu-dot-locked'}"></div>
+          <div class="fu-step-body">
+            <div class="fu-step-label">Follow-up 2</div>
+            ${r.followup2_date ? `<div class="fu-step-date">${fmtDate(r.followup2_date)}</div>` : ''}
+          </div>
+          <div class="fu-step-action">
+            ${r.followup2_sent
+              ? `<span class="fu-status-sent">✓ Sent ${r.followup2_sent_date ? fmtDateShort(r.followup2_sent_date) : ''}</span>`
+              : r.followup1_sent
+                ? `<button class="fu-mark-btn" onclick="markFollowupSent('${r.id}', 2)">Mark Sent</button>`
+                : `<span class="fu-locked-hint">After FU1</span>`
+            }
+          </div>
+        </div>
+
+      </div>
+    </div>
+    ` : ''}
 
     <!-- Evaluation (shown from "replied" onward) -->
     ${hasReplied ? `
@@ -894,6 +991,25 @@ async function updateOutreachField(id, field, value) {
     const i = state.outreach.findIndex(x => x.id === id);
     if (i !== -1) state.outreach[i] = rec;
     renderDetailPanel();
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+async function markFollowupSent(id, num) {
+  const payload = num === 1
+    ? { followup1_sent: true }
+    : { followup2_sent: true };
+  try {
+    const rec = await fetchAPI(`${API.outreach}/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload)
+    });
+    const i = state.outreach.findIndex(x => x.id === id);
+    if (i !== -1) state.outreach[i] = rec;
+    renderDetailPanel();
+    if (state.outreachView === 'pipeline') renderPipelineView();
+    showToast(`Follow-up ${num} marked as sent`);
   } catch (err) {
     showToast(err.message, 'error');
   }
