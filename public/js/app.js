@@ -32,7 +32,8 @@ const state = {
   tiktokConnected:    false,
   scripts:            [],
   scriptsLoaded:      false,
-  contentLabTab:      'generator'
+  contentLabTab:      'generator',
+  rosterTab:          'paid'
 };
 
 const nbState = {
@@ -1892,10 +1893,24 @@ async function syncTikTokGMV() {
 // ROSTER — RENDER
 // ============================================================
 
+function switchRosterTab(tab) {
+  state.rosterTab = tab;
+  if (state.activeRosterId) {
+    const r = state.roster.find(x => x.id === state.activeRosterId);
+    const rType = r?.affiliate_type || 'paid';
+    if (rType !== tab) { state.activeRosterId = null; closeDetailPanel(); }
+  }
+  renderRosterPage();
+}
+
 function renderRosterPage() {
-  const active     = state.roster.filter(r => r.status === 'active').length;
-  const totalGMV   = state.roster.reduce((s, r) => s + (parseFloat(r.gmv) || 0), 0);
-  const totalPosts = state.roster.reduce((s, r) => s + (parseInt(r.content_submitted) || 0), 0);
+  const isPaid  = state.rosterTab === 'paid';
+  const list    = state.roster.filter(r => isPaid ? (r.affiliate_type !== 'free') : (r.affiliate_type === 'free'));
+  const active  = list.filter(r => r.status === 'active').length;
+  const totalGMV   = list.reduce((s, r) => s + (parseFloat(r.gmv) || 0), 0);
+  const totalPosts = list.reduce((s, r) => s + (parseInt(r.content_submitted) || 0), 0);
+  const paidCount  = state.roster.filter(r => r.affiliate_type !== 'free').length;
+  const freeCount  = state.roster.filter(r => r.affiliate_type === 'free').length;
 
   document.getElementById('page-content').innerHTML = `
     <div class="page-header">
@@ -1906,16 +1921,25 @@ function renderRosterPage() {
       <div style="display:flex;gap:8px;align-items:center;">
         ${state.tiktokConnected
           ? `<button class="btn btn-secondary" id="tiktok-sync-btn" onclick="syncTikTokGMV()">↻ Sync TikTok GMV</button>`
-          : `<button class="btn btn-secondary" onclick="window.location.href='/api/tiktok/auth'" title="Connect your TikTok Shop seller account to sync affiliate GMV">Connect TikTok Shop</button>`
+          : `<button class="btn btn-secondary" onclick="window.location.href='/api/tiktok/auth'">Connect TikTok Shop</button>`
         }
         <button class="btn btn-primary" onclick="openAddRosterModal()">+ Add Affiliate</button>
       </div>
     </div>
 
+    <div class="cl-tabs" style="margin-bottom:20px">
+      <button class="cl-tab ${isPaid ? 'active' : ''}" onclick="switchRosterTab('paid')">
+        Paid Affiliates${paidCount > 0 ? ` <span class="cl-tab-count">${paidCount}</span>` : ''}
+      </button>
+      <button class="cl-tab ${!isPaid ? 'active' : ''}" onclick="switchRosterTab('free')">
+        Free Affiliates${freeCount > 0 ? ` <span class="cl-tab-count">${freeCount}</span>` : ''}
+      </button>
+    </div>
+
     <div class="stat-cards">
       <div class="stat-card">
-        <div class="stat-value">${state.roster.length}</div>
-        <div class="stat-label">Total Affiliates</div>
+        <div class="stat-value">${list.length}</div>
+        <div class="stat-label">${isPaid ? 'Paid' : 'Free'} Affiliates</div>
       </div>
       <div class="stat-card">
         <div class="stat-value green">${active}</div>
@@ -1932,11 +1956,11 @@ function renderRosterPage() {
     </div>
 
     <div class="table-container">
-      ${state.roster.length === 0 ? `
+      ${list.length === 0 ? `
         <div class="empty-state">
-          <div class="empty-icon">👥</div>
-          <h3>No affiliates yet</h3>
-          <p>Signed creators move here automatically when you generate their contract</p>
+          <div class="empty-icon">${isPaid ? '👥' : '🔗'}</div>
+          <h3>No ${isPaid ? 'paid' : 'free'} affiliates yet</h3>
+          <p>${isPaid ? 'Signed creators move here from the outreach pipeline' : 'Add commission-only affiliates manually'}</p>
           <button class="btn btn-primary" onclick="openAddRosterModal()">+ Add Affiliate</button>
         </div>
       ` : `
@@ -1944,16 +1968,14 @@ function renderRosterPage() {
           <thead>
             <tr>
               <th>Creator</th>
-              <th>Grade</th>
-              <th>Deal</th>
-              <th>Start Date</th>
+              ${isPaid ? `<th>Grade</th><th>Deal</th><th>Start Date</th>` : `<th>Followers</th>`}
               <th>Posts</th>
               <th>GMV</th>
               <th>Status</th>
             </tr>
           </thead>
           <tbody>
-            ${state.roster.map(r => {
+            ${list.map(r => {
               const isActive = r.id === state.activeRosterId;
               const startFmt = r.start_date
                 ? new Date(r.start_date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
@@ -1966,11 +1988,13 @@ function renderRosterPage() {
                     ${r.name ? `<span class="creator-email">${esc(r.name)}</span>` : ''}
                   </div>
                 </td>
-                <td>${r.tier ? `<span class="grade-badge grade-${r.tier}">${r.tier}</span>` : '—'}</td>
-                <td>${r.video_count && r.per_vid_rate
-                  ? `<span class="deal-cell">${r.video_count} vids · ${fmt$(r.per_vid_rate)}/vid</span>`
-                  : `<span class="deal-cell-none">No deal</span>`}</td>
-                <td>${startFmt}</td>
+                ${isPaid ? `
+                  <td>${r.tier ? `<span class="grade-badge grade-${r.tier}">${r.tier}</span>` : '—'}</td>
+                  <td>${r.video_count && r.per_vid_rate
+                    ? `<span class="deal-cell">${r.video_count} vids · ${fmt$(r.per_vid_rate)}/vid</span>`
+                    : `<span class="deal-cell-none">No deal</span>`}</td>
+                  <td>${startFmt}</td>
+                ` : `<td>${fmtNum(r.followers)}</td>`}
                 <td>${r.content_submitted || 0}</td>
                 <td><span class="gmv-value">${fmt$(r.gmv)}</span></td>
                 <td>${rosterStatusBadge(r.status)}</td>
@@ -2385,11 +2409,27 @@ function openAddOutreachModal() {
 }
 
 function openAddRosterModal() {
+  const defaultType = state.rosterTab === 'free' ? 'free' : 'paid';
   const platforms = [['TikTok','TikTok'],['Instagram','Instagram'],['YouTube','YouTube']];
   const tiers     = [['','— none —'],['A','A'],['B','B'],['C','C']];
-  const statuses  = [['active','Active — signed deal'],['watching','Watching — no deal yet'],['paused','Paused'],['inactive','Inactive']];
+  const statuses  = [['active','Active'],['watching','Watching'],['paused','Paused'],['inactive','Inactive']];
   const html = `
     <form id="modal-form">
+      <div class="form-group" style="margin-bottom:16px">
+        <label>Affiliate Type</label>
+        <div class="type-toggle-row">
+          <label class="type-toggle-opt">
+            <input type="radio" name="affiliate_type" value="paid" ${defaultType === 'paid' ? 'checked' : ''}
+              onchange="document.getElementById('modal-deal-fields').style.display='grid'">
+            <span>Paid — fixed deal + commission</span>
+          </label>
+          <label class="type-toggle-opt">
+            <input type="radio" name="affiliate_type" value="free" ${defaultType === 'free' ? 'checked' : ''}
+              onchange="document.getElementById('modal-deal-fields').style.display='none'">
+            <span>Free — commission only</span>
+          </label>
+        </div>
+      </div>
       <div class="form-grid">
         <div class="form-group">
           <label>Handle *</label>
@@ -2426,25 +2466,23 @@ function openAddRosterModal() {
           <select name="tier">${selectOpts(tiers, '')}</select>
         </div>
       </div>
-      <div id="deal-fields">
-        <div style="font-size:11px;color:var(--text-muted);margin:12px 0 8px;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;">Deal Details</div>
-        <div class="form-grid">
-          <div class="form-group">
-            <label># Videos</label>
-            <input type="number" name="video_count" placeholder="e.g. 5">
-          </div>
-          <div class="form-group">
-            <label>Rate / Video ($)</label>
-            <input type="number" name="per_vid_rate" placeholder="e.g. 200">
-          </div>
-          <div class="form-group">
-            <label>Start Date</label>
-            <input type="date" name="start_date">
-          </div>
-          <div class="form-group">
-            <label>Commission Rate (%)</label>
-            <input type="number" step="0.1" name="commission_rate" value="20">
-          </div>
+      <div id="modal-deal-fields" style="display:${defaultType === 'free' ? 'none' : 'grid'};grid-template-columns:1fr 1fr;gap:12px 16px">
+        <div style="grid-column:1/-1;font-size:11px;color:var(--text-muted);margin:4px 0 0;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;">Deal Details</div>
+        <div class="form-group">
+          <label># Videos</label>
+          <input type="number" name="video_count" placeholder="e.g. 5">
+        </div>
+        <div class="form-group">
+          <label>Rate / Video ($)</label>
+          <input type="number" name="per_vid_rate" placeholder="e.g. 200">
+        </div>
+        <div class="form-group">
+          <label>Start Date</label>
+          <input type="date" name="start_date">
+        </div>
+        <div class="form-group">
+          <label>Commission Rate (%)</label>
+          <input type="number" step="0.1" name="commission_rate" value="20">
         </div>
       </div>
       <div class="form-actions">

@@ -114,6 +114,10 @@ ALTER TABLE roster DROP CONSTRAINT IF EXISTS roster_status_check;
 ALTER TABLE roster ADD CONSTRAINT roster_status_check
   CHECK (status IN ('active', 'inactive', 'paused', 'watching'));
 
+-- Roster affiliate type
+ALTER TABLE roster ADD COLUMN IF NOT EXISTS affiliate_type TEXT DEFAULT 'paid'
+  CHECK (affiliate_type IN ('paid', 'free'));
+
 -- ============================================================
 -- Outreach follow-up tracking
 -- ============================================================

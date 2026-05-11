@@ -12,7 +12,7 @@ const FIELDS = [
   'tier', 'video_count', 'start_date', 'per_vid_rate',
   'content_submitted', 'gmv', 'commission_rate',
   'top_videos', 'blc_videos', 'posting_schedule', 'creator_assessment',
-  'content_style', 'audience_demographics', 'notes'
+  'content_style', 'audience_demographics', 'notes', 'affiliate_type'
 ];
 
 const JSON_FIELDS = ['top_videos', 'blc_videos', 'posting_schedule'];
