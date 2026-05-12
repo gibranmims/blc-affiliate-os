@@ -426,6 +426,234 @@ router.post('/create-contract', async (req, res) => {
   }
 });
 
+// ============================================================
+// POST /api/outreach-gen/sign-flow
+// Full onboarding: contract PDF → Gmail draft + attachment → roster entry
+// ============================================================
+router.post('/sign-flow', async (req, res) => {
+  const { outreachId } = req.body;
+  if (!outreachId) return res.status(400).json({ error: 'outreachId required' });
+
+  const activeDrive = driveTokens || gmailTokens;
+  const activeGmail = gmailTokens;
+  if (!activeDrive) return res.status(401).json({ error: 'Google Drive not connected. Connect from New Batch first.' });
+  if (!activeGmail) return res.status(401).json({ error: 'Gmail not connected. Connect from New Batch first.' });
+
+  try {
+    // 1. Load outreach record
+    const { data: r, error: rErr } = await supabase
+      .from('outreach').select('*').eq('id', outreachId).single();
+    if (rErr || !r) return res.status(404).json({ error: 'Outreach record not found' });
+
+    const rate        = parseFloat(r.counter_offer_amount);
+    const videoCount  = parseInt(r.video_count);
+    const startDate   = r.start_date;
+    const creatorName = r.name || r.handle;
+    const handle      = r.handle;
+    const email       = r.email || '';
+
+    if (!rate || isNaN(rate))            return res.status(400).json({ error: 'Rate per video is required — fill it in before completing onboarding.' });
+    if (!videoCount || isNaN(videoCount)) return res.status(400).json({ error: 'Video count is required.' });
+    if (!startDate)                       return res.status(400).json({ error: 'Start date is required.' });
+
+    const totalDeal   = Math.round(rate * videoCount);
+    const halfDeposit = Math.round(totalDeal / 2);
+
+    // 2. Load Discord invite link
+    const { data: discordRow } = await supabase
+      .from('app_settings').select('value').eq('key', 'discord_invite_link').single();
+    const discordLink = discordRow?.value || '[Add Discord link in Settings ⚙]';
+
+    // 3. Generate contract PDF via Google Drive (clone template → fill → export PDF)
+    const start = new Date(startDate + 'T12:00:00');
+    const end   = new Date(start);
+    end.setDate(end.getDate() + 60);
+    const fmtDate = d => d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+
+    const TEMPLATE_ID = '10NFrH809w1ksmG8TlSp6_fwanNnm2nFcJNd1HzauSEY';
+    const FOLDER_ID   = '1EX2fAsKvNad8tWEXchBYTURM9kP4fiL3';
+
+    const driveAuth = getOAuthClient();
+    driveAuth.setCredentials(activeDrive);
+    if (activeDrive.expiry_date && activeDrive.expiry_date < Date.now() + 60_000) {
+      const { credentials } = await driveAuth.refreshAccessToken();
+      if (driveTokens) { driveTokens = credentials; await persistSettings({ drive_tokens: driveTokens }); }
+      else             { gmailTokens = credentials; await persistTokens(gmailTokens, gmailEmail); }
+      driveAuth.setCredentials(credentials);
+    }
+
+    const drive = google.drive({ version: 'v3', auth: driveAuth });
+    const docs  = google.docs({ version: 'v1', auth: driveAuth });
+
+    // Create creator folder
+    const folderRes = await drive.files.create({
+      requestBody: { name: `${creatorName} (@${handle})`, mimeType: 'application/vnd.google-apps.folder', parents: [FOLDER_ID] },
+      fields: 'id'
+    });
+
+    // Copy template
+    const copyRes = await drive.files.copy({
+      fileId: TEMPLATE_ID,
+      requestBody: { name: `${creatorName} - BLC Partnership Agreement`, parents: [folderRes.data.id] },
+      fields: 'id'
+    });
+    const docId = copyRes.data.id;
+
+    // Replace placeholders
+    await docs.documents.batchUpdate({
+      documentId: docId,
+      requestBody: {
+        requests: Object.entries({
+          '[BLC CONTACT NAME]':  'Gibran Mims',
+          '[BLC CONTACT EMAIL]': 'hello@thebikiniline.co',
+          '[CREATOR NAME]':      creatorName,
+          '[@TIKTOK HANDLE]':   `@${handle}`,
+          '[CREATOR EMAIL]':     email,
+          '[NUMBER OF VIDEOS]':  String(videoCount),
+          '[START DATE]':        fmtDate(start),
+          '[END DATE]':          fmtDate(end),
+          '[TOTAL PAYMENT]':     totalDeal.toLocaleString(),
+          '[50% OF TOTAL]':      halfDeposit.toLocaleString(),
+          '[BLC INVOICE EMAIL]': 'partnerships@thebikiniline.co'
+        }).map(([find, replace]) => ({
+          replaceAllText: { containsText: { text: find, matchCase: true }, replaceText: replace }
+        }))
+      }
+    });
+
+    // Export as PDF
+    const pdfRes = await drive.files.export(
+      { fileId: docId, mimeType: 'application/pdf' },
+      { responseType: 'arraybuffer' }
+    );
+    const pdfBuffer  = Buffer.from(pdfRes.data);
+    const pdfBase64  = pdfBuffer.toString('base64');
+    const safeName   = creatorName.replace(/[^a-zA-Z0-9\s\-_]/g, '').trim();
+    const pdfFilename = `${safeName} - BLC Contract.pdf`;
+
+    // 4. Build welcome email body
+    const firstName = creatorName.split(' ')[0];
+    const emailBody = [
+      `Hey ${firstName},`,
+      ``,
+      `So excited to have you on board with The Bikini Line Co. Please find your contract attached. Once you've had a chance to review and sign, send it back our way.`,
+      ``,
+      `A few quick next steps to get you started:`,
+      ``,
+      `Please send us an invoice for 50% of your first month's rate. You can send payment via PayPal or wire transfer, just let us know which you prefer.`,
+      ``,
+      `Join our Discord using this link: ${discordLink}. Once you're in, send us a DM and we'll move all future communication there.`,
+      ``,
+      `We'll also be sending you a product sample so you can get familiar with it before you start posting.`,
+      ``,
+      `Before you go live, we'll send you a posting schedule and content angles that are already converting so we're aligned before anything goes up. All of that will come through Discord once you're in.`,
+      ``,
+      `Can't wait to get started.`,
+      ``,
+      `Warmly,`,
+      `Lu`
+    ].join('\n');
+
+    // 5. Create Gmail draft with PDF attached (RFC 2822 MIME message)
+    const boundary = `BLC_BOUND_${Date.now()}`;
+    const pdfLines = pdfBase64.match(/.{1,76}/g).join('\r\n');
+
+    const mimeMsg = [
+      `MIME-Version: 1.0`,
+      email ? `To: ${email}` : `To: `,
+      `Subject: Welcome to The Bikini Line Co.`,
+      `Content-Type: multipart/mixed; boundary="${boundary}"`,
+      ``,
+      `--${boundary}`,
+      `Content-Type: text/plain; charset=UTF-8`,
+      ``,
+      emailBody,
+      ``,
+      `--${boundary}`,
+      `Content-Type: application/pdf; name="${pdfFilename}"`,
+      `Content-Disposition: attachment; filename="${pdfFilename}"`,
+      `Content-Transfer-Encoding: base64`,
+      ``,
+      pdfLines,
+      ``,
+      `--${boundary}--`
+    ].join('\r\n');
+
+    // Refresh Gmail tokens if needed
+    const gmailAuth = getOAuthClient();
+    gmailAuth.setCredentials(activeGmail);
+    if (activeGmail.expiry_date && activeGmail.expiry_date < Date.now() + 60_000) {
+      const { credentials } = await gmailAuth.refreshAccessToken();
+      gmailTokens = credentials;
+      await persistTokens(gmailTokens, gmailEmail);
+      gmailAuth.setCredentials(credentials);
+    }
+
+    const gmail = google.gmail({ version: 'v1', auth: gmailAuth });
+    const rawEncoded = Buffer.from(mimeMsg)
+      .toString('base64')
+      .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+
+    await gmail.users.drafts.create({
+      userId: 'me',
+      requestBody: { message: { raw: rawEncoded } }
+    });
+
+    // 6. Upsert roster entry (create or update by handle)
+    const rosterData = {
+      handle:             r.handle,
+      name:               r.name || null,
+      platform:           'TikTok',
+      niche:              (r.product_category || '').split(',')[0].trim() || null,
+      followers:          r.follower_count || null,
+      email:              r.email || null,
+      status:             'active',
+      tier:               r.tier || null,
+      video_count:        videoCount,
+      start_date:         startDate,
+      per_vid_rate:       rate,
+      commission_rate:    20,
+      content_submitted:  0,
+      gmv:                0,
+      affiliate_type:     'paid',
+      top_videos:         [],
+      creator_assessment: null
+    };
+
+    const { data: existing } = await supabase
+      .from('roster').select('id').ilike('handle', r.handle).maybeSingle();
+
+    let rosterEntry;
+    if (existing?.id) {
+      const { data } = await supabase
+        .from('roster').update(rosterData).eq('id', existing.id).select().single();
+      rosterEntry = data;
+    } else {
+      const { data } = await supabase
+        .from('roster').insert([rosterData]).select().single();
+      rosterEntry = data;
+    }
+
+    res.json({
+      success:      true,
+      halfDeposit,
+      totalDeal,
+      creatorName,
+      rosterEntry,
+      draftCreated: true,
+      pdfBase64,
+      pdfFilename
+    });
+
+  } catch (err) {
+    console.error('[sign-flow] Error:', err);
+    if (err.message?.includes('insufficientPermissions') || err.code === 403) {
+      return res.status(403).json({ error: 'Google Drive permissions error. Make sure the correct account (hello@thebikiniline.co) is connected via New Batch.' });
+    }
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET /api/outreach-gen/auth/url
 router.get('/auth/url', (req, res) => {
   if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {

@@ -183,9 +183,94 @@ body {
   border: 1px solid rgba(255, 246, 235, 0.2);
 }
 
+.nav-review-badge {
+  margin-left: auto;
+  font-size: 10px;
+  font-weight: 700;
+  min-width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--red);
+  color: #fff;
+  padding: 0 5px;
+  border-radius: 9px;
+  line-height: 1;
+}
+
+/* ---- Nav Group (collapsible sub-nav) ---- */
+
+.nav-group { position: relative; }
+
+.nav-group-trigger .nav-chevron {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  color: var(--text-muted);
+  transition: transform 0.18s ease;
+}
+
+.nav-group.open .nav-group-trigger .nav-chevron {
+  transform: rotate(180deg);
+}
+
+.nav-sub {
+  display: none;
+  padding: 2px 0 4px 0;
+}
+
+.nav-group.open .nav-sub {
+  display: block;
+}
+
+.nav-sub-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px 6px 30px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--text-muted);
+  text-decoration: none;
+  border-radius: var(--radius-sm);
+  transition: background 0.12s, color 0.12s;
+  margin-bottom: 1px;
+  position: relative;
+}
+
+.nav-sub-item::before {
+  content: '';
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  transition: background 0.12s;
+}
+
+.nav-sub-item:hover {
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+}
+
+.nav-sub-item.active {
+  color: var(--accent);
+}
+
+.nav-sub-item.active::before {
+  background: var(--accent);
+}
+
 .sidebar-footer {
-  padding: 14px 16px;
+  padding: 12px 16px;
   border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .sidebar-footer-text {
@@ -194,6 +279,26 @@ body {
   font-weight: 600;
   letter-spacing: -0.02em;
   color: var(--accent);
+}
+
+.sidebar-settings-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+  flex-shrink: 0;
+}
+
+.sidebar-settings-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-secondary);
 }
 
 /* ============================================================
@@ -3079,6 +3184,91 @@ body {
 .fu-locked .fu-step-label  { opacity: 0.4; }
 .fu-locked .fu-step-date   { opacity: 0.4; }
 
+/* ---- Follow-up table columns ---- */
+
+.fu-col-header {
+  font-size: 11.5px;
+  white-space: nowrap;
+  color: var(--text-muted);
+}
+
+.fu-col {
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  letter-spacing: 0.01em;
+}
+
+.fu-col-empty   { color: var(--text-muted); }
+.fu-col-upcoming { color: var(--text-muted); }
+.fu-col-overdue { color: var(--red); }
+.fu-col-sent    { color: var(--green); }
+
+/* ---- Follow-up message cards ---- */
+
+.fu-msg-card {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  margin-top: 10px;
+}
+
+.fu-msg-card.fu-msg-sent {
+  opacity: 0.65;
+}
+
+.fu-msg-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.fu-msg-num {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.fu-msg-date {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+  background: var(--bg-elevated);
+  padding: 2px 7px;
+  border-radius: 10px;
+}
+
+.fu-msg-badge-sent {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--green);
+  background: var(--green-dim);
+  padding: 2px 7px;
+  border-radius: 10px;
+  margin-left: auto;
+}
+
+.fu-msg-body {
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--text-secondary);
+  padding: 10px 12px;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-sm);
+  margin-bottom: 10px;
+  white-space: pre-wrap;
+}
+
+.fu-msg-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 /* Pipeline table badge */
 .fu-badge {
   display: inline-block;
@@ -3092,6 +3282,110 @@ body {
 .fu-badge-today   { background: var(--yellow-dim);      color: var(--yellow); }
 .fu-badge-dim     { background: var(--bg-tertiary);     color: var(--text-muted); }
 .fu-badge-done    { background: var(--green-dim);       color: var(--green); }
+
+/* ============================================================
+   FOR REVIEW PAGE
+   ============================================================ */
+
+.review-section {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  margin-bottom: 20px;
+  overflow: hidden;
+}
+
+.review-section-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.review-section-title {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--text-primary);
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+}
+
+.review-section-count {
+  font-size: 11px;
+  font-weight: 700;
+  background: var(--red);
+  color: #fff;
+  padding: 2px 7px;
+  border-radius: 10px;
+  margin-left: auto;
+}
+
+.review-empty {
+  padding: 20px;
+  font-size: 13px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.review-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  transition: background 0.1s;
+}
+
+.review-card:last-child { border-bottom: none; }
+.review-card:hover { background: var(--bg-tertiary); }
+
+.review-card-main { flex: 1; min-width: 0; }
+
+.review-card-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.review-card-sub {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.review-card-amount {
+  flex-shrink: 0;
+  text-align: right;
+}
+
+.review-amount-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--yellow);
+  letter-spacing: -0.02em;
+}
+
+.review-amount-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.review-paid-badge {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--green);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
 
 /* ============================================================
    PAYMENT TRACKING BLOCK

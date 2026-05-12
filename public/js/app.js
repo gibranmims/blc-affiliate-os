@@ -181,6 +181,45 @@ function renderFUBadge(r) {
   return '';
 }
 
+// Renders a table cell for FU1 or FU2 columns — color-coded by status
+function renderFUCell(r, num) {
+  const dateStr = num === 1 ? r.followup1_date : r.followup2_date;
+  const isSent  = num === 1 ? r.followup1_sent : r.followup2_sent;
+  if (!dateStr) return `<td class="fu-col fu-col-empty">—</td>`;
+  if (isSent)   return `<td class="fu-col fu-col-sent">${fmtDateShort(dateStr)}</td>`;
+  const t = todayStr();
+  if (dateStr < t) return `<td class="fu-col fu-col-overdue">${fmtDateShort(dateStr)}</td>`;
+  return `<td class="fu-col fu-col-upcoming">${fmtDateShort(dateStr)}</td>`;
+}
+
+// Returns pre-written follow-up message text for a given outreach record
+function fuMessageText(r, num) {
+  const firstName = (r.name || r.handle || 'there').split(' ')[0];
+  if (num === 1) return [
+    `Hey ${firstName},`,
+    ``,
+    `Just wanted to follow up on my last message in case it got buried.`,
+    ``,
+    `We'd love to hear your rates if this is something you'd be open to.`,
+    ``,
+    `Let me know!`,
+    `Warmly,`,
+    `Lu`
+  ].join('\n');
+  return [
+    `Hey ${firstName},`,
+    ``,
+    `Before I close the loop on this one, just wanted to reach out one last time.`,
+    ``,
+    `We'd love to hear your rates for 3, 5, or 10 videos a month.`,
+    ``,
+    `Hope to hear from you.`,
+    ``,
+    `Warmly,`,
+    `Lu`
+  ].join('\n');
+}
+
 function avgRatePerVid(r) {
   const rates = [];
   if (r.asked_rate_3  && r.asked_rate_3  > 0) rates.push(r.asked_rate_3  / 3);
@@ -352,12 +391,25 @@ function navigate(page) {
   document.querySelectorAll('.nav-item').forEach(el => {
     el.classList.toggle('active', el.dataset.page === page);
   });
+  // Roster nav group — open on roster navigation, update sub-item active state
+  if (page === 'roster') {
+    const g = document.getElementById('nav-group-roster');
+    if (g) g.classList.add('open');
+    updateRosterSubNav();
+  }
   const renderers = {
     outreach: renderOutreachPage,
     roster:   renderRosterPage,
-    scripts:  renderScriptsPage
+    scripts:  renderScriptsPage,
+    review:   renderForReviewPage
   };
   if (renderers[page]) renderers[page]();
+}
+
+function updateRosterSubNav() {
+  document.querySelectorAll('.nav-sub-item[data-roster-tab]').forEach(el => {
+    el.classList.toggle('active', el.dataset.rosterTab === state.rosterTab);
+  });
 }
 
 // ============================================================
@@ -366,6 +418,7 @@ function navigate(page) {
 
 async function loadOutreach() {
   state.outreach = await fetchAPI(API.outreach);
+  updateReviewBadge();
 }
 
 // ============================================================
@@ -504,6 +557,8 @@ function renderPipelineView() {
               ${sortTh('rates', '$/vid')}
               <th>Grade</th>
               ${sortTh('status', 'Status')}
+              <th class="fu-col-header">Follow-up 1</th>
+              <th class="fu-col-header">Follow-up 2</th>
             </tr>
           </thead>
           <tbody>
@@ -520,7 +575,6 @@ function renderPipelineView() {
                   <div class="creator-cell">
                     <div class="creator-name">${esc(r.name || r.handle)}</div>
                     <div class="creator-handle-small">@${esc(r.handle)}</div>
-                    ${r.status === 'sent' ? renderFUBadge(r) : ''}
                   </div>
                 </td>
                 <td>${fmtNum(r.follower_count)}</td>
@@ -542,6 +596,8 @@ function renderPipelineView() {
                     ).join('')}
                   </select>
                 </td>
+                ${renderFUCell(r, 1)}
+                ${renderFUCell(r, 2)}
               </tr>
             `).join('')}
           </tbody>
@@ -580,10 +636,7 @@ async function updateStatusInline(id, newStatus, selectEl) {
     const i = state.outreach.findIndex(x => x.id === id);
     if (i !== -1) state.outreach[i] = rec;
     if (newStatus === 'signed') {
-      const deposit = rec.counter_offer_amount && rec.video_count
-        ? fmt$(parseFloat(rec.counter_offer_amount) * parseInt(rec.video_count) / 2)
-        : null;
-      showToast(`🎉 Signed! Send the 50% deposit${deposit ? ' — ' + deposit : ''} before generating the contract.`);
+      showToast('🎉 Signed! Fill in the deal details, then click Finalize & Onboard →');
     }
     renderPipelineView();
   } catch (err) {
@@ -748,6 +801,32 @@ function renderDetailPanel() {
         </div>
 
       </div>
+    </div>
+
+    <!-- Follow-up Messages (copy-paste templates) -->
+    <div class="dp-section">
+      <div class="dp-section-label">Follow-up Messages</div>
+      ${[1, 2].map(num => {
+        const isSent   = num === 1 ? r.followup1_sent : r.followup2_sent;
+        const dateStr  = num === 1 ? r.followup1_date : r.followup2_date;
+        const msgText  = fuMessageText(r, num);
+        const msgLines = msgText.split('\n').map(l => l === '' ? '<br>' : esc(l)).join('<br>');
+        return `
+        <div class="fu-msg-card${isSent ? ' fu-msg-sent' : ''}">
+          <div class="fu-msg-header">
+            <span class="fu-msg-num">Follow-up ${num}</span>
+            ${dateStr ? `<span class="fu-msg-date">${fmtDateShort(dateStr)}</span>` : ''}
+            ${isSent ? `<span class="fu-msg-badge-sent">✓ Sent</span>` : ''}
+          </div>
+          <div class="fu-msg-body">${msgLines}</div>
+          <div class="fu-msg-actions">
+            <button class="btn btn-secondary btn-sm" onclick="copyFollowupMessage('${r.id}', ${num})">
+              Copy message
+            </button>
+            ${!isSent ? `<button class="fu-mark-btn" onclick="markFollowupSent('${r.id}', ${num})">Mark Sent</button>` : ''}
+          </div>
+        </div>`;
+      }).join('')}
     </div>
     ` : ''}
 
@@ -968,35 +1047,50 @@ function renderDetailPanel() {
           value="${r.start_date ? r.start_date.split('T')[0] : ''}"
           onblur="updateOutreachField('${r.id}', 'start_date', this.value)">
       </div>
-      ${r.counter_offer_amount && r.video_count ? (() => {
-        const total    = parseFloat(r.counter_offer_amount) * parseInt(r.video_count);
-        const deposit  = total / 2;
-        return `
+      ${r.counter_offer_amount && r.video_count ? `
         <div class="dp-deal-summary">
-          <span>Total deal: <strong>${fmt$(total)}</strong></span>
-        </div>
+          <span>Total deal: <strong>${fmt$(parseFloat(r.counter_offer_amount) * parseInt(r.video_count))}</strong></span>
+        </div>` : ''}
 
-        <!-- 50% Payment Tracking -->
-        <div class="payment-block ${r.payment_sent ? 'payment-block-done' : 'payment-block-pending'}">
-          <div class="payment-block-top">
-            <div>
-              <div class="payment-block-label">50% deposit due</div>
-              <div class="payment-block-amount">${fmt$(deposit)}</div>
-            </div>
-            ${r.payment_sent
-              ? `<div class="payment-sent-badge">✓ Sent${r.payment_sent_date ? ' ' + fmtDateShort(r.payment_sent_date) : ''}</div>`
-              : `<button class="payment-mark-btn" onclick="markPaymentSent('${r.id}')">Mark Sent</button>`
-            }
+      ${(() => {
+        const alreadyOnboarded = state.roster.some(x =>
+          x.handle.toLowerCase() === r.handle.toLowerCase() && x.affiliate_type === 'paid'
+        );
+        if (alreadyOnboarded) {
+          const deposit = r.counter_offer_amount && r.video_count
+            ? parseFloat(r.counter_offer_amount) * parseInt(r.video_count) / 2 : null;
+          return `
+          <div style="display:flex;align-items:center;gap:8px;margin-top:14px;padding:12px 14px;background:var(--green-dim);border:1px solid rgba(74,222,128,0.2);border-radius:var(--radius-sm);">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            <span style="font-size:13px;font-weight:600;color:var(--green);">Onboarded — contract sent</span>
           </div>
-          ${!r.payment_sent ? `<div class="payment-block-hint">Send this before the contract is generated</div>` : ''}
+          ${deposit && !r.payment_sent ? `
+          <div class="payment-block payment-block-pending" style="margin-top:10px;">
+            <div class="payment-block-top">
+              <div>
+                <div class="payment-block-label">50% deposit due after invoice</div>
+                <div class="payment-block-amount">${fmt$(deposit)}</div>
+              </div>
+              <button class="payment-mark-btn" onclick="markPaymentSent('${r.id}')">Mark Paid</button>
+            </div>
+            <div class="payment-block-hint">Also tracked in <strong>For Review</strong></div>
+          </div>` : ''}
+          ${r.payment_sent ? `
+          <div style="display:flex;align-items:center;gap:8px;margin-top:10px;padding:10px 14px;background:var(--green-dim);border:1px solid rgba(74,222,128,0.2);border-radius:var(--radius-sm);">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            <span style="font-size:13px;font-weight:600;color:var(--green);">Deposit paid ${r.payment_sent_date ? fmtDateShort(r.payment_sent_date) : ''}</span>
+          </div>` : ''}`;
+        }
+        return `
+        <button class="btn btn-primary" style="margin-top:14px;width:100%;justify-content:center"
+          id="dp-contract-btn"
+          onclick="generateContractAndMoveToRoster('${r.id}')">
+          Finalize &amp; Onboard →
+        </button>
+        <div style="font-size:11px;color:var(--text-muted);text-align:center;margin-top:6px;">
+          Generates contract PDF · saves Gmail draft · moves to roster
         </div>`;
-      })() : `<div class="dp-section-hint" style="margin-top:8px">Enter rate and video count above to calculate the deposit.</div>`}
-
-      <button class="btn btn-primary" style="margin-top:12px;width:100%;justify-content:center"
-        id="dp-contract-btn"
-        onclick="generateContractAndMoveToRoster('${r.id}')">
-        Generate Contract + Move to Roster
-      </button>
+      })()}
     </div>
     ` : ''}
 
@@ -1032,12 +1126,21 @@ async function markPaymentSent(id) {
     });
     const i = state.outreach.findIndex(x => x.id === id);
     if (i !== -1) state.outreach[i] = rec;
+    updateReviewBadge();
     renderDetailPanel();
     if (state.outreachView === 'pipeline') renderPipelineView();
-    showToast('50% deposit marked as sent ✓');
+    showToast('50% deposit marked as paid ✓');
   } catch (err) {
     showToast(err.message, 'error');
   }
+}
+
+function copyFollowupMessage(id, num) {
+  const r = state.outreach.find(x => x.id === id);
+  if (!r) return;
+  navigator.clipboard.writeText(fuMessageText(r, num))
+    .then(() => showToast(`Follow-up ${num} message copied!`))
+    .catch(() => showToast('Copy failed — select and copy manually', 'error'));
 }
 
 async function markFollowupSent(id, num) {
@@ -1264,19 +1367,19 @@ async function generateContractAndMoveToRoster(id) {
   const countEl = document.getElementById('dp-video-count');
   const dateEl  = document.getElementById('dp-start-date');
 
-  const rate       = parseFloat(rateEl?.value || r.counter_offer_amount || r.asked_rate);
-  const videoCount = parseInt(countEl?.value || r.video_count);
-  const startDate  = dateEl?.value || (r.start_date ? r.start_date.split('T')[0] : '');
+  const rate       = parseFloat(rateEl?.value || r.counter_offer_amount);
+  const videoCount = parseInt(countEl?.value   || r.video_count);
+  const startDate  = dateEl?.value             || (r.start_date ? r.start_date.split('T')[0] : '');
 
-  if (!rate || isNaN(rate))            { showToast('Enter rate per video first', 'error'); return; }
-  if (!videoCount || isNaN(videoCount)){ showToast('Enter number of videos first', 'error'); return; }
-  if (!startDate)                       { showToast('Enter start date first', 'error'); return; }
+  if (!rate || isNaN(rate))             { showToast('Enter rate per video first', 'error'); return; }
+  if (!videoCount || isNaN(videoCount)) { showToast('Enter number of videos first', 'error'); return; }
+  if (!startDate)                        { showToast('Enter start date first', 'error'); return; }
 
   const btn = document.getElementById('dp-contract-btn');
-  if (btn) { btn.disabled = true; btn.textContent = 'Generating...'; }
+  if (btn) { btn.disabled = true; btn.textContent = 'Working on it…'; }
 
   try {
-    // Save deal details in one request
+    // 1. Save deal details
     const saved = await fetchAPI(`${API.outreach}/${id}`, {
       method: 'PUT',
       body: JSON.stringify({ counter_offer_amount: rate, video_count: videoCount, start_date: startDate })
@@ -1284,69 +1387,91 @@ async function generateContractAndMoveToRoster(id) {
     const i = state.outreach.findIndex(x => x.id === id);
     if (i !== -1) state.outreach[i] = saved;
 
-    // Generate contract PDF (streamed back as PDF)
-    const res = await fetch(`${API.outreachGen}/create-contract`, {
+    // 2. Run full sign flow (contract PDF → Gmail draft → roster)
+    const result = await fetchAPI(`${API.outreachGen}/sign-flow`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        creatorName:  r.name || r.handle,
-        handle:       r.handle,
-        creatorEmail: r.email || '',
-        signedRate:   rate,
-        videoCount:   videoCount,
-        startDate:    startDate
-      })
+      body: JSON.stringify({ outreachId: id })
     });
 
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({}));
-      throw new Error(errData.error || 'Contract generation failed');
+    // 3. Download PDF locally
+    if (result.pdfBase64) {
+      const byteStr = atob(result.pdfBase64);
+      const bytes   = new Uint8Array(byteStr.length);
+      for (let j = 0; j < byteStr.length; j++) bytes[j] = byteStr.charCodeAt(j);
+      const blob = new Blob([bytes], { type: 'application/pdf' });
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href     = url;
+      a.download = result.pdfFilename || `${(r.name || r.handle)} - BLC Contract.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1000);
     }
 
-    const blob = await res.blob();
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement('a');
-    a.href     = url;
-    a.download = `${(r.name || r.handle).replace(/[^a-zA-Z0-9\s\-]/g, '')} - BLC Contract.pdf`;
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1000);
+    // 4. Sync roster state
+    if (result.rosterEntry) {
+      const ri = state.roster.findIndex(x => x.id === result.rosterEntry.id);
+      if (ri !== -1) state.roster[ri] = result.rosterEntry;
+      else           state.roster.unshift(result.rosterEntry);
+    } else {
+      await loadRoster();
+    }
 
-    // Add to Roster
-    await moveToRoster(r, rate, videoCount);
-    showToast('Contract downloaded — creator moved to Roster!');
+    // 5. Show success modal + refresh badge
+    updateReviewBadge();
+    showSignedSuccessModal(result.creatorName || r.name || r.handle, result.halfDeposit);
     renderDetailPanel();
 
   } catch (err) {
     showToast(err.message, 'error');
-    if (btn) { btn.disabled = false; btn.textContent = 'Generate Contract + Move to Roster'; }
+    if (btn) { btn.disabled = false; btn.textContent = 'Finalize & Onboard →'; }
   }
 }
 
-async function moveToRoster(r, rate, videoCount) {
-  const startDate = r.start_date ? r.start_date.split('T')[0] : null;
-  const rec = await fetchAPI(API.roster, {
-    method: 'POST',
-    body: JSON.stringify({
-      handle:            r.handle,
-      name:              r.name || null,
-      platform:          'TikTok',
-      niche:             (r.product_category || '').split(',')[0].trim() || null,
-      followers:         r.follower_count || null,
-      email:             r.email || null,
-      status:            'active',
-      tier:              r.tier || null,
-      video_count:       videoCount,
-      start_date:        startDate,
-      per_vid_rate:      rate,
-      commission_rate:   20,
-      content_submitted: 0,
-      gmv:               0,
-      top_videos:        [],
-      creator_assessment: null
-    })
-  });
-  state.roster.unshift(rec);
+function showSignedSuccessModal(creatorName, halfDeposit) {
+  const existing = document.getElementById('signed-success-modal');
+  if (existing) existing.remove();
+
+  const el = document.createElement('div');
+  el.id = 'signed-success-modal';
+  el.className = 'draft-modal-overlay';
+  el.innerHTML = `
+    <div class="draft-modal">
+      <button class="draft-modal-close" onclick="document.getElementById('signed-success-modal').remove()">✕</button>
+      <div class="draft-modal-icon">🎉</div>
+      <div class="draft-modal-title">
+        <span>${esc(creatorName)}</span> is officially onboarded!
+      </div>
+      <div style="margin-top:16px;display:flex;flex-direction:column;gap:0;border:1px solid var(--border);border-radius:var(--radius-md);overflow:hidden;">
+        <div style="display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--border);">
+          <span style="font-size:20px;flex-shrink:0;">📄</span>
+          <div>
+            <div style="font-weight:600;font-size:13px;color:var(--text-primary)">Contract PDF generated</div>
+            <div style="font-size:12px;color:var(--text-muted);margin-top:2px">Downloaded locally + Gmail draft saved to <strong style="color:var(--text-secondary)">partnerships@thebikiniline.co</strong></div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--border);background:var(--yellow-dim);">
+          <span style="font-size:20px;flex-shrink:0;">💰</span>
+          <div>
+            <div style="font-weight:700;font-size:14px;color:var(--yellow)">50% payment due: ${fmt$(halfDeposit)}</div>
+            <div style="font-size:12px;color:var(--text-muted);margin-top:2px">Waiting on invoice — they'll send via PayPal or wire</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;padding:14px 16px;">
+          <span style="font-size:20px;flex-shrink:0;">👥</span>
+          <div>
+            <div style="font-weight:600;font-size:13px;color:var(--text-primary)">Added to Paid Affiliates roster</div>
+            <div style="font-size:12px;color:var(--text-muted);margin-top:2px">All deal info pre-filled</div>
+          </div>
+        </div>
+      </div>
+      <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:16px;"
+        onclick="document.getElementById('signed-success-modal').remove()">
+        Got it
+      </button>
+    </div>
+  `;
+  document.body.appendChild(el);
 }
 
 // ============================================================
@@ -1866,6 +1991,7 @@ async function nbSaveDrafts() {
 
 async function loadRoster() {
   state.roster = await fetchAPI(API.roster);
+  updateReviewBadge();
 }
 
 async function checkTikTokStatus() {
@@ -1900,6 +2026,7 @@ function switchRosterTab(tab) {
     const rType = r?.affiliate_type || 'paid';
     if (rType !== tab) { state.activeRosterId = null; closeDetailPanel(); }
   }
+  updateRosterSubNav();
   renderRosterPage();
 }
 
@@ -1915,8 +2042,8 @@ function renderRosterPage() {
   document.getElementById('page-content').innerHTML = `
     <div class="page-header">
       <div>
-        <h1 class="page-title">Roster</h1>
-        <p class="page-subtitle">Active affiliate database</p>
+        <h1 class="page-title">${isPaid ? 'Paid Affiliates' : 'Free Affiliates'}</h1>
+        <p class="page-subtitle">${isPaid ? 'Contracted creators — per-video deals' : 'Commission-only affiliates'}</p>
       </div>
       <div style="display:flex;gap:8px;align-items:center;">
         ${state.tiktokConnected
@@ -1925,15 +2052,6 @@ function renderRosterPage() {
         }
         <button class="btn btn-primary" onclick="openAddRosterModal()">+ Add Affiliate</button>
       </div>
-    </div>
-
-    <div class="cl-tabs" style="margin-bottom:20px">
-      <button class="cl-tab ${isPaid ? 'active' : ''}" onclick="switchRosterTab('paid')">
-        Paid Affiliates${paidCount > 0 ? ` <span class="cl-tab-count">${paidCount}</span>` : ''}
-      </button>
-      <button class="cl-tab ${!isPaid ? 'active' : ''}" onclick="switchRosterTab('free')">
-        Free Affiliates${freeCount > 0 ? ` <span class="cl-tab-count">${freeCount}</span>` : ''}
-      </button>
     </div>
 
     <div class="stat-cards">
@@ -2965,12 +3083,188 @@ function copyOutput(id) {
 }
 
 // ============================================================
+// FOR REVIEW
+// ============================================================
+
+function reviewPendingPayments() {
+  return state.outreach.filter(r =>
+    r.status === 'signed' &&
+    !r.payment_sent &&
+    r.counter_offer_amount &&
+    r.video_count &&
+    // only show if creator is already in roster (onboarding complete)
+    state.roster.some(x => x.handle.toLowerCase() === r.handle.toLowerCase() && x.affiliate_type === 'paid')
+  );
+}
+
+function reviewPendingBriefs() {
+  return state.roster.filter(r =>
+    r.affiliate_type !== 'free' &&
+    r.status === 'active' &&
+    (!r.posting_schedule || r.posting_schedule.length === 0)
+  );
+}
+
+function reviewCount() {
+  return reviewPendingPayments().length + reviewPendingBriefs().length;
+}
+
+function updateReviewBadge() {
+  const count  = reviewCount();
+  const badge  = document.getElementById('review-badge');
+  if (!badge) return;
+  badge.textContent    = count;
+  badge.style.display  = count > 0 ? '' : 'none';
+}
+
+function renderForReviewPage() {
+  const payments = reviewPendingPayments();
+  const briefs   = reviewPendingBriefs();
+  const total    = payments.length + briefs.length;
+
+  document.getElementById('page-content').innerHTML = `
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">For Review</h1>
+        <p class="page-subtitle">${total === 0 ? 'All caught up — nothing needs your attention' : `${total} item${total !== 1 ? 's' : ''} need${total === 1 ? 's' : ''} your attention`}</p>
+      </div>
+    </div>
+
+    <!-- Payments Due -->
+    <div class="review-section">
+      <div class="review-section-header">
+        <span class="review-section-title">💰 Payments Due</span>
+        ${payments.length > 0 ? `<span class="review-section-count">${payments.length}</span>` : ''}
+      </div>
+      ${payments.length === 0
+        ? `<div class="review-empty">No pending payments — all clear ✓</div>`
+        : payments.map(r => {
+            const total   = parseFloat(r.counter_offer_amount) * parseInt(r.video_count);
+            const half    = total / 2;
+            return `
+            <div class="review-card">
+              <div class="review-card-main">
+                <div class="review-card-name">${esc(r.name || r.handle)}</div>
+                <div class="review-card-sub">@${esc(r.handle)} · ${r.video_count} video deal · ${fmt$(parseFloat(r.counter_offer_amount))}/vid</div>
+              </div>
+              <div class="review-card-amount">
+                <div class="review-amount-value">${fmt$(half)}</div>
+                <div class="review-amount-hint">50% deposit · waiting on invoice</div>
+              </div>
+              <button class="btn btn-primary btn-sm" onclick="markPaymentSentFromReview('${r.id}')">Mark Paid</button>
+            </div>`;
+          }).join('')
+      }
+    </div>
+
+    <!-- Content Briefs Needed -->
+    <div class="review-section">
+      <div class="review-section-header">
+        <span class="review-section-title">📋 Content Briefs Needed</span>
+        ${briefs.length > 0 ? `<span class="review-section-count">${briefs.length}</span>` : ''}
+      </div>
+      ${briefs.length === 0
+        ? `<div class="review-empty">All active creators have posting schedules set ✓</div>`
+        : briefs.map(r => `
+            <div class="review-card">
+              <div class="review-card-main">
+                <div class="review-card-name">${esc(r.name || r.handle)}</div>
+                <div class="review-card-sub">@${esc(r.handle)}${r.start_date ? ` · Starts ${fmtDateShort(r.start_date)}` : ''}${r.tier ? ` · Grade ${r.tier}` : ''}</div>
+              </div>
+              <div style="flex-shrink:0;font-size:12px;color:var(--text-muted);text-align:right;">
+                No posting schedule set
+              </div>
+              <button class="btn btn-secondary btn-sm" onclick="openRosterCreatorFromReview('${r.id}')">Open in Roster →</button>
+            </div>`
+          ).join('')
+      }
+    </div>
+  `;
+}
+
+async function markPaymentSentFromReview(id) {
+  try {
+    const rec = await fetchAPI(`${API.outreach}/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ payment_sent: true })
+    });
+    const i = state.outreach.findIndex(x => x.id === id);
+    if (i !== -1) state.outreach[i] = rec;
+    updateReviewBadge();
+    renderForReviewPage();
+    showToast('Payment marked as paid ✓');
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+function openRosterCreatorFromReview(id) {
+  state.rosterTab = 'paid';
+  state.activeRosterId = id;
+  navigate('roster');
+  // Small delay to let the page render before opening drawer
+  setTimeout(() => openRosterDetail(id), 80);
+}
+
+// ============================================================
+// SETTINGS
+// ============================================================
+
+async function openSettingsModal() {
+  let current = {};
+  try { current = await fetchAPI('/api/settings'); } catch (_) {}
+  openModal('App Settings', `
+    <div style="display:flex;flex-direction:column;gap:18px;">
+      <div class="dp-form-group">
+        <label>Discord Invite Link</label>
+        <input type="text" class="dp-input" id="settings-discord"
+          placeholder="https://discord.gg/..."
+          value="${esc(current.discord_invite_link || '')}">
+        <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Inserted into welcome emails when a creator is signed and onboarded.</div>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;">
+        <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="saveSettings()">Save</button>
+      </div>
+    </div>
+  `);
+}
+
+async function saveSettings() {
+  const discord = document.getElementById('settings-discord')?.value?.trim() || '';
+  try {
+    await fetchAPI('/api/settings', {
+      method: 'PUT',
+      body: JSON.stringify({ discord_invite_link: discord })
+    });
+    closeModal();
+    showToast('Settings saved ✓');
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+// ============================================================
 // INIT
 // ============================================================
 
 document.addEventListener('DOMContentLoaded', async () => {
-  document.querySelectorAll('.nav-item').forEach(el => {
+  // Regular nav items (not the roster group trigger — handled separately)
+  document.querySelectorAll('.nav-item:not(.nav-group-trigger)').forEach(el => {
     el.addEventListener('click', e => { e.preventDefault(); navigate(el.dataset.page); });
+  });
+  // Roster group trigger — navigate to roster (opens sub-menu automatically)
+  const rosterTrigger = document.querySelector('.nav-group-trigger[data-page="roster"]');
+  if (rosterTrigger) {
+    rosterTrigger.addEventListener('click', e => { e.preventDefault(); navigate('roster'); });
+  }
+  // Sub-nav items — switch tab then navigate
+  document.querySelectorAll('.nav-sub-item[data-roster-tab]').forEach(el => {
+    el.addEventListener('click', e => {
+      e.preventDefault();
+      state.rosterTab = el.dataset.rosterTab;
+      navigate('roster');
+    });
   });
 
   document.addEventListener('keydown', e => {
