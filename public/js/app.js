@@ -2351,7 +2351,8 @@ function renderRosterPage() {
             <tr>
               <th>Creator</th>
               ${isPaid ? `<th>Grade</th><th>Deal</th><th>Start Date</th>` : `<th>Followers</th>`}
-              <th>Posts</th>
+              <th>Posts Made</th>
+              ${isPaid ? `<th>Posts Left</th>` : ''}
               <th>GMV</th>
               <th>Status</th>
               ${isPaid ? `<th class="tbl-th-assets">Assets Needed</th>` : ''}
@@ -2381,6 +2382,12 @@ function renderRosterPage() {
                   <td class="tbl-editable-cell" onclick="rosterCellEdit(this,'${r.id}','start_date','${r.start_date ? r.start_date.split('T')[0] : ''}','date')" title="Click to edit">${startFmt}</td>
                 ` : `<td>${fmtNum(r.followers)}</td>`}
                 <td class="tbl-editable-cell" onclick="rosterCellEdit(this,'${r.id}','content_submitted',${r.content_submitted||0},'number')" title="Click to edit">${r.content_submitted || 0}</td>
+                ${isPaid ? (() => {
+                  const made      = parseInt(r.content_submitted) || 0;
+                  const total     = parseInt(r.video_count) || 0;
+                  const remaining = Math.max(0, total - made);
+                  return `<td class="tbl-posts-remaining ${remaining === 0 && total > 0 ? 'posts-done' : remaining > 0 ? 'posts-active' : ''}">${total > 0 ? remaining : '—'}</td>`;
+                })() : ''}
                 <td class="tbl-editable-cell" onclick="rosterCellEdit(this,'${r.id}','gmv',${r.gmv||0},'number')" title="Click to edit"><span class="gmv-value">${fmt$(r.gmv)}</span></td>
                 <td onclick="event.stopPropagation()">
                   <select class="inline-status-select status-key-rs-${r.status}"

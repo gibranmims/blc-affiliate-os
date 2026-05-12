@@ -2765,6 +2765,16 @@ body {
 /* No-deal indicator in table */
 .deal-cell-none { font-size: 12px; color: var(--text-muted); font-style: italic; }
 
+/* Posts Remaining column */
+.tbl-posts-remaining {
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.tbl-posts-remaining.posts-active { color: var(--text-primary); }
+.tbl-posts-remaining.posts-done   { color: var(--green); }
+
 /* Creative Assets Needed column */
 .tbl-th-assets { text-align: center; width: 120px; }
 .tbl-assets-cell { text-align: center; }
