@@ -200,7 +200,7 @@ function renderFUBadge(r) {
 }
 
 // Statuses where follow-ups are no longer relevant
-const FU_HIDDEN_STATUSES = new Set(['replied','counter_offered','counter_rejected','signed','archived']);
+const FU_HIDDEN_STATUSES = new Set(['replied','counter_rejected','signed','archived']);
 
 // Renders a table cell for FU1 or FU2 columns — color-coded by status
 function renderFUCell(r, num) {
@@ -226,6 +226,31 @@ function renderFUCell(r, num) {
 // Returns pre-written follow-up message text for a given outreach record
 function fuMessageText(r, num) {
   const firstName = (r.name || r.handle || 'there').split(' ')[0];
+  const sender = r.sender || 'Tamar';
+
+  // Counter-offer follow-ups use different copy
+  if (r.status === 'counter_offered') {
+    if (num === 1) return [
+      `Hey ${firstName},`,
+      ``,
+      `Just wanted to follow up on my last message — would love to hear if these rates work for you.`,
+      ``,
+      `Let me know.`,
+      ``,
+      sender
+    ].join('\n');
+    return [
+      `Hey ${firstName},`,
+      ``,
+      `Before I close the loop on this one, just wanted to reach out one last time.`,
+      ``,
+      `Let me know if these rates work for you.`,
+      ``,
+      sender
+    ].join('\n');
+  }
+
+  // Standard sent-phase follow-ups
   if (num === 1) return [
     `Hey ${firstName},`,
     ``,
@@ -858,6 +883,93 @@ function renderDetailPanel() {
     <!-- Follow-up Messages (copy-paste templates) -->
     <div class="dp-section">
       <div class="dp-section-label">Follow-up Messages</div>
+      ${[1, 2].map(num => {
+        const isSent   = num === 1 ? r.followup1_sent : r.followup2_sent;
+        const dateStr  = num === 1 ? r.followup1_date : r.followup2_date;
+        const msgText  = fuMessageText(r, num);
+        const msgLines = msgText.split('\n').map(l => esc(l)).join('<br>');
+        return `
+        <div class="fu-msg-card${isSent ? ' fu-msg-sent' : ''}">
+          <div class="fu-msg-header">
+            <span class="fu-msg-num">Follow-up ${num}</span>
+            ${dateStr ? `<span class="fu-msg-date">${fmtDateShort(dateStr)}</span>` : ''}
+            ${isSent ? `<span class="fu-msg-badge-sent">✓ Sent</span>` : ''}
+          </div>
+          <div class="fu-msg-body">${msgLines}</div>
+          <div class="fu-msg-actions">
+            <button class="btn btn-secondary btn-sm" onclick="copyFollowupMessage('${r.id}', ${num})">
+              Copy message
+            </button>
+            ${!isSent ? `<button class="fu-mark-btn" onclick="markFollowupSent('${r.id}', ${num})">Mark Sent</button>` : ''}
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+    ` : ''}
+
+    <!-- Counter Follow-up Tracker (shown when status is counter_offered) -->
+    ${r.status === 'counter_offered' ? `
+    <div class="dp-section">
+      <div class="dp-section-label">Counter Follow-ups</div>
+      <div class="fu-timeline">
+
+        <!-- Counter sent (reference point) -->
+        <div class="fu-row">
+          <div class="fu-step-dot fu-dot-sent"></div>
+          <div class="fu-step-body">
+            <div class="fu-step-label">Counter sent</div>
+          </div>
+          <div class="fu-step-status fu-status-sent">✓ Sent</div>
+        </div>
+
+        <div class="fu-connector"></div>
+
+        <!-- Counter Follow-up 1 -->
+        <div class="fu-row ${r.followup1_date ? fuDateClass(r.followup1_date) : ''}">
+          <div class="fu-step-dot ${r.followup1_sent ? 'fu-dot-sent' : 'fu-dot-pending'}"></div>
+          <div class="fu-step-body">
+            <div class="fu-step-label">Follow-up 1</div>
+            <input type="date" class="dp-input fu-date-input fu-date-editable"
+              value="${r.followup1_date || ''}"
+              onclick="try{this.showPicker()}catch(e){}"
+              onchange="updateOutreachField('${r.id}', 'followup1_date', this.value)">
+          </div>
+          <div class="fu-step-action">
+            ${r.followup1_sent
+              ? `<span class="fu-status-sent">✓ Sent ${r.followup1_sent_date ? fmtDateShort(r.followup1_sent_date) : ''}</span>`
+              : `<button class="fu-mark-btn" onclick="markFollowupSent('${r.id}', 1)">Mark Sent</button>`
+            }
+          </div>
+        </div>
+
+        <div class="fu-connector"></div>
+
+        <!-- Counter Follow-up 2 -->
+        <div class="fu-row ${r.followup2_date && r.followup1_sent ? fuDateClass(r.followup2_date) : 'fu-locked'}">
+          <div class="fu-step-dot ${r.followup2_sent ? 'fu-dot-sent' : r.followup1_sent ? 'fu-dot-pending' : 'fu-dot-locked'}"></div>
+          <div class="fu-step-body">
+            <div class="fu-step-label">Follow-up 2</div>
+            <input type="date" class="dp-input fu-date-input fu-date-editable"
+              value="${r.followup2_date || ''}"
+              onclick="try{this.showPicker()}catch(e){}"
+              onchange="updateOutreachField('${r.id}', 'followup2_date', this.value)">
+          </div>
+          <div class="fu-step-action">
+            ${r.followup2_sent
+              ? `<span class="fu-status-sent">✓ Sent ${r.followup2_sent_date ? fmtDateShort(r.followup2_sent_date) : ''}</span>`
+              : r.followup1_sent
+                ? `<button class="fu-mark-btn" onclick="markFollowupSent('${r.id}', 2)">Mark Sent</button>`
+                : `<span class="fu-locked-hint">After FU1</span>`
+            }
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Counter Follow-up Messages (copy-paste templates) -->
+    <div class="dp-section">
+      <div class="dp-section-label">Counter Follow-up Messages</div>
       ${[1, 2].map(num => {
         const isSent   = num === 1 ? r.followup1_sent : r.followup2_sent;
         const dateStr  = num === 1 ? r.followup1_date : r.followup2_date;
@@ -3696,9 +3808,9 @@ function financeAffiliates() {
 }
 
 function financePaymentStatus(r) {
-  if (r.payment_sent)      return { label: 'Paid',            cls: 'fin-status-paid' };
-  if (r.invoice_received)  return { label: 'Due',             cls: 'fin-status-due' };
-  return                          { label: 'Pending Invoice',  cls: 'fin-status-pending' };
+  if (r.payment_sent)      return { val: 'paid_full',       label: 'Paid in Full',    cls: 'fin-status-paid'    };
+  if (r.invoice_received)  return { val: 'deposit_paid',    label: '50% Down Paid',   cls: 'fin-status-deposit' };
+  return                          { val: 'pending_invoice', label: 'Pending Invoice', cls: 'fin-status-pending' };
 }
 
 function financeMonthlyRate(r) {
@@ -3778,12 +3890,11 @@ function renderFinancePage() {
             <th class="fin-th-num">Posted</th>
             <th class="fin-th-num">GMV</th>
             <th>Payment Status</th>
-            <th></th>
           </tr>
         </thead>
         <tbody>
           ${affiliates.length === 0 ? `
-            <tr><td colspan="7" class="fin-empty">No paid affiliates yet — onboard your first creator to see data here.</td></tr>
+            <tr><td colspan="6" class="fin-empty">No paid affiliates yet — onboard your first creator to see data here.</td></tr>
           ` : affiliates.map(r => {
             const monthly = financeMonthlyRate(r);
             const deposit = monthly / 2;
@@ -3803,17 +3914,15 @@ function renderFinancePage() {
               <td class="fin-td-num">
                 ${r.gmv ? `<span class="fin-gmv">${fmt$(r.gmv)}</span>` : '<span class="fin-muted">—</span>'}
               </td>
-              <td>
-                <span class="fin-status-badge ${ps.cls}">${ps.label}</span>
-                ${!r.payment_sent && r.invoice_received ? `<div class="fin-deposit-hint">${fmt$(deposit)} due</div>` : ''}
-                ${r.payment_sent && r.payment_sent_date ? `<div class="fin-deposit-hint">Paid ${fmtDateShort(r.payment_sent_date)}</div>` : ''}
-              </td>
-              <td class="fin-td-action">
-                ${!r.payment_sent ? `
-                  <button class="btn btn-primary btn-sm" onclick="markRosterFieldFinance('${r.id}', 'payment_sent', true)">
-                    Mark Paid
-                  </button>
-                ` : `<span class="fin-paid-check">✓</span>`}
+              <td class="fin-td-status">
+                <select class="fin-status-select fin-status-select-${ps.val}"
+                  onchange="setFinancePaymentStatus('${r.id}', this.value); this.className='fin-status-select fin-status-select-'+this.value">
+                  <option value="pending_invoice" ${ps.val === 'pending_invoice' ? 'selected' : ''}>Pending Invoice</option>
+                  <option value="deposit_paid"    ${ps.val === 'deposit_paid'    ? 'selected' : ''}>50% Down Paid</option>
+                  <option value="paid_full"       ${ps.val === 'paid_full'       ? 'selected' : ''}>Paid in Full</option>
+                </select>
+                ${ps.val === 'deposit_paid' ? `<div class="fin-deposit-hint">${fmt$(deposit)} remaining</div>` : ''}
+                ${ps.val === 'paid_full' && r.payment_sent_date ? `<div class="fin-deposit-hint">Paid ${fmtDateShort(r.payment_sent_date)}</div>` : ''}
               </td>
             </tr>`;
           }).join('')}
@@ -3833,7 +3942,32 @@ async function markRosterFieldFinance(rosterId, field, value) {
     if (i !== -1) state.roster[i] = rec;
     updateReviewBadge();
     renderFinancePage();
-    showToast('Payment marked as paid ✓');
+    showToast('Payment updated ✓');
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+async function setFinancePaymentStatus(rosterId, val) {
+  // Map dropdown value → boolean fields (clear date when reverting)
+  const payloads = {
+    pending_invoice: { payment_sent: false, invoice_received: false, payment_sent_date: null },
+    deposit_paid:    { payment_sent: false, invoice_received: true,  payment_sent_date: null },
+    paid_full:       { payment_sent: true,  invoice_received: true  }
+  };
+  const payload = payloads[val];
+  if (!payload) return;
+  const labels = { pending_invoice: 'Pending Invoice', deposit_paid: '50% Down Paid', paid_full: 'Paid in Full' };
+  try {
+    const rec = await fetchAPI(`${API.roster}/${rosterId}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload)
+    });
+    const i = state.roster.findIndex(x => x.id === rosterId);
+    if (i !== -1) state.roster[i] = rec;
+    updateReviewBadge();
+    renderFinancePage();
+    showToast(`Payment status → ${labels[val]} ✓`);
   } catch (err) {
     showToast(err.message, 'error');
   }

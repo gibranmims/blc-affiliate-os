@@ -3923,10 +3923,46 @@ body {
 }
 .fin-status-paid    { background: var(--green-dim);   color: var(--green);  border: 1px solid rgba(74,222,128,0.2); }
 .fin-status-due     { background: var(--yellow-dim);  color: var(--yellow); border: 1px solid rgba(251,191,36,0.2); }
+.fin-status-deposit { background: rgba(249,115,22,0.12); color: #f97316; border: 1px solid rgba(249,115,22,0.2); }
 .fin-status-pending { background: var(--bg-elevated); color: var(--text-muted); border: 1px solid var(--border); }
 
 .fin-td-action { text-align: right; width: 110px; }
 .fin-paid-check { font-size: 16px; color: var(--green); }
+
+/* Finance payment status dropdown */
+.fin-td-status { min-width: 160px; }
+.fin-status-select {
+  appearance: none;
+  -webkit-appearance: none;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 28px 4px 11px;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%236b7280' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 9px center;
+  outline: none;
+  transition: opacity 0.15s;
+}
+.fin-status-select:hover { opacity: 0.85; }
+.fin-status-select-pending_invoice {
+  background-color: var(--bg-elevated);
+  color: var(--text-muted);
+  border-color: var(--border);
+}
+.fin-status-select-deposit_paid {
+  background-color: rgba(249,115,22,0.12);
+  color: #f97316;
+  border-color: rgba(249,115,22,0.25);
+}
+.fin-status-select-paid_full {
+  background-color: var(--green-dim);
+  color: var(--green);
+  border-color: rgba(74,222,128,0.25);
+}
 
 .fin-empty {
   padding: 40px;
