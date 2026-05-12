@@ -2109,6 +2109,21 @@ body {
   grid-template-columns: 1fr 1fr 1fr;
   gap: 10px;
   margin-bottom: 12px;
+  margin-top: 4px;
+}
+
+.dp-counter-rates-label {
+  grid-column: 1 / -1;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: -4px;
+}
+
+.dp-rate-display.dp-rate-counter {
+  color: var(--accent);
 }
 
 .dp-rate-display {

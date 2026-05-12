@@ -203,6 +203,7 @@ function fuMessageText(r, num) {
     `We'd love to hear your rates if this is something you'd be open to.`,
     ``,
     `Let me know!`,
+    ``,
     `Warmly,`,
     `Lu`
   ].join('\n');
@@ -742,8 +743,8 @@ function renderDetailPanel() {
       ${r.product_category ? `<div class="dp-category">${esc(r.product_category)}</div>` : ''}
     </div>
 
-    <!-- Follow-up Tracker (shown when sent or follow-up data exists) -->
-    ${(r.status === 'sent' || r.sent_date) ? `
+    <!-- Follow-up Tracker (only shown while creator is still in Sent status) -->
+    ${r.status === 'sent' ? `
     <div class="dp-section">
       <div class="dp-section-label">Follow-up Tracker</div>
       <div class="fu-timeline">
@@ -967,12 +968,19 @@ function renderDetailPanel() {
         </div>`;
       })()}
 
-      <div class="dp-counter-rates">
-        ${r.asked_rate_3 ? `<div class="dp-form-group"><label>3-vid bundle</label><div class="dp-rate-display">${fmt$(r.asked_rate_3)}</div><div class="dp-rate-per-vid">${fmt$(r.asked_rate_3/3)}/vid</div></div>` : ''}
-        ${r.asked_rate_5 ? `<div class="dp-form-group"><label>5-vid bundle</label><div class="dp-rate-display">${fmt$(r.asked_rate_5)}</div><div class="dp-rate-per-vid">${fmt$(r.asked_rate_5/5)}/vid</div></div>` : ''}
-        ${r.asked_rate_10 ? `<div class="dp-form-group"><label>10-vid bundle</label><div class="dp-rate-display">${fmt$(r.asked_rate_10)}</div><div class="dp-rate-per-vid">${fmt$(r.asked_rate_10/10)}/vid</div></div>` : ''}
-        ${r.asked_rate_custom && r.asked_rate_custom_count ? `<div class="dp-form-group"><label>${r.asked_rate_custom_count}-vid bundle</label><div class="dp-rate-display">${fmt$(r.asked_rate_custom)}</div><div class="dp-rate-per-vid">${fmt$(r.asked_rate_custom/r.asked_rate_custom_count)}/vid</div></div>` : ''}
-      </div>
+      ${(() => {
+        // Show BLC's counter rates (not creator's asked rates — those are visible above)
+        const counterPerVid = r.counter_offer_amount || (gradeInfo(r.tier || autoTier) || {}).perVid;
+        if (!counterPerVid) return '';
+        const cpv = parseFloat(counterPerVid);
+        return `
+        <div class="dp-counter-rates">
+          <div class="dp-counter-rates-label">Our counter at ${fmt$(cpv)}/vid</div>
+          <div class="dp-form-group"><label>3-vid bundle</label><div class="dp-rate-display dp-rate-counter">${fmt$(cpv * 3)}</div><div class="dp-rate-per-vid">${fmt$(cpv)}/vid</div></div>
+          <div class="dp-form-group"><label>5-vid bundle</label><div class="dp-rate-display dp-rate-counter">${fmt$(cpv * 5)}</div><div class="dp-rate-per-vid">${fmt$(cpv)}/vid</div></div>
+          <div class="dp-form-group"><label>10-vid bundle</label><div class="dp-rate-display dp-rate-counter">${fmt$(cpv * 10)}</div><div class="dp-rate-per-vid">${fmt$(cpv)}/vid</div></div>
+        </div>`;
+      })()}
 
       <div class="dp-counter-offer-fields">
         <div class="dp-form-group">
