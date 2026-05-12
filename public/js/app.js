@@ -1444,14 +1444,8 @@ async function generateContractAndMoveToRoster(id) {
       setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1000);
     }
 
-    // 4. Sync roster state
-    if (result.rosterEntry) {
-      const ri = state.roster.findIndex(x => x.id === result.rosterEntry.id);
-      if (ri !== -1) state.roster[ri] = result.rosterEntry;
-      else           state.roster.unshift(result.rosterEntry);
-    } else {
-      await loadRoster();
-    }
+    // 4. Sync roster state — always reload to guarantee fresh data
+    await loadRoster();
 
     // 5. Show success modal + refresh badge
     updateReviewBadge();
