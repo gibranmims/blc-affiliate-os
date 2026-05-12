@@ -2679,6 +2679,38 @@ body {
 /* No-deal indicator in table */
 .deal-cell-none { font-size: 12px; color: var(--text-muted); font-style: italic; }
 
+/* Inline table editing */
+.tbl-editable-cell { cursor: pointer; }
+.tbl-editable-cell:hover { background: var(--bg-elevated); }
+.tbl-editable-cell:hover .deal-cell,
+.tbl-editable-cell:hover .gmv-value,
+.tbl-editable-cell:hover .deal-cell-none { opacity: 0.75; }
+
+.tbl-inline-input {
+  background: var(--bg-elevated);
+  border: 1.5px solid var(--accent);
+  border-radius: 5px;
+  color: var(--text-primary);
+  font-size: 12px;
+  padding: 3px 7px;
+  width: 100%;
+  outline: none;
+  box-sizing: border-box;
+}
+.tbl-inline-input:focus { border-color: var(--blue); }
+
+/* Deal cell inline edit — two inputs side by side */
+.tbl-deal-edit { display: flex; align-items: center; gap: 5px; }
+.tbl-deal-edit .tbl-deal-count { width: 52px; }
+.tbl-deal-edit .tbl-deal-total { width: 72px; }
+.tbl-deal-sep  { font-size: 11px; color: var(--text-muted); white-space: nowrap; }
+.tbl-deal-save, .tbl-deal-cancel {
+  border: none; border-radius: 4px; cursor: pointer;
+  font-size: 12px; padding: 3px 7px; font-weight: 600;
+}
+.tbl-deal-save   { background: rgba(74,222,128,0.15); color: var(--green); border: 1px solid var(--green); }
+.tbl-deal-cancel { background: var(--bg-elevated); color: var(--text-muted); border: 1px solid var(--border); }
+
 /* Section save button */
 .dp-save-btn {
   margin-top: 12px;

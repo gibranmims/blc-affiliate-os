@@ -2151,13 +2151,15 @@ function renderRosterPage() {
                 </td>
                 ${isPaid ? `
                   <td>${r.tier ? `<span class="grade-badge grade-${r.tier}">${r.tier}</span>` : '—'}</td>
-                  <td>${r.video_count && r.per_vid_rate
-                    ? `<span class="deal-cell">${r.video_count} vids · ${fmt$(parseFloat(r.per_vid_rate) * parseInt(r.video_count))}</span>`
-                    : `<span class="deal-cell-none">No deal</span>`}</td>
-                  <td>${startFmt}</td>
+                  <td class="tbl-editable-cell" onclick="rosterDealCellEdit(this,'${r.id}',${r.video_count||0},${r.per_vid_rate||0})" title="Click to edit deal">
+                    ${r.video_count && r.per_vid_rate
+                      ? `<span class="deal-cell">${r.video_count} vids · ${fmt$(parseFloat(r.per_vid_rate) * parseInt(r.video_count))}</span>`
+                      : `<span class="deal-cell-none">+ Add deal</span>`}
+                  </td>
+                  <td class="tbl-editable-cell" onclick="rosterCellEdit(this,'${r.id}','start_date','${r.start_date ? r.start_date.split('T')[0] : ''}','date')" title="Click to edit">${startFmt}</td>
                 ` : `<td>${fmtNum(r.followers)}</td>`}
-                <td>${r.content_submitted || 0}</td>
-                <td><span class="gmv-value">${fmt$(r.gmv)}</span></td>
+                <td class="tbl-editable-cell" onclick="rosterCellEdit(this,'${r.id}','content_submitted',${r.content_submitted||0},'number')" title="Click to edit">${r.content_submitted || 0}</td>
+                <td class="tbl-editable-cell" onclick="rosterCellEdit(this,'${r.id}','gmv',${r.gmv||0},'number')" title="Click to edit"><span class="gmv-value">${fmt$(r.gmv)}</span></td>
                 <td onclick="event.stopPropagation()">
                   <select class="inline-status-select status-key-rs-${r.status}"
                     onchange="saveRosterField('${r.id}','status',this.value);this.className='inline-status-select status-key-rs-'+this.value">
@@ -2479,6 +2481,82 @@ async function saveSectionField(rosterId, field, textareaId, btnId) {
     const i = state.roster.findIndex(x => x.id === rosterId);
     if (i !== -1) state.roster[i] = rec;
     _flashSaveBtn(btnId);
+  } catch (err) { showToast(err.message, 'error'); }
+}
+
+// ── Inline table cell editing ──────────────────────────────────────────────
+
+function rosterCellEdit(td, rosterId, field, currentVal, type) {
+  event.stopPropagation();
+  const orig = td.innerHTML;
+  const input = document.createElement('input');
+  input.className = 'tbl-inline-input';
+  input.type  = type || 'text';
+  input.value = currentVal || '';
+  if (type === 'number') input.step = 'any';
+  td.innerHTML = '';
+  td.appendChild(input);
+  input.focus();
+  input.select();
+
+  let saved = false;
+  async function commit() {
+    if (saved) return;
+    saved = true;
+    const val = input.value.trim();
+    try {
+      const body = val === '' ? { [field]: null } : { [field]: type === 'number' ? parseFloat(val) : val };
+      const rec = await fetchAPI(`${API.roster}/${rosterId}`, { method: 'PUT', body: JSON.stringify(body) });
+      const i = state.roster.findIndex(x => x.id === rosterId);
+      if (i !== -1) state.roster[i] = rec;
+      renderRosterPage();
+    } catch (err) { showToast(err.message, 'error'); td.innerHTML = orig; }
+  }
+
+  input.addEventListener('blur', commit);
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter')  { e.preventDefault(); input.blur(); }
+    if (e.key === 'Escape') { saved = true; td.innerHTML = orig; }
+  });
+}
+
+function rosterDealCellEdit(td, rosterId, videoCount, perVidRate) {
+  event.stopPropagation();
+  const orig = td.innerHTML;
+  const currentTotal = videoCount && perVidRate ? Math.round(parseFloat(perVidRate) * parseInt(videoCount)) : '';
+
+  td.innerHTML = `
+    <div class="tbl-deal-edit" onclick="event.stopPropagation()">
+      <input class="tbl-inline-input tbl-deal-count" type="number" min="1" placeholder="vids" value="${videoCount || ''}">
+      <span class="tbl-deal-sep">×  $</span>
+      <input class="tbl-inline-input tbl-deal-total" type="number" min="0" placeholder="total" value="${currentTotal}">
+      <button class="tbl-deal-save" onclick="commitRosterDealCell(this,'${rosterId}')">✓</button>
+      <button class="tbl-deal-cancel" onclick="event.stopPropagation();this.closest('td').innerHTML=\`${orig.replace(/`/g,"'")}\`">✕</button>
+    </div>`;
+
+  // also save on Enter from either input
+  td.querySelectorAll('input').forEach(inp => inp.addEventListener('keydown', e => {
+    if (e.key === 'Enter')  { e.preventDefault(); commitRosterDealCell(td.querySelector('.tbl-deal-save'), rosterId); }
+    if (e.key === 'Escape') { td.innerHTML = orig; }
+  }));
+  td.querySelector('.tbl-deal-count').focus();
+}
+
+async function commitRosterDealCell(btn, rosterId) {
+  event.stopPropagation();
+  const td    = btn.closest('td');
+  const count = parseInt(td.querySelector('.tbl-deal-count')?.value);
+  const total = parseFloat(td.querySelector('.tbl-deal-total')?.value);
+  if (!count || count < 1)  { showToast('Enter number of videos', 'error'); return; }
+  if (!total || total <= 0) { showToast('Enter total deal amount', 'error'); return; }
+  try {
+    const rec = await fetchAPI(`${API.roster}/${rosterId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ video_count: count, per_vid_rate: total / count })
+    });
+    const i = state.roster.findIndex(x => x.id === rosterId);
+    if (i !== -1) state.roster[i] = rec;
+    renderRosterPage();
   } catch (err) { showToast(err.message, 'error'); }
 }
 
