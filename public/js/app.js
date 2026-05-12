@@ -1291,14 +1291,14 @@ async function generateCounterOffer(id) {
   const btn = document.getElementById('dp-gen-counter-btn');
   if (btn) { btn.disabled = true; btn.textContent = 'Generating...'; }
 
-  // Save deal details first
+  // Save deal details + move status to counter_offered
   const saved = await fetchAPI(`${API.outreach}/${id}`, {
     method: 'PUT',
-    body: JSON.stringify({ counter_offer_amount: perVid, video_count: videos })
+    body: JSON.stringify({ counter_offer_amount: perVid, video_count: videos, status: 'counter_offered' })
   }).catch(() => null);
   if (saved) {
     const i = state.outreach.findIndex(x => x.id === id);
-    if (i !== -1) state.outreach[i] = { ...state.outreach[i], counter_offer_amount: perVid, video_count: videos };
+    if (i !== -1) state.outreach[i] = { ...state.outreach[i], counter_offer_amount: perVid, video_count: videos, status: 'counter_offered' };
   }
 
   try {
@@ -1320,8 +1320,15 @@ async function generateCounterOffer(id) {
       })
     });
 
+    // Also save the generated email to DB and update local state
+    await fetchAPI(`${API.outreach}/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ counter_offer_email: email })
+    }).catch(() => null);
+
     const j = state.outreach.findIndex(x => x.id === id);
-    if (j !== -1) state.outreach[j] = { ...state.outreach[j], counter_offer_email: email };
+    if (j !== -1) state.outreach[j] = { ...state.outreach[j], counter_offer_email: email, status: 'counter_offered' };
+    renderOutreachPage();
     renderDetailPanel();
     showToast('Counter offer generated');
   } catch (err) {
