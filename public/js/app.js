@@ -57,8 +57,13 @@ async function fetchAPI(url, options = {}) {
     headers: { 'Content-Type': 'application/json' },
     ...options
   });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || 'Request failed');
+  let data;
+  try {
+    data = await res.json();
+  } catch {
+    throw new Error(`Server error ${res.status} — check Railway deploy logs`);
+  }
+  if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
   return data;
 }
 
