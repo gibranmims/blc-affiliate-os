@@ -13,6 +13,7 @@ const FIELDS = [
   'content_submitted', 'gmv', 'commission_rate',
   'top_videos', 'blc_videos', 'posting_schedule', 'creator_assessment',
   'content_style', 'audience_demographics', 'notes', 'affiliate_type',
+  'creative_assets_needed',
   // onboarding checklist fields
   'payment_sent', 'payment_sent_date', 'invoice_received',
   'serum_shipped', 'serum_ship_date',
@@ -28,7 +29,7 @@ function buildRosterRecord(body) {
   for (const f of FIELDS) {
     if (body[f] === undefined) continue;
     if (f === 'handle') rec.handle = String(body.handle).replace(/^@/, '').trim();
-    else if (['followers', 'video_count', 'content_submitted'].includes(f))
+    else if (['followers', 'video_count', 'content_submitted', 'creative_assets_needed'].includes(f))
       rec[f] = body[f] !== '' && body[f] !== null ? parseInt(body[f]) : null;
     else if (['gmv', 'commission_rate', 'per_vid_rate'].includes(f))
       rec[f] = body[f] !== '' && body[f] !== null ? parseFloat(body[f]) : null;

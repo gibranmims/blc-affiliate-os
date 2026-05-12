@@ -2354,6 +2354,7 @@ function renderRosterPage() {
               <th>Posts</th>
               <th>GMV</th>
               <th>Status</th>
+              ${isPaid ? `<th class="tbl-th-assets">Assets Needed</th>` : ''}
             </tr>
           </thead>
           <tbody>
@@ -2391,6 +2392,12 @@ function renderRosterPage() {
                     <option value="inactive"   ${r.status==='inactive'   ?'selected':''}>Inactive</option>
                   </select>
                 </td>
+                ${isPaid ? `
+                <td class="tbl-editable-cell tbl-assets-cell" onclick="rosterCellEdit(this,'${r.id}','creative_assets_needed',${r.creative_assets_needed||0},'number')" title="Click to set number of creative assets needed">
+                  ${(r.creative_assets_needed || 0) > 0
+                    ? `<span class="assets-badge">${r.creative_assets_needed}</span>`
+                    : `<span class="assets-none">—</span>`}
+                </td>` : ''}
               </tr>`;
             }).join('')}
           </tbody>
@@ -2730,6 +2737,7 @@ function rosterCellEdit(td, rosterId, field, currentVal, type) {
       const rec = await fetchAPI(`${API.roster}/${rosterId}`, { method: 'PUT', body: JSON.stringify(body) });
       const i = state.roster.findIndex(x => x.id === rosterId);
       if (i !== -1) state.roster[i] = rec;
+      updateReviewBadge();
       renderRosterPage();
     } catch (err) { showToast(err.message, 'error'); td.innerHTML = orig; }
   }
@@ -3560,8 +3568,12 @@ function reviewCounterRejected() {
   return state.outreach.filter(r => r.status === 'counter_rejected');
 }
 
+function reviewNeedsCreativeAssets() {
+  return state.roster.filter(r => (r.creative_assets_needed || 0) > 0);
+}
+
 function reviewCount() {
-  return reviewPendingPayments().length + reviewPendingSerum().length + reviewPendingAssets().length + reviewCounterRejected().length;
+  return reviewPendingPayments().length + reviewPendingSerum().length + reviewPendingAssets().length + reviewCounterRejected().length + reviewNeedsCreativeAssets().length;
 }
 
 function updateReviewBadge() {
@@ -3597,11 +3609,12 @@ function calcPostingSchedule(serumShipDate, videoCount) {
 }
 
 function renderForReviewPage() {
-  const payments  = reviewPendingPayments();
-  const serum     = reviewPendingSerum();
-  const assets    = reviewPendingAssets();
-  const rejected  = reviewCounterRejected();
-  const total     = payments.length + serum.length + assets.length + rejected.length;
+  const payments        = reviewPendingPayments();
+  const serum           = reviewPendingSerum();
+  const assets          = reviewPendingAssets();
+  const rejected        = reviewCounterRejected();
+  const creativeNeeded  = reviewNeedsCreativeAssets();
+  const total           = payments.length + serum.length + assets.length + rejected.length + creativeNeeded.length;
 
   document.getElementById('page-content').innerHTML = `
     <div class="page-header">
@@ -3718,6 +3731,31 @@ function renderForReviewPage() {
       }
     </div>
 
+    <!-- Creative Assets to Send -->
+    <div class="review-section">
+      <div class="review-section-header">
+        <span class="review-section-title">🎨 Creative Assets to Send</span>
+        ${creativeNeeded.length > 0 ? `<span class="review-section-count">${creativeNeeded.length}</span>` : ''}
+      </div>
+      ${creativeNeeded.length === 0
+        ? `<div class="review-empty">No creative assets pending ✓</div>`
+        : creativeNeeded.map(r => `
+            <div class="review-card">
+              <div class="review-card-main">
+                <div class="review-card-name">${esc(r.name || r.handle)}</div>
+                <div class="review-card-sub">@${esc(r.handle)}${r.video_count ? ` · ${r.video_count} video deal` : ''} · <strong>${r.creative_assets_needed} asset${r.creative_assets_needed !== 1 ? 's' : ''} needed</strong></div>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px;">
+                <span class="assets-badge assets-badge-lg">${r.creative_assets_needed}</span>
+                <button class="btn btn-primary btn-sm" onclick="markCreativeAssetsSent('${r.id}')">
+                  Mark Sent
+                </button>
+              </div>
+            </div>`
+          ).join('')
+      }
+    </div>
+
     <!-- Counter Rejected -->
     <div class="review-section review-section-rejected">
       <div class="review-section-header">
@@ -3766,6 +3804,22 @@ async function archiveFromReview(outreachId) {
     renderForReviewPage();
     showToast('Archived');
   } catch (err) { showToast(err.message, 'error'); }
+}
+
+async function markCreativeAssetsSent(rosterId) {
+  try {
+    const rec = await fetchAPI(`${API.roster}/${rosterId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ creative_assets_needed: 0 })
+    });
+    const i = state.roster.findIndex(x => x.id === rosterId);
+    if (i !== -1) state.roster[i] = rec;
+    updateReviewBadge();
+    renderForReviewPage();
+    showToast('Creative assets marked as sent ✓');
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
 }
 
 async function markRosterField(rosterId, field, value) {
