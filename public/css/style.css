@@ -2670,10 +2670,11 @@ body {
 .deal-cell { font-size: 12px; color: var(--text-secondary); }
 
 /* Status select colors for roster */
-.inline-status-select.status-key-rs-active   { background-color: var(--green-dim);   color: var(--green); }
-.inline-status-select.status-key-rs-watching { background-color: var(--blue-dim);    color: var(--blue); }
-.inline-status-select.status-key-rs-paused   { background-color: var(--yellow-dim);  color: var(--yellow); }
-.inline-status-select.status-key-rs-inactive { background-color: var(--bg-elevated); color: var(--text-muted); }
+.inline-status-select.status-key-rs-active     { background-color: var(--green-dim);   color: var(--green); }
+.inline-status-select.status-key-rs-onboarding { background-color: var(--purple-dim);  color: var(--purple); }
+.inline-status-select.status-key-rs-watching   { background-color: var(--blue-dim);    color: var(--blue); }
+.inline-status-select.status-key-rs-paused     { background-color: var(--yellow-dim);  color: var(--yellow); }
+.inline-status-select.status-key-rs-inactive   { background-color: var(--bg-elevated); color: var(--text-muted); }
 
 /* No-deal indicator in table */
 .deal-cell-none { font-size: 12px; color: var(--text-muted); font-style: italic; }

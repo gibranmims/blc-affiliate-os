@@ -259,8 +259,8 @@ function gradeBadge(grade) {
 }
 
 function rosterStatusBadge(status) {
-  const map    = { active: 'green', watching: 'blue', paused: 'yellow', inactive: 'gray' };
-  const labels = { active: 'Active', watching: 'Watching', paused: 'Paused', inactive: 'Inactive' };
+  const map    = { active: 'green', onboarding: 'purple', watching: 'blue', paused: 'yellow', inactive: 'gray' };
+  const labels = { active: 'Active', onboarding: 'Onboarding', watching: 'Watching', paused: 'Paused', inactive: 'Inactive' };
   return `<span class="badge badge-${map[status] || 'gray'}">${labels[status] || esc(status)}</span>`;
 }
 
@@ -2202,7 +2202,7 @@ function renderRosterDetailPanel() {
     return d.toISOString().split('T')[0];
   })() : '';
   const total = (parseFloat(r.per_vid_rate) || 0) * (parseInt(r.video_count) || 0);
-  const ROSTER_STATUSES = [['active','Active'],['watching','Watching'],['paused','Paused'],['inactive','Inactive']];
+  const ROSTER_STATUSES = [['active','Active'],['onboarding','Onboarding'],['watching','Watching'],['paused','Paused'],['inactive','Inactive']];
 
   const videoListHTML = (videos, listId, removeFn, inputId, addFn) => `
     <div id="${listId}" class="rs-video-list">
@@ -2380,6 +2380,7 @@ async function saveRosterField(id, field, value) {
     const rec = await fetchAPI(`${API.roster}/${id}`, { method: 'PUT', body: JSON.stringify(body) });
     const i = state.roster.findIndex(x => x.id === id);
     if (i !== -1) state.roster[i] = rec;
+    if (field === 'status') updateReviewBadge();
   } catch (err) {
     showToast(err.message, 'error');
   }
