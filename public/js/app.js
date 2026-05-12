@@ -811,7 +811,7 @@ function renderDetailPanel() {
         const isSent   = num === 1 ? r.followup1_sent : r.followup2_sent;
         const dateStr  = num === 1 ? r.followup1_date : r.followup2_date;
         const msgText  = fuMessageText(r, num);
-        const msgLines = msgText.split('\n').map(l => l === '' ? '<br>' : esc(l)).join('<br>');
+        const msgLines = msgText.split('\n').map(l => esc(l)).join('<br>');
         return `
         <div class="fu-msg-card${isSent ? ' fu-msg-sent' : ''}">
           <div class="fu-msg-header">
