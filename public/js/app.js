@@ -713,7 +713,7 @@ function renderDetailPanel() {
 
   document.getElementById('detail-drawer-title').textContent = 'Creator Detail';
 
-  const hasReplied = ['replied','counter_offered','signed','ghosted'].includes(r.status);
+  const hasReplied = r.status === 'replied';
   const evalScore  = calcEvalScore(r);
   const allEvalDone = EVAL_QUESTIONS.every(q => r[q.key]);
   const autoTier   = allEvalDone ? autoTierFromScore(evalScore) : null;
@@ -937,12 +937,6 @@ function renderDetailPanel() {
         }).join('')}
       </div>
 
-      <div class="dp-form-group" style="margin-top:14px">
-        <label>Notes</label>
-        <textarea class="dp-input dp-textarea" id="dp-notes"
-          placeholder="Anything worth noting..."
-          onblur="updateOutreachField('${r.id}', 'evaluation_notes', this.value)">${esc(r.evaluation_notes || '')}</textarea>
-      </div>
     </div>
 
       </div></div>
@@ -1101,6 +1095,31 @@ function renderDetailPanel() {
       })()}
     </div>
     ` : ''}
+
+    <!-- Counter Sent (read-only summary — status = counter_offered) -->
+    ${r.status === 'counter_offered' ? `
+    <div class="dp-section">
+      <div class="dp-section-label">Counter Sent</div>
+      ${r.counter_offer_amount && r.video_count ? `
+        <div class="dp-deal-summary">
+          <span>${fmt$(r.counter_offer_amount)}/vid &middot; ${r.video_count} videos &middot; Total: <strong>${fmt$(parseFloat(r.counter_offer_amount) * parseInt(r.video_count))}</strong></span>
+        </div>` : ''}
+      ${r.counter_offer_email ? `
+        <textarea class="dp-input dp-textarea dp-counter-ta" readonly style="margin-top:10px;color:var(--text-muted)"
+          id="dp-counter-preview-ro">${esc(r.counter_offer_email)}</textarea>
+        <button class="btn btn-secondary btn-sm" style="margin-top:8px"
+          onclick="copyText(document.getElementById('dp-counter-preview-ro').value)">Copy message</button>
+      ` : `<div style="color:var(--text-muted);font-size:13px;margin-top:8px;">No counter message saved.</div>`}
+    </div>
+    ` : ''}
+
+    <!-- Notes (always visible at every stage) -->
+    <div class="dp-section">
+      <div class="dp-section-label">Notes</div>
+      <textarea class="dp-input dp-textarea"
+        placeholder="Anything worth noting..."
+        onblur="updateOutreachField('${r.id}', 'evaluation_notes', this.value)">${esc(r.evaluation_notes || '')}</textarea>
+    </div>
 
     <!-- Clear Form -->
     <div class="dp-clear-zone">
