@@ -183,7 +183,8 @@ body {
   border: 1px solid rgba(255, 246, 235, 0.2);
 }
 
-.nav-review-badge {
+.nav-review-badge,
+.nav-replied-badge {
   margin-left: auto;
   font-size: 10px;
   font-weight: 700;
@@ -2311,6 +2312,11 @@ body {
 .filter-tabs .filter-tab-counter_offered.active { color: var(--yellow); background: var(--yellow-dim); }
 .filter-tabs .filter-tab-counter_offered.active .filter-count { background: rgba(251,191,36,0.2); color: var(--yellow); }
 
+.filter-tabs .filter-tab-counter_rejected        { color: rgba(248,113,113,0.75); }
+.filter-tabs .filter-tab-counter_rejected .filter-count { color: rgba(248,113,113,0.75); }
+.filter-tabs .filter-tab-counter_rejected.active { color: var(--red); background: var(--red-dim); }
+.filter-tabs .filter-tab-counter_rejected.active .filter-count { background: rgba(248,113,113,0.2); color: var(--red); }
+
 .filter-tabs .filter-tab-signed        { color: rgba(74,222,128,0.75); }
 .filter-tabs .filter-tab-signed .filter-count { color: rgba(74,222,128,0.75); }
 .filter-tabs .filter-tab-signed.active { color: var(--green); background: var(--green-dim); }
@@ -3585,6 +3591,19 @@ body {
   gap: 10px;
   flex-wrap: wrap;
 }
+.review-section-rejected .review-section-title { color: var(--red); }
+.review-count-red { background: var(--red) !important; color: #fff !important; }
+.review-card-rejected { border-left: 3px solid var(--red) !important; }
+.review-archive-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 12px;
+  padding: 5px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.review-archive-btn:hover { border-color: var(--red); color: var(--red); }
 .review-toggle-btn {
   font-size: 12px;
   font-weight: 500;

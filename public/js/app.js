@@ -10,12 +10,13 @@ const API = {
 };
 
 const STATUSES = [
-  { key: 'drafted',        label: 'In Drafts', color: 'gray'   },
-  { key: 'sent',           label: 'Sent',      color: 'blue'   },
-  { key: 'replied',        label: 'Replied',   color: 'yellow' },
-  { key: 'counter_offered',label: 'Countered', color: 'orange' },
-  { key: 'signed',         label: 'Signed',    color: 'green'  },
-  { key: 'archived',       label: 'Archived',  color: 'gray'   }
+  { key: 'drafted',          label: 'In Drafts',       color: 'gray'   },
+  { key: 'sent',             label: 'Sent',             color: 'blue'   },
+  { key: 'replied',          label: 'Replied',          color: 'yellow' },
+  { key: 'counter_offered',  label: 'Countered',        color: 'orange' },
+  { key: 'counter_rejected', label: 'Ctr. Rejected',    color: 'red'    },
+  { key: 'signed',           label: 'Signed',           color: 'green'  },
+  { key: 'archived',         label: 'Archived',         color: 'gray'   }
 ];
 
 const state = {
@@ -160,6 +161,18 @@ function todayStr() {
   return new Date().toISOString().split('T')[0];
 }
 
+// Returns fresh follow-up dates when a counter offer is sent (today +4, +8 days)
+function counterFollowupPayload() {
+  const d1 = new Date(); d1.setDate(d1.getDate() + 4);
+  const d2 = new Date(); d2.setDate(d2.getDate() + 8);
+  return {
+    followup1_date: d1.toISOString().split('T')[0],
+    followup2_date: d2.toISOString().split('T')[0],
+    followup1_sent: false,
+    followup2_sent: false
+  };
+}
+
 // Returns CSS class based on whether a date is overdue, today, or upcoming
 function fuDateClass(dateStr) {
   if (!dateStr) return '';
@@ -186,8 +199,14 @@ function renderFUBadge(r) {
   return '';
 }
 
+// Statuses where follow-ups are no longer relevant
+const FU_HIDDEN_STATUSES = new Set(['replied','counter_offered','counter_rejected','signed','archived']);
+
 // Renders a table cell for FU1 or FU2 columns — color-coded by status
 function renderFUCell(r, num) {
+  // Once they've responded, follow-ups are irrelevant
+  if (FU_HIDDEN_STATUSES.has(r.status)) return `<td class="fu-col fu-col-empty">—</td>`;
+
   const dateStr = num === 1 ? r.followup1_date : r.followup2_date;
   const isSent  = num === 1 ? r.followup1_sent : r.followup2_sent;
 
@@ -433,6 +452,7 @@ function updateRosterSubNav() {
 async function loadOutreach() {
   state.outreach = await fetchAPI(API.outreach);
   updateReviewBadge();
+  updateRepliedBadge();
 }
 
 // ============================================================
@@ -650,17 +670,19 @@ function sortTh(col, label) {
 async function updateStatusInline(id, newStatus, selectEl) {
   selectEl.className = `inline-status-select status-key-${newStatus}`;
   try {
+    const payload = { status: newStatus };
+    // Reset follow-up window when counter is sent
+    if (newStatus === 'counter_offered') Object.assign(payload, counterFollowupPayload());
     const rec = await fetchAPI(`${API.outreach}/${id}`, {
       method: 'PUT',
-      body: JSON.stringify({ status: newStatus })
+      body: JSON.stringify(payload)
     });
     const i = state.outreach.findIndex(x => x.id === id);
     if (i !== -1) state.outreach[i] = rec;
-    if (newStatus === 'signed') {
-      showToast('🎉 Signed! Fill in the deal details, then click Finalize & Onboard →');
-    }
+    if (newStatus === 'signed') showToast('🎉 Signed! Fill in the deal details, then click Finalize & Onboard →');
+    if (newStatus === 'counter_rejected') { updateReviewBadge(); showToast('Moved to For Review — counter rejected', 'error'); }
     renderPipelineView();
-    // If this creator's panel is open, re-render it with the new status
+    updateRepliedBadge();
     if (state.selectedOutreachId === id) renderDetailPanel();
   } catch (err) {
     showToast(err.message, 'error');
@@ -1182,7 +1204,7 @@ async function updateOutreachField(id, field, value) {
     const i = state.outreach.findIndex(x => x.id === id);
     if (i !== -1) state.outreach[i] = rec;
     renderDetailPanel();
-    if (field === 'status') renderOutreachPage();
+    if (field === 'status') { renderOutreachPage(); updateRepliedBadge(); updateReviewBadge(); }
   } catch (err) {
     showToast(err.message, 'error');
   }
@@ -1322,15 +1344,16 @@ async function generateCounterOffer(id) {
   const btn = document.getElementById('dp-gen-counter-btn');
   if (btn) { btn.disabled = true; btn.textContent = 'Generating...'; }
 
-  // Save deal details + move status to counter_offered
+  // Save deal details + move status to counter_offered + reset follow-up window
   const saved = await fetchAPI(`${API.outreach}/${id}`, {
     method: 'PUT',
-    body: JSON.stringify({ counter_offer_amount: perVid, video_count: videos, status: 'counter_offered' })
+    body: JSON.stringify({ counter_offer_amount: perVid, video_count: videos, status: 'counter_offered', ...counterFollowupPayload() })
   }).catch(() => null);
   if (saved) {
     const i = state.outreach.findIndex(x => x.id === id);
-    if (i !== -1) state.outreach[i] = { ...state.outreach[i], counter_offer_amount: perVid, video_count: videos, status: 'counter_offered' };
+    if (i !== -1) state.outreach[i] = saved;
   }
+  updateRepliedBadge();
 
   try {
     const { email } = await fetchAPI(`${API.outreachGen}/counter-offer`, {
@@ -3421,13 +3444,25 @@ function reviewPendingAssets() {
   );
 }
 
+function reviewCounterRejected() {
+  return state.outreach.filter(r => r.status === 'counter_rejected');
+}
+
 function reviewCount() {
-  return reviewPendingPayments().length + reviewPendingSerum().length + reviewPendingAssets().length;
+  return reviewPendingPayments().length + reviewPendingSerum().length + reviewPendingAssets().length + reviewCounterRejected().length;
 }
 
 function updateReviewBadge() {
   const count = reviewCount();
   const badge = document.getElementById('review-badge');
+  if (!badge) return;
+  badge.textContent   = count;
+  badge.style.display = count > 0 ? '' : 'none';
+}
+
+function updateRepliedBadge() {
+  const count = state.outreach.filter(r => r.status === 'replied').length;
+  const badge = document.getElementById('replied-badge');
   if (!badge) return;
   badge.textContent   = count;
   badge.style.display = count > 0 ? '' : 'none';
@@ -3450,10 +3485,11 @@ function calcPostingSchedule(serumShipDate, videoCount) {
 }
 
 function renderForReviewPage() {
-  const payments = reviewPendingPayments();
-  const serum    = reviewPendingSerum();
-  const assets   = reviewPendingAssets();
-  const total    = payments.length + serum.length + assets.length;
+  const payments  = reviewPendingPayments();
+  const serum     = reviewPendingSerum();
+  const assets    = reviewPendingAssets();
+  const rejected  = reviewCounterRejected();
+  const total     = payments.length + serum.length + assets.length + rejected.length;
 
   document.getElementById('page-content').innerHTML = `
     <div class="page-header">
@@ -3573,7 +3609,55 @@ function renderForReviewPage() {
           }).join('')
       }
     </div>
+
+    <!-- Counter Rejected -->
+    <div class="review-section review-section-rejected">
+      <div class="review-section-header">
+        <span class="review-section-title">🚫 Counter Rejected — Needs Response</span>
+        ${rejected.length > 0 ? `<span class="review-section-count review-count-red">${rejected.length}</span>` : ''}
+      </div>
+      ${rejected.length === 0
+        ? `<div class="review-empty">No rejected counters ✓</div>`
+        : rejected.map(r => {
+            const total = r.counter_offer_amount && r.video_count
+              ? parseFloat(r.counter_offer_amount) * parseInt(r.video_count) : null;
+            return `
+            <div class="review-card review-card-rejected">
+              <div class="review-card-row">
+                <div class="review-card-main">
+                  <div class="review-card-name">${esc(r.name || r.handle)}</div>
+                  <div class="review-card-sub">@${esc(r.handle)}${total ? ` · Our counter was ${fmt$(total)} for ${r.video_count} videos` : ''}</div>
+                </div>
+                <div class="review-card-actions">
+                  <button class="btn btn-secondary btn-sm" onclick="openOutreachFromReview('${r.id}')">Review Deal</button>
+                  <button class="btn btn-sm review-archive-btn" onclick="archiveFromReview('${r.id}')">Archive</button>
+                </div>
+              </div>
+            </div>`;
+          }).join('')
+      }
+    </div>
   `;
+}
+
+function openOutreachFromReview(outreachId) {
+  state.currentPage = 'outreach';
+  state.selectedOutreachId = outreachId;
+  navigate('outreach');
+}
+
+async function archiveFromReview(outreachId) {
+  try {
+    const rec = await fetchAPI(`${API.outreach}/${outreachId}`, {
+      method: 'PUT', body: JSON.stringify({ status: 'archived' })
+    });
+    const i = state.outreach.findIndex(x => x.id === outreachId);
+    if (i !== -1) state.outreach[i] = rec;
+    updateReviewBadge();
+    updateRepliedBadge();
+    renderForReviewPage();
+    showToast('Archived');
+  } catch (err) { showToast(err.message, 'error'); }
 }
 
 async function markRosterField(rosterId, field, value) {
