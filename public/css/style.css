@@ -3614,3 +3614,144 @@ body {
   background: var(--accent-dim);
 }
 .type-toggle-opt input[type="radio"] { display: none; }
+
+/* ============================================================
+   FINANCE PAGE
+   ============================================================ */
+
+.fin-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.fin-stat-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 20px 22px;
+  transition: border-color 0.15s;
+}
+.fin-stat-card:hover { border-color: var(--border-light); }
+.fin-stat-card-warn  { border-color: rgba(251,191,36,0.3) !important; }
+
+.fin-stat-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.fin-stat-value {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--accent);
+  line-height: 1;
+  margin-bottom: 6px;
+}
+.fin-stat-neutral { color: var(--text-primary); }
+.fin-stat-green   { color: var(--green); }
+.fin-stat-yellow  { color: var(--yellow); }
+
+.fin-stat-sub {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* Table */
+.fin-table-wrap {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.fin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.fin-table thead tr {
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-tertiary);
+}
+
+.fin-table th {
+  padding: 11px 16px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  text-align: left;
+  white-space: nowrap;
+}
+.fin-th-num { text-align: right; }
+
+.fin-row {
+  border-bottom: 1px solid var(--border);
+  transition: background 0.1s;
+}
+.fin-row:last-child { border-bottom: none; }
+.fin-row:hover { background: var(--bg-tertiary); }
+
+.fin-table td { padding: 12px 16px; vertical-align: middle; }
+
+.fin-td-creator { min-width: 160px; }
+.fin-creator-name {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.fin-creator-handle {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.fin-td-num { text-align: right; }
+
+.fin-amount {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.fin-amount-sub {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 1px;
+}
+
+.fin-gmv   { font-weight: 600; color: var(--green); }
+.fin-muted { color: var(--text-muted); }
+
+.fin-deposit-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 3px;
+}
+
+.fin-status-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 20px;
+  letter-spacing: 0.02em;
+}
+.fin-status-paid    { background: var(--green-dim);   color: var(--green);  border: 1px solid rgba(74,222,128,0.2); }
+.fin-status-due     { background: var(--yellow-dim);  color: var(--yellow); border: 1px solid rgba(251,191,36,0.2); }
+.fin-status-pending { background: var(--bg-elevated); color: var(--text-muted); border: 1px solid var(--border); }
+
+.fin-td-action { text-align: right; width: 110px; }
+.fin-paid-check { font-size: 16px; color: var(--green); }
+
+.fin-empty {
+  padding: 40px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+}

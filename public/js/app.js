@@ -407,7 +407,8 @@ function navigate(page) {
     outreach: renderOutreachPage,
     roster:   renderRosterPage,
     scripts:  renderScriptsPage,
-    review:   renderForReviewPage
+    review:   renderForReviewPage,
+    finance:  renderFinancePage
   };
   if (renderers[page]) renderers[page]();
 }
@@ -3319,6 +3320,160 @@ function openRosterCreatorFromReview(id) {
   state.activeRosterId = id;
   navigate('roster');
   setTimeout(() => openRosterDetail(id), 80);
+}
+
+// ============================================================
+// FINANCE
+// ============================================================
+
+function financeAffiliates() {
+  return state.roster.filter(r =>
+    r.affiliate_type === 'paid' && (r.status === 'active' || r.status === 'onboarding')
+  );
+}
+
+function financePaymentStatus(r) {
+  if (r.payment_sent)      return { label: 'Paid',            cls: 'fin-status-paid' };
+  if (r.invoice_received)  return { label: 'Due',             cls: 'fin-status-due' };
+  return                          { label: 'Pending Invoice',  cls: 'fin-status-pending' };
+}
+
+function financeMonthlyRate(r) {
+  return (parseFloat(r.per_vid_rate) || 0) * (parseInt(r.video_count) || 0);
+}
+
+function renderFinancePage() {
+  const affiliates = financeAffiliates();
+
+  // ── Stat calculations ──
+  const totalCommitment = affiliates.reduce((s, r) => s + financeMonthlyRate(r), 0);
+  const totalContracted = affiliates.reduce((s, r) => s + (parseInt(r.video_count) || 0), 0);
+  const totalPosted     = affiliates.reduce((s, r) => s + (parseInt(r.content_submitted) || 0), 0);
+  const totalGMV        = affiliates.reduce((s, r) => s + (parseFloat(r.gmv) || 0), 0);
+  const avgDeal         = affiliates.length ? totalCommitment / affiliates.length : 0;
+
+  const currentMonth    = new Date().toISOString().slice(0, 7); // "YYYY-MM"
+  const paidThisMonth   = affiliates
+    .filter(r => r.payment_sent && r.payment_sent_date?.startsWith(currentMonth))
+    .reduce((s, r) => s + financeMonthlyRate(r) / 2, 0);
+
+  const unpaidCount     = affiliates.filter(r => !r.payment_sent).length;
+  const unpaidTotal     = affiliates
+    .filter(r => !r.payment_sent)
+    .reduce((s, r) => s + financeMonthlyRate(r) / 2, 0);
+
+  document.getElementById('page-content').innerHTML = `
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Finance</h1>
+        <p class="page-subtitle">Live data from Roster & Pipeline · ${affiliates.length} paid affiliate${affiliates.length !== 1 ? 's' : ''}</p>
+      </div>
+    </div>
+
+    <!-- Stat Cards -->
+    <div class="fin-stats-grid">
+      <div class="fin-stat-card">
+        <div class="fin-stat-label">Monthly Commitment</div>
+        <div class="fin-stat-value">${fmt$(totalCommitment)}</div>
+        <div class="fin-stat-sub">${totalContracted} videos contracted</div>
+      </div>
+      <div class="fin-stat-card">
+        <div class="fin-stat-label">Videos Posted</div>
+        <div class="fin-stat-value fin-stat-neutral">${totalPosted}</div>
+        <div class="fin-stat-sub">of ${totalContracted} contracted</div>
+      </div>
+      <div class="fin-stat-card">
+        <div class="fin-stat-label">GMV Generated</div>
+        <div class="fin-stat-value fin-stat-green">${fmt$(totalGMV)}</div>
+        <div class="fin-stat-sub">${totalGMV > 0 && totalCommitment > 0 ? `${(totalGMV / totalCommitment).toFixed(1)}× return` : 'No GMV tracked yet'}</div>
+      </div>
+      <div class="fin-stat-card">
+        <div class="fin-stat-label">Avg Deal Size</div>
+        <div class="fin-stat-value fin-stat-neutral">${fmt$(avgDeal)}</div>
+        <div class="fin-stat-sub">per affiliate</div>
+      </div>
+      <div class="fin-stat-card ${unpaidCount > 0 ? 'fin-stat-card-warn' : ''}">
+        <div class="fin-stat-label">Payments Due</div>
+        <div class="fin-stat-value fin-stat-yellow">${fmt$(unpaidTotal)}</div>
+        <div class="fin-stat-sub">${unpaidCount} unpaid invoice${unpaidCount !== 1 ? 's' : ''}</div>
+      </div>
+      <div class="fin-stat-card">
+        <div class="fin-stat-label">Paid Out This Month</div>
+        <div class="fin-stat-value fin-stat-green">${fmt$(paidThisMonth)}</div>
+        <div class="fin-stat-sub">${affiliates.filter(r => r.payment_sent && r.payment_sent_date?.startsWith(currentMonth)).length} affiliates paid</div>
+      </div>
+    </div>
+
+    <!-- Affiliates Table -->
+    <div class="fin-table-wrap">
+      <table class="fin-table">
+        <thead>
+          <tr>
+            <th>Creator</th>
+            <th class="fin-th-num">Monthly Rate</th>
+            <th class="fin-th-num">Videos</th>
+            <th class="fin-th-num">Posted</th>
+            <th class="fin-th-num">GMV</th>
+            <th>Payment Status</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          ${affiliates.length === 0 ? `
+            <tr><td colspan="7" class="fin-empty">No paid affiliates yet — onboard your first creator to see data here.</td></tr>
+          ` : affiliates.map(r => {
+            const monthly = financeMonthlyRate(r);
+            const deposit = monthly / 2;
+            const ps      = financePaymentStatus(r);
+            return `
+            <tr class="fin-row">
+              <td class="fin-td-creator">
+                <div class="fin-creator-name">${esc(r.name || r.handle)}</div>
+                <div class="fin-creator-handle">@${esc(r.handle)}</div>
+              </td>
+              <td class="fin-td-num">
+                <div class="fin-amount">${monthly > 0 ? fmt$(monthly) : '—'}</div>
+                ${r.per_vid_rate ? `<div class="fin-amount-sub">${fmt$(r.per_vid_rate)}/vid</div>` : ''}
+              </td>
+              <td class="fin-td-num">${r.video_count || '—'}</td>
+              <td class="fin-td-num">${r.content_submitted || 0}</td>
+              <td class="fin-td-num">
+                ${r.gmv ? `<span class="fin-gmv">${fmt$(r.gmv)}</span>` : '<span class="fin-muted">—</span>'}
+              </td>
+              <td>
+                <span class="fin-status-badge ${ps.cls}">${ps.label}</span>
+                ${!r.payment_sent && r.invoice_received ? `<div class="fin-deposit-hint">${fmt$(deposit)} due</div>` : ''}
+                ${r.payment_sent && r.payment_sent_date ? `<div class="fin-deposit-hint">Paid ${fmtDateShort(r.payment_sent_date)}</div>` : ''}
+              </td>
+              <td class="fin-td-action">
+                ${!r.payment_sent ? `
+                  <button class="btn btn-primary btn-sm" onclick="markRosterFieldFinance('${r.id}', 'payment_sent', true)">
+                    Mark Paid
+                  </button>
+                ` : `<span class="fin-paid-check">✓</span>`}
+              </td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+async function markRosterFieldFinance(rosterId, field, value) {
+  try {
+    const rec = await fetchAPI(`${API.roster}/${rosterId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ [field]: value })
+    });
+    const i = state.roster.findIndex(x => x.id === rosterId);
+    if (i !== -1) state.roster[i] = rec;
+    updateReviewBadge();
+    renderFinancePage();
+    showToast('Payment marked as paid ✓');
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
 }
 
 // ============================================================
