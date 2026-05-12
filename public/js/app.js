@@ -190,10 +190,17 @@ function renderFUBadge(r) {
 function renderFUCell(r, num) {
   const dateStr = num === 1 ? r.followup1_date : r.followup2_date;
   const isSent  = num === 1 ? r.followup1_sent : r.followup2_sent;
+
+  if (isSent) {
+    return `<td class="fu-col fu-col-sent" onclick="event.stopPropagation();toggleFollowupSent('${r.id}',${num})" title="Click to unmark">
+      <span class="fu-sent-pill">✓ FU${num} Sent</span>
+    </td>`;
+  }
   if (!dateStr) return `<td class="fu-col fu-col-empty">—</td>`;
-  if (isSent)   return `<td class="fu-col fu-col-sent">${fmtDateShort(dateStr)}</td>`;
   const t = todayStr();
-  if (dateStr < t) return `<td class="fu-col fu-col-overdue">${fmtDateShort(dateStr)}</td>`;
+  if (dateStr < t) return `<td class="fu-col fu-col-overdue" onclick="event.stopPropagation();toggleFollowupSent('${r.id}',${num})" title="Mark as sent">
+    ${fmtDateShort(dateStr)} <span class="fu-mark-hint">mark sent</span>
+  </td>`;
   return `<td class="fu-col fu-col-upcoming">${fmtDateShort(dateStr)}</td>`;
 }
 
@@ -452,6 +459,7 @@ function renderPipelineView() {
   }, {});
   const allCount = state.outreach.filter(r => r.status !== 'archived').length;
 
+  const STATUS_PRIORITY = { signed: 0, counter_offered: 1, replied: 2, sent: 3, drafted: 4, archived: 5 };
   const filtered = (state.outreachFilter === 'all'
     ? state.outreach.filter(r => r.status !== 'archived')
     : state.outreachFilter === 'archived'
@@ -459,6 +467,12 @@ function renderPipelineView() {
     : state.outreach.filter(r => r.status === state.outreachFilter)
   ).slice().sort((a, b) => {
     const { col, dir } = state.outreachSort;
+    // In "All" view always float active pipeline to top first
+    if (state.outreachFilter === 'all') {
+      const pa = STATUS_PRIORITY[a.status] ?? 9;
+      const pb = STATUS_PRIORITY[b.status] ?? 9;
+      if (pa !== pb) return pa - pb;
+    }
     let av, bv;
     if (col === 'followers') { av = a.follower_count || 0; bv = b.follower_count || 0; }
     else if (col === 'rates') { av = avgRatePerVid(a) || 0; bv = avgRatePerVid(b) || 0; }
@@ -514,7 +528,7 @@ function renderPipelineView() {
           All <span class="filter-count">${allCount}</span>
         </button>
         ${pipelineStatuses.map(s => `
-          <button class="filter-tab ${state.outreachFilter === s.key ? 'active' : ''}" onclick="setOutreachFilter('${s.key}')">
+          <button class="filter-tab filter-tab-${s.key} ${state.outreachFilter === s.key ? 'active' : ''}" onclick="setOutreachFilter('${s.key}')">
             ${s.label} <span class="filter-count">${counts[s.key] || 0}</span>
           </button>
         `).join('')}
@@ -1191,9 +1205,17 @@ function copyFollowupMessage(id, num) {
 }
 
 async function markFollowupSent(id, num) {
+  await toggleFollowupSent(id, num, true);
+}
+
+async function toggleFollowupSent(id, num, forceTrue = false) {
+  const r = state.outreach.find(x => x.id === id);
+  if (!r) return;
+  const isSent = num === 1 ? r.followup1_sent : r.followup2_sent;
+  const nowSent = forceTrue ? true : !isSent;
   const payload = num === 1
-    ? { followup1_sent: true }
-    : { followup2_sent: true };
+    ? { followup1_sent: nowSent, ...(nowSent ? {} : { followup1_sent_date: null }) }
+    : { followup2_sent: nowSent, ...(nowSent ? {} : { followup2_sent_date: null }) };
   try {
     const rec = await fetchAPI(`${API.outreach}/${id}`, {
       method: 'PUT',
@@ -1203,7 +1225,7 @@ async function markFollowupSent(id, num) {
     if (i !== -1) state.outreach[i] = rec;
     renderDetailPanel();
     if (state.outreachView === 'pipeline') renderPipelineView();
-    showToast(`Follow-up ${num} marked as sent`);
+    showToast(nowSent ? `Follow-up ${num} marked as sent` : `Follow-up ${num} unmarked`);
   } catch (err) {
     showToast(err.message, 'error');
   }
