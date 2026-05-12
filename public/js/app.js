@@ -757,6 +757,7 @@ function renderDetailPanel() {
             ${r.sent_date
               ? `<div class="fu-step-date">${fmtDate(r.sent_date)}</div>`
               : `<input type="date" class="dp-input fu-date-input" placeholder="Set send date"
+                   onclick="try{this.showPicker()}catch(e){}"
                    onchange="updateOutreachField('${r.id}', 'sent_date', this.value)">`
             }
           </div>
@@ -772,6 +773,7 @@ function renderDetailPanel() {
             <div class="fu-step-label">Follow-up 1</div>
             <input type="date" class="dp-input fu-date-input fu-date-editable"
               value="${r.followup1_date || ''}"
+              onclick="try{this.showPicker()}catch(e){}"
               onchange="updateOutreachField('${r.id}', 'followup1_date', this.value)">
           </div>
           <div class="fu-step-action">
@@ -793,6 +795,7 @@ function renderDetailPanel() {
             <div class="fu-step-label">Follow-up 2</div>
             <input type="date" class="dp-input fu-date-input fu-date-editable"
               value="${r.followup2_date || ''}"
+              onclick="try{this.showPicker()}catch(e){}"
               onchange="updateOutreachField('${r.id}', 'followup2_date', this.value)">
           </div>
           <div class="fu-step-action">
@@ -1051,6 +1054,7 @@ function renderDetailPanel() {
         <label>Start date</label>
         <input type="date" class="dp-input" id="dp-start-date"
           value="${r.start_date ? r.start_date.split('T')[0] : ''}"
+          onclick="try{this.showPicker()}catch(e){}"
           onblur="updateOutreachField('${r.id}', 'start_date', this.value)">
       </div>
       ${r.counter_offer_amount && r.video_count ? `
