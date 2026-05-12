@@ -2291,41 +2291,41 @@ body {
    ============================================================ */
 
 /* Per-status tab colors — always visible, bolder when active */
-.filter-tab-drafted        { color: var(--text-muted); }
-.filter-tab-drafted .filter-count { color: var(--text-muted); }
-.filter-tab-drafted.active { color: var(--text-primary); background: var(--bg-elevated); }
-.filter-tab-drafted.active .filter-count { color: var(--text-primary); background: var(--bg-hover); }
+.filter-tabs .filter-tab-drafted        { color: var(--text-secondary); }
+.filter-tabs .filter-tab-drafted .filter-count { color: var(--text-secondary); }
+.filter-tabs .filter-tab-drafted.active { color: var(--text-primary); background: var(--bg-elevated); }
+.filter-tabs .filter-tab-drafted.active .filter-count { color: var(--text-primary); background: var(--bg-hover); }
 
-.filter-tab-sent           { color: rgba(96,165,250,0.7); }
-.filter-tab-sent .filter-count { color: rgba(96,165,250,0.7); }
-.filter-tab-sent.active    { color: var(--blue); background: var(--blue-dim); }
-.filter-tab-sent.active .filter-count { background: rgba(96,165,250,0.2); color: var(--blue); }
+.filter-tabs .filter-tab-sent           { color: rgba(96,165,250,0.75); }
+.filter-tabs .filter-tab-sent .filter-count { color: rgba(96,165,250,0.75); }
+.filter-tabs .filter-tab-sent.active    { color: var(--blue); background: var(--blue-dim); }
+.filter-tabs .filter-tab-sent.active .filter-count { background: rgba(96,165,250,0.2); color: var(--blue); }
 
-.filter-tab-replied        { color: rgba(45,212,191,0.7); }
-.filter-tab-replied .filter-count { color: rgba(45,212,191,0.7); }
-.filter-tab-replied.active { color: #2dd4bf; background: rgba(45,212,191,0.1); }
-.filter-tab-replied.active .filter-count { background: rgba(45,212,191,0.2); color: #2dd4bf; }
+.filter-tabs .filter-tab-replied        { color: rgba(45,212,191,0.75); }
+.filter-tabs .filter-tab-replied .filter-count { color: rgba(45,212,191,0.75); }
+.filter-tabs .filter-tab-replied.active { color: #2dd4bf; background: rgba(45,212,191,0.1); }
+.filter-tabs .filter-tab-replied.active .filter-count { background: rgba(45,212,191,0.2); color: #2dd4bf; }
 
-.filter-tab-counter_offered        { color: rgba(251,191,36,0.7); }
-.filter-tab-counter_offered .filter-count { color: rgba(251,191,36,0.7); }
-.filter-tab-counter_offered.active { color: var(--yellow); background: var(--yellow-dim); }
-.filter-tab-counter_offered.active .filter-count { background: rgba(251,191,36,0.2); color: var(--yellow); }
+.filter-tabs .filter-tab-counter_offered        { color: rgba(251,191,36,0.75); }
+.filter-tabs .filter-tab-counter_offered .filter-count { color: rgba(251,191,36,0.75); }
+.filter-tabs .filter-tab-counter_offered.active { color: var(--yellow); background: var(--yellow-dim); }
+.filter-tabs .filter-tab-counter_offered.active .filter-count { background: rgba(251,191,36,0.2); color: var(--yellow); }
 
-.filter-tab-signed        { color: rgba(74,222,128,0.7); }
-.filter-tab-signed .filter-count { color: rgba(74,222,128,0.7); }
-.filter-tab-signed.active { color: var(--green); background: var(--green-dim); }
-.filter-tab-signed.active .filter-count { background: rgba(74,222,128,0.2); color: var(--green); }
+.filter-tabs .filter-tab-signed        { color: rgba(74,222,128,0.75); }
+.filter-tabs .filter-tab-signed .filter-count { color: rgba(74,222,128,0.75); }
+.filter-tabs .filter-tab-signed.active { color: var(--green); background: var(--green-dim); }
+.filter-tabs .filter-tab-signed.active .filter-count { background: rgba(74,222,128,0.2); color: var(--green); }
 
-.filter-tab-archive {
+.filter-tabs .filter-tab-archive {
   margin-left: 6px;
   padding-left: 16px !important;
   border-left: 1px solid var(--border);
-  color: rgba(248,113,113,0.6);
+  color: rgba(248,113,113,0.65);
 }
-.filter-tab-archive .filter-count { color: rgba(248,113,113,0.6); }
-.filter-tab-archive:hover { color: var(--red); }
-.filter-tab-archive.active { color: var(--red); background: var(--red-dim); }
-.filter-tab-archive.active .filter-count { background: rgba(248,113,113,0.2); color: var(--red); }
+.filter-tabs .filter-tab-archive .filter-count { color: rgba(248,113,113,0.65); }
+.filter-tabs .filter-tab-archive:hover { color: var(--red); }
+.filter-tabs .filter-tab-archive.active { color: var(--red); background: var(--red-dim); }
+.filter-tabs .filter-tab-archive.active .filter-count { background: rgba(248,113,113,0.2); color: var(--red); }
 
 /* ============================================================
    SIGNED SECTION IN DETAIL PANEL
