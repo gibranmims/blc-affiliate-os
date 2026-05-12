@@ -2664,7 +2664,7 @@ function openAddRosterModal() {
   const defaultType = state.rosterTab === 'free' ? 'free' : 'paid';
   const platforms = [['TikTok','TikTok'],['Instagram','Instagram'],['YouTube','YouTube']];
   const tiers     = [['','— none —'],['A','A'],['B','B'],['C','C']];
-  const statuses  = [['active','Active'],['watching','Watching'],['paused','Paused'],['inactive','Inactive']];
+  const statuses  = [['active','Active'],['onboarding','Onboarding'],['watching','Watching'],['paused','Paused'],['inactive','Inactive']];
   const html = `
     <form id="modal-form">
       <div class="form-group" style="margin-bottom:16px">
@@ -2722,11 +2722,11 @@ function openAddRosterModal() {
         <div style="grid-column:1/-1;font-size:11px;color:var(--text-muted);margin:4px 0 0;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;">Deal Details</div>
         <div class="form-group">
           <label># Videos</label>
-          <input type="number" name="video_count" placeholder="e.g. 5">
+          <input type="number" name="video_count" id="modal-video-count" placeholder="e.g. 5">
         </div>
         <div class="form-group">
-          <label>Rate / Video ($)</label>
-          <input type="number" name="per_vid_rate" placeholder="e.g. 200">
+          <label>Total Deal ($)</label>
+          <input type="number" name="deal_total" id="modal-deal-total" placeholder="e.g. 1000">
         </div>
         <div class="form-group">
           <label>Start Date</label>
@@ -2744,9 +2744,17 @@ function openAddRosterModal() {
     </form>`;
   openModal('Add to Roster', html, async (e) => {
     const data = Object.fromEntries(new FormData(e.target));
+    // Convert total deal → per_vid_rate
+    const dealTotal  = parseFloat(data.deal_total);
+    const videoCount = parseInt(data.video_count);
+    delete data.deal_total;
+    if (!isNaN(dealTotal) && !isNaN(videoCount) && videoCount > 0) {
+      data.per_vid_rate = dealTotal / videoCount;
+    }
     try {
       const rec = await fetchAPI(API.roster, { method: 'POST', body: JSON.stringify(data) });
       state.roster.unshift(rec);
+      updateReviewBadge();
       closeModal(); renderRosterPage(); showToast('Added to roster!');
     } catch (err) { showToast(err.message, 'error'); }
   });
