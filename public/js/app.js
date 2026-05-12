@@ -504,19 +504,19 @@ function renderPipelineView() {
     </div>
 
     <div class="stat-cards">
-      <div class="stat-card">
+      <div class="stat-card stat-card-neutral">
         <div class="stat-value">${allCount}</div>
         <div class="stat-label">Active</div>
       </div>
-      <div class="stat-card">
-        <div class="stat-value accent">${inPipeline}</div>
+      <div class="stat-card stat-card-blue">
+        <div class="stat-value blue">${inPipeline}</div>
         <div class="stat-label">In Pipeline</div>
       </div>
-      <div class="stat-card">
+      <div class="stat-card stat-card-green">
         <div class="stat-value green">${counts.signed || 0}</div>
         <div class="stat-label">Signed</div>
       </div>
-      <div class="stat-card">
+      <div class="stat-card stat-card-muted">
         <div class="stat-value muted">${counts.archived || 0}</div>
         <div class="stat-label">Archived</div>
       </div>
