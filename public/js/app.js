@@ -536,9 +536,9 @@ function renderPipelineView() {
         <div class="stat-value green">${counts.signed || 0}</div>
         <div class="stat-label">Signed</div>
       </div>
-      <div class="stat-card stat-card-muted">
-        <div class="stat-value muted">${counts.archived || 0}</div>
-        <div class="stat-label">Archived</div>
+      <div class="stat-card stat-card-red ${(counts.replied||0) > 0 ? 'stat-card-red-active' : ''}" style="cursor:${(counts.replied||0)>0?'pointer':'default'}" onclick="${(counts.replied||0)>0?`setOutreachFilter('replied')`:''}">
+        <div class="stat-value red">${counts.replied || 0}</div>
+        <div class="stat-label">Need Reply${(counts.replied||0)>0?' ↗':''}</div>
       </div>
     </div>
 

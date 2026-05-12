@@ -383,6 +383,7 @@ body {
 .stat-value.accent { color: var(--accent); }
 .stat-value.green  { color: var(--green); }
 .stat-value.blue   { color: var(--blue); }
+.stat-value.red    { color: var(--red); }
 .stat-value.muted  { color: var(--text-muted); }
 
 /* Colored stat cards */
@@ -390,6 +391,12 @@ body {
 .stat-card-blue    { border-top: 2px solid var(--blue);  background: rgba(96,165,250,0.04); }
 .stat-card-green   { border-top: 2px solid var(--green); background: rgba(74,222,128,0.04); }
 .stat-card-muted   { border-top: 2px solid var(--border); }
+.stat-card-red     { border-top: 2px solid var(--border); transition: background 0.15s, border-color 0.15s; }
+.stat-card-red-active {
+  border-top: 2px solid var(--red);
+  background: rgba(248,113,113,0.06);
+}
+.stat-card-red-active:hover { background: rgba(248,113,113,0.1); }
 
 .stat-label {
   font-size: 12px;
