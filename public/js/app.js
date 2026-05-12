@@ -2245,32 +2245,29 @@ function renderRosterDetailPanel() {
       <div class="dp-signed-grid">
         <div class="dp-form-group">
           <label># Videos</label>
-          <input type="number" class="dp-input" value="${r.video_count || ''}" placeholder="e.g. 5"
-            onblur="saveRosterField('${r.id}','video_count',this.value)">
+          <input type="number" class="dp-input" id="rs-deal-count" value="${r.video_count || ''}" placeholder="e.g. 5">
         </div>
         <div class="dp-form-group">
           <label>Total Deal</label>
           <div class="dp-input-money">
             <span class="dp-money-prefix">$</span>
-            <input type="number" class="dp-input"
+            <input type="number" class="dp-input" id="rs-deal-total"
               value="${r.per_vid_rate && r.video_count ? Math.round(parseFloat(r.per_vid_rate) * parseInt(r.video_count)) : ''}"
-              placeholder="e.g. 1000"
-              onblur="saveRosterDealTotal('${r.id}', this.value)">
+              placeholder="e.g. 1000">
           </div>
-          ${r.per_vid_rate && r.video_count ? `<div class="dp-rate-per-vid">${fmt$(r.per_vid_rate)}/vid</div>` : ''}
+          ${r.per_vid_rate && r.video_count ? `<div class="dp-rate-per-vid" id="rs-deal-rate-hint">${fmt$(r.per_vid_rate)}/vid</div>` : '<div class="dp-rate-per-vid" id="rs-deal-rate-hint"></div>'}
         </div>
         <div class="dp-form-group">
           <label>Start Date</label>
-          <input type="date" class="dp-input" value="${startISO}"
-            onblur="saveRosterField('${r.id}','start_date',this.value)">
+          <input type="date" class="dp-input" id="rs-deal-start" value="${startISO}">
         </div>
         <div class="dp-form-group">
           <label>End Date</label>
-          <input type="date" class="dp-input" value="${endISO}"
-            onblur="saveRosterField('${r.id}','end_date',this.value)">
+          <input type="date" class="dp-input" id="rs-deal-end" value="${r.end_date ? r.end_date.split('T')[0] : endISO}">
         </div>
       </div>
-      ${total > 0 ? `<div class="dp-deal-summary"><b>${r.video_count} videos</b> for <b>${fmt$(total)}</b> <span style="color:var(--text-muted);font-weight:400">&nbsp;·&nbsp; ${fmt$(r.per_vid_rate)}/vid</span></div>` : ''}
+      ${total > 0 ? `<div class="dp-deal-summary" id="rs-deal-summary"><b>${r.video_count} videos</b> for <b>${fmt$(total)}</b> <span style="color:var(--text-muted);font-weight:400">&nbsp;·&nbsp; ${fmt$(r.per_vid_rate)}/vid</span></div>` : '<div class="dp-deal-summary" id="rs-deal-summary" style="display:none"></div>'}
+      <button class="dp-save-btn" id="rs-deal-save-btn" onclick="saveRosterDealSection('${r.id}')">Save Deal Details</button>
     </div>
 
     <!-- Posting Schedule (right after deal) -->
@@ -2300,25 +2297,23 @@ function renderRosterDetailPanel() {
       <div class="dp-signed-grid">
         <div class="dp-form-group">
           <label>Posts Submitted</label>
-          <input type="number" min="0" class="dp-input" value="${r.content_submitted || 0}"
-            onblur="saveRosterField('${r.id}','content_submitted',this.value)">
+          <input type="number" min="0" class="dp-input" id="rs-perf-posts" value="${r.content_submitted || 0}">
         </div>
         <div class="dp-form-group">
           <label>GMV Earned</label>
           <div class="dp-input-money">
             <span class="dp-money-prefix">$</span>
-            <input type="number" step="0.01" min="0" class="dp-input" value="${r.gmv || 0}"
-              onblur="saveRosterField('${r.id}','gmv',this.value)">
+            <input type="number" step="0.01" min="0" class="dp-input" id="rs-perf-gmv" value="${r.gmv || 0}">
           </div>
         </div>
         <div class="dp-form-group">
           <label>Commission Rate</label>
-          <input type="number" step="0.1" min="0" max="100" class="dp-input"
-            value="${r.commission_rate ?? 20}" placeholder="20"
-            onblur="saveRosterField('${r.id}','commission_rate',this.value)">
+          <input type="number" step="0.1" min="0" max="100" class="dp-input" id="rs-perf-commission"
+            value="${r.commission_rate ?? 20}" placeholder="20">
           <div class="dp-rate-per-vid">% organic · 10% on Spark Ads</div>
         </div>
       </div>
+      <button class="dp-save-btn" id="rs-perf-save-btn" onclick="saveRosterPerfSection('${r.id}')">Save Performance</button>
     </div>
 
     <!-- Content Style -->
@@ -2331,8 +2326,8 @@ function renderRosterDetailPanel() {
       </div>
       <div class="dp-section-hint">How they create — format, vibe, energy, what makes them work</div>
       <textarea class="dp-textarea rs-assessment-ta" id="rs-content-style"
-        placeholder="e.g. Casual get-ready-with-me style, lots of close-ups, speaks directly to camera, authentic and unfiltered, good at showing before/after..."
-        onblur="saveRosterField('${r.id}','content_style',this.value)">${esc(r.content_style || '')}</textarea>
+        placeholder="e.g. Casual get-ready-with-me style, lots of close-ups, speaks directly to camera, authentic and unfiltered, good at showing before/after...">${esc(r.content_style || '')}</textarea>
+      <button class="dp-save-btn" id="rs-style-save-btn" onclick="saveSectionField('${r.id}','content_style','rs-content-style','rs-style-save-btn')">Save</button>
     </div>
 
     <!-- BLC Vision -->
@@ -2345,8 +2340,8 @@ function renderRosterDetailPanel() {
       </div>
       <div class="dp-section-hint">How do we think she can succeed as a BLC affiliate?</div>
       <textarea class="dp-textarea rs-assessment-ta" id="rs-blc-vision"
-        placeholder="e.g. Her audience is exactly our demo — young women dealing with ingrowns. She should lead with the Ingrown Serum, do a before/after, and link in first comment..."
-        onblur="saveRosterField('${r.id}','creator_assessment',this.value)">${esc(r.creator_assessment || '')}</textarea>
+        placeholder="e.g. Her audience is exactly our demo — young women dealing with ingrowns. She should lead with the Ingrown Serum, do a before/after, and link in first comment...">${esc(r.creator_assessment || '')}</textarea>
+      <button class="dp-save-btn" id="rs-vision-save-btn" onclick="saveSectionField('${r.id}','creator_assessment','rs-blc-vision','rs-vision-save-btn')">Save</button>
     </div>
 
     <!-- Best Performing TikTok Shop Videos -->
@@ -2403,6 +2398,79 @@ async function saveOutreachDealTotal(outreachId, totalStr) {
   const count = parseInt(countEl?.value || r?.video_count || 0);
   if (!count) { showToast('Set # videos first', 'error'); return; }
   await updateOutreachField(outreachId, 'counter_offer_amount', total / count);
+}
+
+// Batch save helpers — read fields by ID, save in one PUT, flash button
+function _flashSaveBtn(btnId) {
+  const btn = document.getElementById(btnId);
+  if (!btn) return;
+  btn.textContent = 'Saved ✓';
+  btn.classList.add('dp-save-btn-done');
+  setTimeout(() => { btn.textContent = btn.dataset.label || 'Save'; btn.classList.remove('dp-save-btn-done'); }, 1800);
+}
+
+async function saveRosterDealSection(rosterId) {
+  const countVal = document.getElementById('rs-deal-count')?.value;
+  const totalVal = document.getElementById('rs-deal-total')?.value;
+  const startVal = document.getElementById('rs-deal-start')?.value;
+  const endVal   = document.getElementById('rs-deal-end')?.value;
+
+  const videoCount = parseInt(countVal);
+  const dealTotal  = parseFloat(totalVal);
+
+  if (totalVal && !isNaN(dealTotal) && (!countVal || isNaN(videoCount))) {
+    showToast('Set # videos first', 'error'); return;
+  }
+
+  const updates = {};
+  if (!isNaN(videoCount) && countVal) updates.video_count = videoCount;
+  if (!isNaN(dealTotal)  && totalVal) updates.per_vid_rate = (updates.video_count || videoCount) ? dealTotal / (updates.video_count || videoCount) : null;
+  if (startVal) updates.start_date = startVal;
+  if (endVal)   updates.end_date   = endVal;
+
+  try {
+    const rec = await fetchAPI(`${API.roster}/${rosterId}`, { method: 'PUT', body: JSON.stringify(updates) });
+    const i = state.roster.findIndex(x => x.id === rosterId);
+    if (i !== -1) state.roster[i] = rec;
+    // Refresh the summary line and rate hint
+    const newTotal = (parseFloat(rec.per_vid_rate) || 0) * (parseInt(rec.video_count) || 0);
+    const summaryEl = document.getElementById('rs-deal-summary');
+    const hintEl    = document.getElementById('rs-deal-rate-hint');
+    if (summaryEl && newTotal > 0) {
+      summaryEl.style.display = '';
+      summaryEl.innerHTML = `<b>${rec.video_count} videos</b> for <b>${fmt$(newTotal)}</b> <span style="color:var(--text-muted);font-weight:400">&nbsp;·&nbsp; ${fmt$(rec.per_vid_rate)}/vid</span>`;
+    }
+    if (hintEl && rec.per_vid_rate) hintEl.textContent = `${fmt$(rec.per_vid_rate)}/vid`;
+    _flashSaveBtn('rs-deal-save-btn');
+  } catch (err) { showToast(err.message, 'error'); }
+}
+
+async function saveRosterPerfSection(rosterId) {
+  const posts      = document.getElementById('rs-perf-posts')?.value;
+  const gmv        = document.getElementById('rs-perf-gmv')?.value;
+  const commission = document.getElementById('rs-perf-commission')?.value;
+
+  const updates = {};
+  if (posts      !== undefined) updates.content_submitted = posts      !== '' ? parseInt(posts)           : null;
+  if (gmv        !== undefined) updates.gmv               = gmv        !== '' ? parseFloat(gmv)           : null;
+  if (commission !== undefined) updates.commission_rate   = commission !== '' ? parseFloat(commission)     : null;
+
+  try {
+    const rec = await fetchAPI(`${API.roster}/${rosterId}`, { method: 'PUT', body: JSON.stringify(updates) });
+    const i = state.roster.findIndex(x => x.id === rosterId);
+    if (i !== -1) state.roster[i] = rec;
+    _flashSaveBtn('rs-perf-save-btn');
+  } catch (err) { showToast(err.message, 'error'); }
+}
+
+async function saveSectionField(rosterId, field, textareaId, btnId) {
+  const value = document.getElementById(textareaId)?.value ?? '';
+  try {
+    const rec = await fetchAPI(`${API.roster}/${rosterId}`, { method: 'PUT', body: JSON.stringify({ [field]: value || null }) });
+    const i = state.roster.findIndex(x => x.id === rosterId);
+    if (i !== -1) state.roster[i] = rec;
+    _flashSaveBtn(btnId);
+  } catch (err) { showToast(err.message, 'error'); }
 }
 
 function _addVideoToList(rosterId, field, inputId, listId, removeFn) {
