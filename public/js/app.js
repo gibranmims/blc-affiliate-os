@@ -1030,10 +1030,16 @@ function renderDetailPanel() {
           : (gradeInfo(r.tier || autoTier) ? `Suggested: ${fmt$((gradeInfo(r.tier || autoTier) || {}).perVid)}/vid` : '')
       }</div>
 
-      <button class="btn btn-primary dp-gen-counter-btn" id="dp-gen-counter-btn"
-        onclick="generateCounterOffer('${r.id}')">
-        Generate Counter Message
-      </button>
+      <div class="dp-counter-btn-row">
+        <button class="btn dp-counter-btn-generate" id="dp-gen-counter-btn"
+          onclick="generateCounterOffer('${r.id}')">
+          Generate Counter Message
+        </button>
+        <button class="btn dp-counter-btn-draft" id="dp-send-counter-btn"
+          onclick="sendCounterForReview('${r.id}')">
+          Send Counter for Review
+        </button>
+      </div>
 
       ${r.counter_offer_email ? `
       <div class="dp-counter-preview">
@@ -1359,6 +1365,54 @@ async function generateCounterOffer(id) {
   } catch (err) {
     showToast(err.message, 'error');
     if (btn) { btn.disabled = false; btn.textContent = 'Generate Counter Message'; }
+  }
+}
+
+async function sendCounterForReview(id) {
+  const r = state.outreach.find(x => x.id === id);
+  if (!r) return;
+
+  // Need a generated message first — generate inline if missing
+  let emailBody = r.counter_offer_email;
+  if (!emailBody) {
+    const videos = parseInt(document.getElementById('dp-counter-videos')?.value);
+    const total  = parseFloat(document.getElementById('dp-counter-total')?.value);
+    if (!videos || !total) { showToast('Enter # videos and total offer first', 'error'); return; }
+    // Generate the message first
+    await generateCounterOffer(id);
+    const updated = state.outreach.find(x => x.id === id);
+    emailBody = updated?.counter_offer_email;
+    if (!emailBody) return; // generateCounterOffer will have shown an error
+  }
+
+  const btn = document.getElementById('dp-send-counter-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Creating draft…'; }
+
+  try {
+    await fetchAPI(`${API.outreachGen}/counter-offer-draft`, {
+      method: 'POST',
+      body: JSON.stringify({
+        outreachId:    id,
+        emailBody,
+        creatorEmail:  r.email,
+        creatorName:   r.name,
+        creatorHandle: r.handle
+      })
+    });
+
+    // Update status + state
+    const saved = await fetchAPI(`${API.outreach}/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ status: 'counter_offered' })
+    });
+    const i = state.outreach.findIndex(x => x.id === id);
+    if (i !== -1) state.outreach[i] = saved;
+    renderDetailPanel();
+    renderOutreachPage();
+    showToast('Counter offer draft created in Gmail ✓');
+  } catch (err) {
+    showToast(err.message, 'error');
+    if (btn) { btn.disabled = false; btn.textContent = 'Send Counter for Review'; }
   }
 }
 

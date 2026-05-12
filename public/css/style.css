@@ -2327,6 +2327,50 @@ body {
 .filter-tabs .filter-tab-archive.active { color: var(--red); background: var(--red-dim); }
 .filter-tabs .filter-tab-archive.active .filter-count { background: rgba(248,113,113,0.2); color: var(--red); }
 
+/* Counter offer two-button row */
+.dp-counter-btn-row {
+  display: flex;
+  gap: 10px;
+  margin-top: 4px;
+}
+.dp-counter-btn-generate {
+  flex: 1;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 8px;
+  border: 1.5px solid var(--green);
+  background: rgba(74,222,128,0.12);
+  color: var(--green);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.dp-counter-btn-generate:hover:not(:disabled) {
+  background: var(--green);
+  color: #0d1117;
+}
+.dp-counter-btn-draft {
+  flex: 1;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 8px;
+  border: 1.5px solid var(--red);
+  background: rgba(248,113,113,0.12);
+  color: var(--red);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.dp-counter-btn-draft:hover:not(:disabled) {
+  background: var(--red);
+  color: #fff;
+}
+.dp-counter-btn-generate:disabled,
+.dp-counter-btn-draft:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 /* ============================================================
    SIGNED SECTION IN DETAIL PANEL
    ============================================================ */

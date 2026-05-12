@@ -316,6 +316,55 @@ Rules:
   }
 });
 
+// POST /api/outreach-gen/counter-offer-draft
+// Generates counter offer email (or uses existing) then creates a Gmail draft
+router.post('/counter-offer-draft', async (req, res) => {
+  if (!gmailTokens) return res.status(401).json({ error: 'Connect Gmail first' });
+
+  const { outreachId, emailBody, creatorEmail, creatorName, creatorHandle } = req.body;
+  if (!emailBody) return res.status(400).json({ error: 'emailBody required' });
+
+  try {
+    const subject = `Re: ${creatorName || creatorHandle || 'Collaboration'} x The Bikini Line Co.`;
+    const mimeMsg = [
+      `MIME-Version: 1.0`,
+      creatorEmail ? `To: ${creatorEmail}` : `To: `,
+      `Subject: ${subject}`,
+      `Content-Type: text/plain; charset=UTF-8`,
+      ``,
+      emailBody
+    ].join('\r\n');
+
+    const gmailAuth = getOAuthClient();
+    gmailAuth.setCredentials(gmailTokens);
+    if (gmailTokens.expiry_date && gmailTokens.expiry_date < Date.now() + 60_000) {
+      const { credentials } = await gmailAuth.refreshAccessToken();
+      gmailTokens = credentials;
+      await persistTokens(gmailTokens, gmailEmail);
+      gmailAuth.setCredentials(credentials);
+    }
+
+    const gmail = google.gmail({ version: 'v1', auth: gmailAuth });
+    const rawEncoded = Buffer.from(mimeMsg)
+      .toString('base64')
+      .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+
+    await gmail.users.drafts.create({
+      userId: 'me',
+      requestBody: { message: { raw: rawEncoded } }
+    });
+
+    // Update outreach status to counter_offered if not already
+    if (outreachId) {
+      await supabase.from('outreach').update({ status: 'counter_offered' }).eq('id', outreachId);
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // POST /api/outreach-gen/create-contract
 router.post('/create-contract', async (req, res) => {
   const activeTokens = driveTokens || gmailTokens;
