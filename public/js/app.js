@@ -1042,18 +1042,22 @@ function renderDetailPanel() {
       <div class="dp-section-label">Deal Details</div>
       <div class="dp-signed-grid">
         <div class="dp-form-group">
-          <label>Rate per video ($)</label>
-          <input type="number" class="dp-input" id="dp-final-rate"
-            value="${r.counter_offer_amount || ''}"
-            placeholder="e.g. 150"
-            onblur="updateOutreachField('${r.id}', 'counter_offer_amount', this.value)">
-        </div>
-        <div class="dp-form-group">
-          <label>Number of videos</label>
+          <label># Videos</label>
           <input type="number" class="dp-input" id="dp-video-count"
             value="${r.video_count || ''}"
-            placeholder="e.g. 4"
+            placeholder="e.g. 5"
             onblur="updateOutreachField('${r.id}', 'video_count', this.value)">
+        </div>
+        <div class="dp-form-group">
+          <label>Total Deal</label>
+          <div class="dp-input-money">
+            <span class="dp-money-prefix">$</span>
+            <input type="number" class="dp-input" id="dp-deal-total"
+              value="${r.counter_offer_amount && r.video_count ? Math.round(parseFloat(r.counter_offer_amount) * parseInt(r.video_count)) : ''}"
+              placeholder="e.g. 700"
+              onblur="saveOutreachDealTotal('${r.id}', this.value)">
+          </div>
+          ${r.counter_offer_amount && r.video_count ? `<div class="dp-rate-per-vid">${fmt$(r.counter_offer_amount)}/vid</div>` : ''}
         </div>
       </div>
       <div class="dp-form-group">
@@ -1065,7 +1069,8 @@ function renderDetailPanel() {
       </div>
       ${r.counter_offer_amount && r.video_count ? `
         <div class="dp-deal-summary">
-          <span>Total deal: <strong>${fmt$(parseFloat(r.counter_offer_amount) * parseInt(r.video_count))}</strong></span>
+          <b>${r.video_count} videos</b> for <b>${fmt$(parseFloat(r.counter_offer_amount) * parseInt(r.video_count))}</b>
+          <span style="color:var(--text-muted);font-weight:400">&nbsp;·&nbsp; ${fmt$(r.counter_offer_amount)}/vid</span>
         </div>` : ''}
 
       ${(() => {
@@ -1405,17 +1410,19 @@ async function generateContractAndMoveToRoster(id) {
   const r = state.outreach.find(x => x.id === id);
   if (!r) return;
 
-  const rateEl  = document.getElementById('dp-final-rate');
+  const totalEl = document.getElementById('dp-deal-total');
   const countEl = document.getElementById('dp-video-count');
   const dateEl  = document.getElementById('dp-start-date');
 
-  const rate       = parseFloat(rateEl?.value || r.counter_offer_amount);
   const videoCount = parseInt(countEl?.value   || r.video_count);
+  const dealTotal  = parseFloat(totalEl?.value || (r.counter_offer_amount && r.video_count ? parseFloat(r.counter_offer_amount) * parseInt(r.video_count) : ''));
   const startDate  = dateEl?.value             || (r.start_date ? r.start_date.split('T')[0] : '');
 
-  if (!rate || isNaN(rate))             { showToast('Enter rate per video first', 'error'); return; }
   if (!videoCount || isNaN(videoCount)) { showToast('Enter number of videos first', 'error'); return; }
+  if (!dealTotal  || isNaN(dealTotal))  { showToast('Enter total deal amount first', 'error'); return; }
   if (!startDate)                        { showToast('Enter start date first', 'error'); return; }
+
+  const rate = dealTotal / videoCount;
 
   const btn = document.getElementById('dp-contract-btn');
   if (btn) { btn.disabled = true; btn.textContent = 'Working on it…'; }
@@ -2242,12 +2249,15 @@ function renderRosterDetailPanel() {
             onblur="saveRosterField('${r.id}','video_count',this.value)">
         </div>
         <div class="dp-form-group">
-          <label>Rate / Video</label>
+          <label>Total Deal</label>
           <div class="dp-input-money">
             <span class="dp-money-prefix">$</span>
-            <input type="number" class="dp-input" value="${r.per_vid_rate || ''}" placeholder="e.g. 200"
-              onblur="saveRosterField('${r.id}','per_vid_rate',this.value)">
+            <input type="number" class="dp-input"
+              value="${r.per_vid_rate && r.video_count ? Math.round(parseFloat(r.per_vid_rate) * parseInt(r.video_count)) : ''}"
+              placeholder="e.g. 1000"
+              onblur="saveRosterDealTotal('${r.id}', this.value)">
           </div>
+          ${r.per_vid_rate && r.video_count ? `<div class="dp-rate-per-vid">${fmt$(r.per_vid_rate)}/vid</div>` : ''}
         </div>
         <div class="dp-form-group">
           <label>Start Date</label>
@@ -2260,7 +2270,7 @@ function renderRosterDetailPanel() {
             onblur="saveRosterField('${r.id}','end_date',this.value)">
         </div>
       </div>
-      ${total > 0 ? `<div class="dp-deal-summary">Total flat: <b>${fmt$(total)}</b> &nbsp;·&nbsp; ${r.video_count} videos @ ${fmt$(r.per_vid_rate)}/vid</div>` : ''}
+      ${total > 0 ? `<div class="dp-deal-summary"><b>${r.video_count} videos</b> for <b>${fmt$(total)}</b> <span style="color:var(--text-muted);font-weight:400">&nbsp;·&nbsp; ${fmt$(r.per_vid_rate)}/vid</span></div>` : ''}
     </div>
 
     <!-- Posting Schedule (right after deal) -->
@@ -2373,6 +2383,25 @@ async function saveRosterField(id, field, value) {
   } catch (err) {
     showToast(err.message, 'error');
   }
+}
+
+async function saveRosterDealTotal(rosterId, totalStr) {
+  const total = parseFloat(totalStr);
+  if (!total || isNaN(total)) return;
+  const r = state.roster.find(x => x.id === rosterId);
+  const count = r ? parseInt(r.video_count) : 0;
+  if (!count) { showToast('Set # videos first', 'error'); return; }
+  await saveRosterField(rosterId, 'per_vid_rate', total / count);
+}
+
+async function saveOutreachDealTotal(outreachId, totalStr) {
+  const total = parseFloat(totalStr);
+  if (!total || isNaN(total)) return;
+  const countEl = document.getElementById('dp-video-count');
+  const r = state.outreach.find(x => x.id === outreachId);
+  const count = parseInt(countEl?.value || r?.video_count || 0);
+  if (!count) { showToast('Set # videos first', 'error'); return; }
+  await updateOutreachField(outreachId, 'counter_offer_amount', total / count);
 }
 
 function _addVideoToList(rosterId, field, inputId, listId, removeFn) {
