@@ -2320,10 +2320,12 @@ body {
   margin-left: 6px;
   padding-left: 16px !important;
   border-left: 1px solid var(--border);
-  opacity: 0.45;
+  color: rgba(248,113,113,0.6);
 }
-.filter-tab-archive:hover { opacity: 0.75; }
-.filter-tab-archive.active { opacity: 1; color: var(--text-muted); }
+.filter-tab-archive .filter-count { color: rgba(248,113,113,0.6); }
+.filter-tab-archive:hover { color: var(--red); }
+.filter-tab-archive.active { color: var(--red); background: var(--red-dim); }
+.filter-tab-archive.active .filter-count { background: rgba(248,113,113,0.2); color: var(--red); }
 
 /* ============================================================
    SIGNED SECTION IN DETAIL PANEL
