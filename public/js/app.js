@@ -1174,6 +1174,7 @@ async function updateOutreachField(id, field, value) {
     const i = state.outreach.findIndex(x => x.id === id);
     if (i !== -1) state.outreach[i] = rec;
     renderDetailPanel();
+    if (field === 'status') renderOutreachPage();
   } catch (err) {
     showToast(err.message, 'error');
   }
