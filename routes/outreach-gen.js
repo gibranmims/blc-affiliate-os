@@ -607,7 +607,7 @@ router.post('/sign-flow', async (req, res) => {
       niche:              (r.product_category || '').split(',')[0].trim() || null,
       followers:          r.follower_count || null,
       email:              r.email || null,
-      status:             'active',
+      status:             'onboarding',
       tier:               r.tier || null,
       video_count:        videoCount,
       start_date:         startDate,

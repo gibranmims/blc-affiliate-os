@@ -1063,32 +1063,33 @@ function renderDetailPanel() {
         </div>` : ''}
 
       ${(() => {
-        const alreadyOnboarded = state.roster.some(x =>
+        const rosterEntry = state.roster.find(x =>
           x.handle.toLowerCase() === r.handle.toLowerCase() && x.affiliate_type === 'paid'
         );
-        if (alreadyOnboarded) {
+        if (rosterEntry) {
           const deposit = r.counter_offer_amount && r.video_count
             ? parseFloat(r.counter_offer_amount) * parseInt(r.video_count) / 2 : null;
+          const statusLabel = rosterEntry.status === 'onboarding' ? 'Onboarding in progress' : 'Onboarded — active';
           return `
           <div style="display:flex;align-items:center;gap:8px;margin-top:14px;padding:12px 14px;background:var(--green-dim);border:1px solid rgba(74,222,128,0.2);border-radius:var(--radius-sm);">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-            <span style="font-size:13px;font-weight:600;color:var(--green);">Onboarded — contract sent</span>
+            <span style="font-size:13px;font-weight:600;color:var(--green);">${statusLabel} — contract sent</span>
           </div>
-          ${deposit && !r.payment_sent ? `
+          ${deposit && !rosterEntry.payment_sent ? `
           <div class="payment-block payment-block-pending" style="margin-top:10px;">
             <div class="payment-block-top">
               <div>
                 <div class="payment-block-label">50% deposit due after invoice</div>
                 <div class="payment-block-amount">${fmt$(deposit)}</div>
               </div>
-              <button class="payment-mark-btn" onclick="markPaymentSent('${r.id}')">Mark Paid</button>
+              <button class="payment-mark-btn" onclick="markRosterField('${rosterEntry.id}', 'payment_sent', true)">Mark Paid</button>
             </div>
             <div class="payment-block-hint">Also tracked in <strong>For Review</strong></div>
           </div>` : ''}
-          ${r.payment_sent ? `
+          ${rosterEntry.payment_sent ? `
           <div style="display:flex;align-items:center;gap:8px;margin-top:10px;padding:10px 14px;background:var(--green-dim);border:1px solid rgba(74,222,128,0.2);border-radius:var(--radius-sm);">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-            <span style="font-size:13px;font-weight:600;color:var(--green);">Deposit paid ${r.payment_sent_date ? fmtDateShort(r.payment_sent_date) : ''}</span>
+            <span style="font-size:13px;font-weight:600;color:var(--green);">Deposit paid ${rosterEntry.payment_sent_date ? fmtDateShort(rosterEntry.payment_sent_date) : ''}</span>
           </div>` : ''}`;
         }
         return `
@@ -3122,46 +3123,66 @@ function copyOutput(id) {
 // ============================================================
 
 function reviewPendingPayments() {
-  return state.outreach.filter(r =>
-    r.status === 'signed' &&
-    !r.payment_sent &&
-    r.counter_offer_amount &&
-    r.video_count &&
-    // only show if creator is already in roster (onboarding complete)
-    state.roster.some(x => x.handle.toLowerCase() === r.handle.toLowerCase() && x.affiliate_type === 'paid')
+  // Pulls from roster onboarding entries where deposit hasn't been paid
+  return state.roster.filter(r =>
+    r.status === 'onboarding' && !r.payment_sent && r.per_vid_rate && r.video_count
   );
 }
 
-function reviewPendingBriefs() {
+function reviewPendingSerum() {
+  return state.roster.filter(r => r.status === 'onboarding' && !r.serum_shipped);
+}
+
+function reviewPendingAssets() {
+  // Only surfaces after serum is shipped (so posting schedule dates are real)
   return state.roster.filter(r =>
-    r.affiliate_type !== 'free' &&
-    r.status === 'active' &&
-    (!r.posting_schedule || r.posting_schedule.length === 0)
+    r.status === 'onboarding' &&
+    r.serum_shipped &&
+    !(r.brief_sent && r.creative_angles_sent && r.posting_schedule_confirmed)
   );
 }
 
 function reviewCount() {
-  return reviewPendingPayments().length + reviewPendingBriefs().length;
+  return reviewPendingPayments().length + reviewPendingSerum().length + reviewPendingAssets().length;
 }
 
 function updateReviewBadge() {
-  const count  = reviewCount();
-  const badge  = document.getElementById('review-badge');
+  const count = reviewCount();
+  const badge = document.getElementById('review-badge');
   if (!badge) return;
-  badge.textContent    = count;
-  badge.style.display  = count > 0 ? '' : 'none';
+  badge.textContent   = count;
+  badge.style.display = count > 0 ? '' : 'none';
+}
+
+// Calculate posting schedule: 2 videos/week starting from serum arrival (+10 days)
+function calcPostingSchedule(serumShipDate, videoCount) {
+  if (!serumShipDate || !videoCount) return [];
+  const arrival = new Date(serumShipDate + 'T00:00:00');
+  arrival.setDate(arrival.getDate() + 10);
+  const dates = [];
+  for (let i = 0; i < parseInt(videoCount); i++) {
+    const d = new Date(arrival);
+    // 2 per week: video 0 on arrival, video 1 on +3d, video 2 on +7d, video 3 on +10d …
+    const offset = Math.floor(i / 2) * 7 + (i % 2) * 3;
+    d.setDate(d.getDate() + offset);
+    dates.push(d.toISOString().split('T')[0]);
+  }
+  return dates;
 }
 
 function renderForReviewPage() {
   const payments = reviewPendingPayments();
-  const briefs   = reviewPendingBriefs();
-  const total    = payments.length + briefs.length;
+  const serum    = reviewPendingSerum();
+  const assets   = reviewPendingAssets();
+  const total    = payments.length + serum.length + assets.length;
 
   document.getElementById('page-content').innerHTML = `
     <div class="page-header">
       <div>
         <h1 class="page-title">For Review</h1>
-        <p class="page-subtitle">${total === 0 ? 'All caught up — nothing needs your attention' : `${total} item${total !== 1 ? 's' : ''} need${total === 1 ? 's' : ''} your attention`}</p>
+        <p class="page-subtitle">${total === 0
+          ? 'All caught up — nothing needs your attention'
+          : `${total} item${total !== 1 ? 's' : ''} need${total === 1 ? 's' : ''} your attention`}</p>
       </div>
     </div>
 
@@ -3174,60 +3195,121 @@ function renderForReviewPage() {
       ${payments.length === 0
         ? `<div class="review-empty">No pending payments — all clear ✓</div>`
         : payments.map(r => {
-            const total   = parseFloat(r.counter_offer_amount) * parseInt(r.video_count);
-            const half    = total / 2;
+            const deal = parseFloat(r.per_vid_rate) * parseInt(r.video_count);
+            const half = deal / 2;
             return `
-            <div class="review-card">
-              <div class="review-card-main">
-                <div class="review-card-name">${esc(r.name || r.handle)}</div>
-                <div class="review-card-sub">@${esc(r.handle)} · ${r.video_count} video deal · ${fmt$(parseFloat(r.counter_offer_amount))}/vid</div>
+            <div class="review-card review-card-column">
+              <div class="review-card-row">
+                <div class="review-card-main">
+                  <div class="review-card-name">${esc(r.name || r.handle)}</div>
+                  <div class="review-card-sub">@${esc(r.handle)} · ${r.video_count} video deal · ${fmt$(r.per_vid_rate)}/vid</div>
+                </div>
+                <div class="review-card-amount">
+                  <div class="review-amount-value">${fmt$(half)}</div>
+                  <div class="review-amount-hint">50% deposit</div>
+                </div>
               </div>
-              <div class="review-card-amount">
-                <div class="review-amount-value">${fmt$(half)}</div>
-                <div class="review-amount-hint">50% deposit · waiting on invoice</div>
+              <div class="review-card-actions">
+                <button class="review-toggle-btn ${r.invoice_received ? 'review-toggle-on' : ''}"
+                  onclick="markRosterField('${r.id}', 'invoice_received', ${!r.invoice_received})">
+                  ${r.invoice_received ? '✓ Invoice received' : 'Mark invoice received'}
+                </button>
+                <button class="btn btn-primary btn-sm" onclick="markRosterField('${r.id}', 'payment_sent', true)">
+                  Mark Paid
+                </button>
               </div>
-              <button class="btn btn-primary btn-sm" onclick="markPaymentSentFromReview('${r.id}')">Mark Paid</button>
             </div>`;
           }).join('')
       }
     </div>
 
-    <!-- Content Briefs Needed -->
+    <!-- Serum Shipment Needed -->
     <div class="review-section">
       <div class="review-section-header">
-        <span class="review-section-title">📋 Content Briefs Needed</span>
-        ${briefs.length > 0 ? `<span class="review-section-count">${briefs.length}</span>` : ''}
+        <span class="review-section-title">📦 Serum Shipment Needed</span>
+        ${serum.length > 0 ? `<span class="review-section-count">${serum.length}</span>` : ''}
       </div>
-      ${briefs.length === 0
-        ? `<div class="review-empty">All active creators have posting schedules set ✓</div>`
-        : briefs.map(r => `
+      ${serum.length === 0
+        ? `<div class="review-empty">All serums shipped ✓</div>`
+        : serum.map(r => `
             <div class="review-card">
               <div class="review-card-main">
                 <div class="review-card-name">${esc(r.name || r.handle)}</div>
-                <div class="review-card-sub">@${esc(r.handle)}${r.start_date ? ` · Starts ${fmtDateShort(r.start_date)}` : ''}${r.tier ? ` · Grade ${r.tier}` : ''}</div>
+                <div class="review-card-sub">@${esc(r.handle)} · ${r.video_count || '?'} video deal · BBL Serum needed</div>
               </div>
-              <div style="flex-shrink:0;font-size:12px;color:var(--text-muted);text-align:right;">
-                No posting schedule set
-              </div>
-              <button class="btn btn-secondary btn-sm" onclick="openRosterCreatorFromReview('${r.id}')">Open in Roster →</button>
+              <button class="btn btn-primary btn-sm" onclick="markRosterField('${r.id}', 'serum_shipped', true)">
+                Mark Shipped
+              </button>
             </div>`
           ).join('')
+      }
+    </div>
+
+    <!-- Creative Assets Needed -->
+    <div class="review-section">
+      <div class="review-section-header">
+        <span class="review-section-title">🎬 Creative Assets Needed</span>
+        ${assets.length > 0 ? `<span class="review-section-count">${assets.length}</span>` : ''}
+      </div>
+      ${assets.length === 0
+        ? `<div class="review-empty">${serum.length > 0 ? 'Waiting on serum shipments before scheduling' : 'All creative assets sent ✓'}</div>`
+        : assets.map(r => {
+            const schedule = calcPostingSchedule(r.serum_ship_date, r.video_count);
+            const arrivalDate = r.serum_ship_date
+              ? (() => { const d = new Date(r.serum_ship_date + 'T00:00:00'); d.setDate(d.getDate()+10); return fmtDateShort(d.toISOString().split('T')[0]); })()
+              : null;
+            return `
+            <div class="review-card review-card-column">
+              <div class="review-card-row">
+                <div class="review-card-main">
+                  <div class="review-card-name">${esc(r.name || r.handle)}</div>
+                  <div class="review-card-sub">@${esc(r.handle)} · ${r.video_count} video deal${arrivalDate ? ` · Serum arrives ~${arrivalDate}` : ''}</div>
+                </div>
+              </div>
+              ${schedule.length > 0 ? `
+              <div class="review-schedule">
+                <div class="review-schedule-label">Auto-generated posting schedule (2/week)</div>
+                <div class="review-schedule-dates">
+                  ${schedule.map((d, i) => `<span class="review-schedule-chip">Vid ${i+1}: ${fmtDateShort(d)}</span>`).join('')}
+                </div>
+              </div>` : ''}
+              <div class="review-checklist">
+                <label class="review-check-item ${r.brief_sent ? 'review-check-done' : ''}">
+                  <input type="checkbox" ${r.brief_sent ? 'checked' : ''}
+                    onchange="markRosterField('${r.id}', 'brief_sent', this.checked)">
+                  Content brief sent
+                </label>
+                <label class="review-check-item ${r.creative_angles_sent ? 'review-check-done' : ''}">
+                  <input type="checkbox" ${r.creative_angles_sent ? 'checked' : ''}
+                    onchange="markRosterField('${r.id}', 'creative_angles_sent', this.checked)">
+                  Creative angles sent (${r.video_count || '?'} angles)
+                </label>
+                <label class="review-check-item ${r.posting_schedule_confirmed ? 'review-check-done' : ''}">
+                  <input type="checkbox" ${r.posting_schedule_confirmed ? 'checked' : ''}
+                    onchange="markRosterField('${r.id}', 'posting_schedule_confirmed', this.checked)">
+                  Posting schedule confirmed
+                </label>
+              </div>
+            </div>`;
+          }).join('')
       }
     </div>
   `;
 }
 
-async function markPaymentSentFromReview(id) {
+async function markRosterField(rosterId, field, value) {
   try {
-    const rec = await fetchAPI(`${API.outreach}/${id}`, {
+    const rec = await fetchAPI(`${API.roster}/${rosterId}`, {
       method: 'PUT',
-      body: JSON.stringify({ payment_sent: true })
+      body: JSON.stringify({ [field]: value })
     });
-    const i = state.outreach.findIndex(x => x.id === id);
-    if (i !== -1) state.outreach[i] = rec;
+    const i = state.roster.findIndex(x => x.id === rosterId);
+    if (i !== -1) state.roster[i] = rec;
     updateReviewBadge();
+    if (rec.status === 'active' && state.roster[i]?.status === 'onboarding') {
+      showToast(`${rec.name || rec.handle} graduated to Active! 🎉`);
+    }
     renderForReviewPage();
-    showToast('Payment marked as paid ✓');
   } catch (err) {
     showToast(err.message, 'error');
   }
@@ -3237,7 +3319,6 @@ function openRosterCreatorFromReview(id) {
   state.rosterTab = 'paid';
   state.activeRosterId = id;
   navigate('roster');
-  // Small delay to let the page render before opening drawer
   setTimeout(() => openRosterDetail(id), 80);
 }
 
