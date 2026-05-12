@@ -620,17 +620,20 @@ router.post('/sign-flow', async (req, res) => {
       creator_assessment: null
     };
 
-    const { data: existing } = await supabase
+    const { data: existing, error: findErr } = await supabase
       .from('roster').select('id').ilike('handle', r.handle).maybeSingle();
+    if (findErr) throw new Error(`Roster lookup failed: ${findErr.message}`);
 
     let rosterEntry;
     if (existing?.id) {
-      const { data } = await supabase
+      const { data, error: updErr } = await supabase
         .from('roster').update(rosterData).eq('id', existing.id).select().single();
+      if (updErr) throw new Error(`Roster update failed: ${updErr.message}`);
       rosterEntry = data;
     } else {
-      const { data } = await supabase
+      const { data, error: insErr } = await supabase
         .from('roster').insert([rosterData]).select().single();
+      if (insErr) throw new Error(`Roster insert failed: ${insErr.message}`);
       rosterEntry = data;
     }
 
