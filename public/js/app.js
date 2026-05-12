@@ -770,7 +770,9 @@ function renderDetailPanel() {
           <div class="fu-step-dot ${r.followup1_sent ? 'fu-dot-sent' : 'fu-dot-pending'}"></div>
           <div class="fu-step-body">
             <div class="fu-step-label">Follow-up 1</div>
-            ${r.followup1_date ? `<div class="fu-step-date">${fmtDate(r.followup1_date)}</div>` : ''}
+            <input type="date" class="dp-input fu-date-input fu-date-editable"
+              value="${r.followup1_date || ''}"
+              onchange="updateOutreachField('${r.id}', 'followup1_date', this.value)">
           </div>
           <div class="fu-step-action">
             ${r.followup1_sent
@@ -789,7 +791,9 @@ function renderDetailPanel() {
           <div class="fu-step-dot ${r.followup2_sent ? 'fu-dot-sent' : r.followup1_sent ? 'fu-dot-pending' : 'fu-dot-locked'}"></div>
           <div class="fu-step-body">
             <div class="fu-step-label">Follow-up 2</div>
-            ${r.followup2_date ? `<div class="fu-step-date">${fmtDate(r.followup2_date)}</div>` : ''}
+            <input type="date" class="dp-input fu-date-input fu-date-editable"
+              value="${r.followup2_date || ''}"
+              onchange="updateOutreachField('${r.id}', 'followup2_date', this.value)">
           </div>
           <div class="fu-step-action">
             ${r.followup2_sent

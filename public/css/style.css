@@ -3156,6 +3156,16 @@ body {
   padding: 4px 8px !important;
   height: auto !important;
 }
+.fu-date-editable {
+  width: auto !important;
+  max-width: 130px;
+  cursor: pointer;
+  color: var(--text-secondary) !important;
+}
+.fu-date-editable:hover {
+  border-color: var(--border-light) !important;
+  color: var(--text-primary) !important;
+}
 
 .fu-step-action { flex-shrink: 0; }
 
