@@ -3537,9 +3537,9 @@ function copyOutput(id) {
 // ============================================================
 
 function reviewPendingPayments() {
-  // Pulls from roster onboarding entries where deposit hasn't been paid
+  // Pulls from roster onboarding entries where the 50% deposit hasn't been paid yet
   return state.roster.filter(r =>
-    r.status === 'onboarding' && !r.payment_sent && r.per_vid_rate && r.video_count
+    r.status === 'onboarding' && !r.invoice_received && r.per_vid_rate && r.video_count
   );
 }
 
@@ -3637,12 +3637,8 @@ function renderForReviewPage() {
                 </div>
               </div>
               <div class="review-card-actions">
-                <button class="review-toggle-btn ${r.invoice_received ? 'review-toggle-on' : ''}"
-                  onclick="markRosterField('${r.id}', 'invoice_received', ${!r.invoice_received})">
-                  ${r.invoice_received ? '✓ Invoice received' : 'Mark invoice received'}
-                </button>
-                <button class="btn btn-primary btn-sm" onclick="markRosterField('${r.id}', 'payment_sent', true)">
-                  Mark Paid
+                <button class="btn btn-primary btn-sm" onclick="markRosterField('${r.id}', 'invoice_received', true)">
+                  Mark 50% Paid
                 </button>
               </div>
             </div>`;
