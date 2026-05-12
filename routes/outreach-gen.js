@@ -540,7 +540,7 @@ router.post('/sign-flow', async (req, res) => {
       ``,
       `A few quick next steps to get you started:`,
       ``,
-      `1. Please send us an invoice for 50% of your first month's rate. You can send payment via PayPal or wire transfer, just let us know which you prefer.`,
+      `1. Please send us an invoice for 50% of your first month's rate. We can send payment via PayPal or wire transfer — just include your preferred payment details on the invoice.`,
       ``,
       `2. Also go ahead and send me your shipping address so we can get a fresh BBL Serum sent out to you. We want to make sure you have a new one to work with before you start posting.`,
       ``,
