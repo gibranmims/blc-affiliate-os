@@ -2152,13 +2152,22 @@ function renderRosterPage() {
                 ${isPaid ? `
                   <td>${r.tier ? `<span class="grade-badge grade-${r.tier}">${r.tier}</span>` : '—'}</td>
                   <td>${r.video_count && r.per_vid_rate
-                    ? `<span class="deal-cell">${r.video_count} vids · ${fmt$(r.per_vid_rate)}/vid</span>`
+                    ? `<span class="deal-cell">${r.video_count} vids · ${fmt$(parseFloat(r.per_vid_rate) * parseInt(r.video_count))}</span>`
                     : `<span class="deal-cell-none">No deal</span>`}</td>
                   <td>${startFmt}</td>
                 ` : `<td>${fmtNum(r.followers)}</td>`}
                 <td>${r.content_submitted || 0}</td>
                 <td><span class="gmv-value">${fmt$(r.gmv)}</span></td>
-                <td>${rosterStatusBadge(r.status)}</td>
+                <td onclick="event.stopPropagation()">
+                  <select class="inline-status-select status-key-rs-${r.status}"
+                    onchange="saveRosterField('${r.id}','status',this.value);this.className='inline-status-select status-key-rs-'+this.value">
+                    <option value="active"     ${r.status==='active'     ?'selected':''}>Active</option>
+                    <option value="onboarding" ${r.status==='onboarding' ?'selected':''}>Onboarding</option>
+                    <option value="watching"   ${r.status==='watching'   ?'selected':''}>Watching</option>
+                    <option value="paused"     ${r.status==='paused'     ?'selected':''}>Paused</option>
+                    <option value="inactive"   ${r.status==='inactive'   ?'selected':''}>Inactive</option>
+                  </select>
+                </td>
               </tr>`;
             }).join('')}
           </tbody>
