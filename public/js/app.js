@@ -660,6 +660,8 @@ async function updateStatusInline(id, newStatus, selectEl) {
       showToast('🎉 Signed! Fill in the deal details, then click Finalize & Onboard →');
     }
     renderPipelineView();
+    // If this creator's panel is open, re-render it with the new status
+    if (state.selectedOutreachId === id) renderDetailPanel();
   } catch (err) {
     showToast(err.message, 'error');
     renderPipelineView();
