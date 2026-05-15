@@ -505,7 +505,7 @@ function renderPipelineView() {
   }, {});
   const allCount = state.outreach.filter(r => r.status !== 'archived').length;
 
-  const STATUS_PRIORITY = { signed: 0, counter_offered: 1, replied: 2, sent: 3, drafted: 4, archived: 5 };
+  const STATUS_PRIORITY = { signed: 0, counter_offered: 1, counter_review: 2, replied: 3, sent: 4, drafted: 5, archived: 6 };
   const filtered = (state.outreachFilter === 'all'
     ? state.outreach.filter(r => r.status !== 'archived')
     : state.outreachFilter === 'archived'
@@ -532,7 +532,7 @@ function renderPipelineView() {
 
   state.filteredIds = filtered.map(r => r.id);
 
-  const inPipeline = ['sent','replied','counter_offered']
+  const inPipeline = ['sent','replied','counter_review','counter_offered']
     .reduce((s, k) => s + (counts[k] || 0), 0);
 
   const anySelected = state.selectedIds.size > 0;
@@ -646,8 +646,8 @@ function renderPipelineView() {
                 </td>
                 <td>${fmtNum(r.follower_count)}</td>
                 <td class="rate-cell">${(() => {
-                  const hasReq = ['replied','counter_offered','signed'].includes(r.status);
-                  const hasCtr = ['counter_offered','signed'].includes(r.status);
+                  const hasReq = ['replied','counter_review','counter_offered','signed'].includes(r.status);
+                  const hasCtr = ['counter_review','counter_offered','signed'].includes(r.status);
                   const req = avgRatePerVid(r);
                   if (!hasReq || req === null) return '—';
                   if (!hasCtr) return `<span class="rate-req">${fmt$(req)}</span>`;
@@ -783,7 +783,7 @@ function renderDetailPanel() {
 
   document.getElementById('detail-drawer-title').textContent = 'Creator Detail';
 
-  const hasReplied = r.status === 'replied';
+  const hasReplied = ['replied', 'counter_review'].includes(r.status);
   const evalScore  = calcEvalScore(r);
   const allEvalDone = EVAL_QUESTIONS.every(q => r[q.key]);
   const autoTier   = allEvalDone ? autoTierFromScore(evalScore) : null;
@@ -908,8 +908,8 @@ function renderDetailPanel() {
     </div>
     ` : ''}
 
-    <!-- Counter Follow-up Tracker (shown when status is counter_offered) -->
-    ${r.status === 'counter_offered' ? `
+    <!-- Counter Follow-up Tracker (shown when status is counter_offered or counter_review) -->
+    ${['counter_offered','counter_review'].includes(r.status) ? `
     <div class="dp-section">
       <div class="dp-section-label">Counter Follow-ups</div>
       <div class="fu-timeline">
@@ -1273,10 +1273,10 @@ function renderDetailPanel() {
     </div>
     ` : ''}
 
-    <!-- Counter Sent (read-only summary — status = counter_offered) -->
-    ${r.status === 'counter_offered' ? `
+    <!-- Counter summary (read-only — counter_offered or counter_review) -->
+    ${['counter_offered','counter_review'].includes(r.status) ? `
     <div class="dp-section">
-      <div class="dp-section-label">Counter Sent</div>
+      <div class="dp-section-label">${r.status === 'counter_review' ? 'Counter Pending Review' : 'Counter Sent'}</div>
       ${r.counter_offer_amount && r.video_count ? `
         <div class="dp-deal-summary">
           <span>${fmt$(r.counter_offer_amount)}/vid &middot; ${r.video_count} videos &middot; Total: <strong>${fmt$(parseFloat(r.counter_offer_amount) * parseInt(r.video_count))}</strong></span>
