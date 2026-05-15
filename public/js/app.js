@@ -14,7 +14,7 @@ const STATUSES = [
   { key: 'sent',             label: 'Sent',               color: 'blue'   },
   { key: 'replied',          label: 'Replied',            color: 'yellow' },
   { key: 'counter_review',   label: 'Ctr. For Review',   color: 'purple' },
-  { key: 'counter_approved', label: 'Ctr. Approved',     color: 'teal'   },
+  { key: 'counter_approved', label: 'Ctr. Reviewed',      color: 'teal'   },
   { key: 'counter_offered',  label: 'Countered',          color: 'orange' },
   { key: 'counter_rejected', label: 'Creator Declined',    color: 'red'    },
   { key: 'signed',           label: 'Signed',             color: 'green'  },
@@ -1311,7 +1311,7 @@ function renderDetailPanel() {
         </button>
       </div>
       <div style="font-size:11px;color:var(--text-muted);text-align:center;margin-top:6px;">
-        Approve → Ctr. Approved · Lu generates &amp; sends from there
+        Approve → Ctr. Reviewed · Lu generates &amp; sends from there
       </div>
     </div>
 
@@ -1321,7 +1321,7 @@ function renderDetailPanel() {
     <div class="dp-section dp-approved-counter-card">
       <div class="dp-approved-counter-header">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-        Counter Approved — Ready to Send
+        Counter Reviewed — Ready to Send
       </div>
 
       ${r.final_counter_amount && r.video_count ? `
@@ -1522,7 +1522,7 @@ function renderDetailPanel() {
     <!-- Counter summary (read-only — counter_offered, counter_approved, or counter_review) -->
     ${['counter_offered','counter_approved','counter_review'].includes(r.status) ? `
     <div class="dp-section">
-      <div class="dp-section-label${r.status === 'counter_review' && r.counter_feedback ? ' dp-section-label-rejected' : ''}">${r.status === 'counter_review' ? (r.counter_feedback ? '⚑ Counter Flagged — Pending Revision' : 'Counter Pending Review') : r.status === 'counter_approved' ? 'Counter Approved — Ready to Send' : 'Counter Sent'}</div>
+      <div class="dp-section-label${r.status === 'counter_review' && r.counter_feedback ? ' dp-section-label-rejected' : ''}">${r.status === 'counter_review' ? (r.counter_feedback ? '⚑ Counter Flagged — Pending Revision' : 'Counter Pending Review') : r.status === 'counter_approved' ? 'Counter Reviewed — Ready to Send' : 'Counter Sent'}</div>
       ${r.counter_offer_amount && r.video_count ? `
         <div class="dp-deal-summary">
           <span>${fmt$(r.counter_offer_amount)}/vid &middot; ${r.video_count} videos &middot; Total: <strong>${fmt$(parseFloat(r.counter_offer_amount) * parseInt(r.video_count))}</strong></span>
