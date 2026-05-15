@@ -2972,11 +2972,11 @@ body {
 
 .rs-schedule-entry {
   display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: 6px;
   background: var(--bg-elevated);
   border-radius: 6px;
-  padding: 8px 10px;
+  padding: 10px 10px;
   transition: opacity 0.2s;
 }
 
@@ -2984,20 +2984,34 @@ body {
   opacity: 0.45;
 }
 
-.rs-schedule-entry.rs-entry-posted .rs-schedule-date,
-.rs-schedule-entry.rs-entry-posted .rs-schedule-note {
-  text-decoration: line-through;
-  color: var(--text-muted);
+.rs-schedule-top-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rs-schedule-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  min-width: 54px;
 }
 
 .rs-schedule-date {
-  flex: 0 0 140px;
+  flex: 0 0 136px;
   font-size: 12px;
 }
 
-.rs-schedule-note {
-  flex: 1;
+.rs-schedule-link {
   font-size: 12px;
+  width: 100%;
+  color: var(--accent);
+}
+.rs-schedule-link:placeholder-shown { color: var(--text-muted); }
+
+.rs-schedule-entry.rs-entry-posted .rs-schedule-date {
+  text-decoration: line-through;
+  color: var(--text-muted);
 }
 
 .rs-posted-label {

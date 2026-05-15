@@ -2500,15 +2500,19 @@ function renderRosterDetailPanel() {
       <div id="rs-schedule-list" class="rs-schedule-list">
         ${schedule.map((entry, i) => `
           <div class="rs-schedule-entry${entry.posted ? ' rs-entry-posted' : ''}" data-idx="${i}">
-            <input type="date" class="dp-input rs-schedule-date" value="${esc(entry.date || '')}"
-              onblur="updateScheduleEntry('${r.id}',${i},'date',this.value)">
-            <input type="text" class="dp-input rs-schedule-note" value="${esc(entry.note || '')}" placeholder="e.g. Video #1 — Shave Serum"
-              onblur="updateScheduleEntry('${r.id}',${i},'note',this.value)">
-            <label class="rs-posted-label" title="Mark as posted">
-              <input type="checkbox" ${entry.posted ? 'checked' : ''} onchange="toggleSchedulePosted('${r.id}',${i},this.checked)">
-              <span>Posted</span>
-            </label>
-            <button class="rs-remove-btn" onclick="removeScheduleEntry('${r.id}',${i})" title="Remove">✕</button>
+            <div class="rs-schedule-top-row">
+              <span class="rs-schedule-label">${esc(entry.note || `Video ${i+1}`)}</span>
+              <input type="date" class="dp-input rs-schedule-date" value="${esc(entry.date || '')}"
+                onblur="updateScheduleEntry('${r.id}',${i},'date',this.value)">
+              <label class="rs-posted-label" title="Mark as posted">
+                <input type="checkbox" ${entry.posted ? 'checked' : ''} onchange="toggleSchedulePosted('${r.id}',${i},this.checked)">
+                <span>Posted</span>
+              </label>
+              <button class="rs-remove-btn" onclick="removeScheduleEntry('${r.id}',${i})" title="Remove">✕</button>
+            </div>
+            <input type="url" class="dp-input rs-schedule-link" value="${esc(entry.link || '')}"
+              placeholder="Paste video link once posted…"
+              onblur="updateScheduleEntry('${r.id}',${i},'link',this.value)">
           </div>`).join('')}
       </div>
       <button class="rs-add-schedule-btn" onclick="addScheduleEntry('${r.id}')">+ Add Entry</button>
@@ -2840,15 +2844,19 @@ function addScheduleEntry(rosterId) {
 
 function _scheduleEntryHTML(rosterId, entry, idx) {
   return `
-    <input type="date" class="dp-input rs-schedule-date" value="${esc(entry.date || '')}"
-      onblur="updateScheduleEntry('${rosterId}',${idx},'date',this.value)">
-    <input type="text" class="dp-input rs-schedule-note" value="${esc(entry.note || '')}" placeholder="e.g. Video #1 — Shave Serum"
-      onblur="updateScheduleEntry('${rosterId}',${idx},'note',this.value)">
-    <label class="rs-posted-label" title="Mark as posted">
-      <input type="checkbox" ${entry.posted ? 'checked' : ''} onchange="toggleSchedulePosted('${rosterId}',${idx},this.checked)">
-      <span>Posted</span>
-    </label>
-    <button class="rs-remove-btn" onclick="removeScheduleEntry('${rosterId}',${idx})" title="Remove">✕</button>`;
+    <div class="rs-schedule-top-row">
+      <span class="rs-schedule-label">${esc(entry.note || `Video ${idx+1}`)}</span>
+      <input type="date" class="dp-input rs-schedule-date" value="${esc(entry.date || '')}"
+        onblur="updateScheduleEntry('${rosterId}',${idx},'date',this.value)">
+      <label class="rs-posted-label" title="Mark as posted">
+        <input type="checkbox" ${entry.posted ? 'checked' : ''} onchange="toggleSchedulePosted('${rosterId}',${idx},this.checked)">
+        <span>Posted</span>
+      </label>
+      <button class="rs-remove-btn" onclick="removeScheduleEntry('${rosterId}',${idx})" title="Remove">✕</button>
+    </div>
+    <input type="url" class="dp-input rs-schedule-link" value="${esc(entry.link || '')}"
+      placeholder="Paste video link once posted…"
+      onblur="updateScheduleEntry('${rosterId}',${idx},'link',this.value)">`;
 }
 
 function updateScheduleEntry(rosterId, idx, field, value) {
@@ -3808,15 +3816,36 @@ async function markCreativeAssetsSent(rosterId) {
 
 async function markRosterField(rosterId, field, value) {
   try {
+    const r = state.roster.find(x => x.id === rosterId);
+    const payload = { [field]: value };
+
+    // When serum is marked shipped → auto-generate posting schedule
+    if (field === 'serum_shipped' && value === true && r) {
+      const today = new Date().toISOString().split('T')[0];
+      payload.serum_ship_date = today;
+      const dates = calcPostingSchedule(today, r.video_count);
+      if (dates.length > 0) {
+        payload.posting_schedule = dates.map((date, i) => ({
+          date,
+          note: `Video ${i + 1}`,
+          link: '',
+          posted: false
+        }));
+      }
+    }
+
     const rec = await fetchAPI(`${API.roster}/${rosterId}`, {
       method: 'PUT',
-      body: JSON.stringify({ [field]: value })
+      body: JSON.stringify(payload)
     });
     const i = state.roster.findIndex(x => x.id === rosterId);
     if (i !== -1) state.roster[i] = rec;
     updateReviewBadge();
     if (rec.status === 'active' && state.roster[i]?.status === 'onboarding') {
       showToast(`${rec.name || rec.handle} graduated to Active! 🎉`);
+    }
+    if (field === 'serum_shipped' && value === true && payload.posting_schedule) {
+      showToast(`Serum shipped — posting schedule auto-generated ✓`);
     }
     renderForReviewPage();
   } catch (err) {
