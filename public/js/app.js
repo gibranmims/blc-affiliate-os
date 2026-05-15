@@ -1068,13 +1068,13 @@ function renderDetailPanel() {
 
     <div class="dp-accordion">
       <button class="dp-acc-header ${state.dpAccordion.eval ? 'open' : ''}" onclick="toggleAccordion('eval')">
-        <span>Lu's Evaluation</span>
+        <span>Affiliate Manager Evaluation</span>
         <span class="dp-acc-arrow">${state.dpAccordion.eval ? '▾' : '▸'}</span>
       </button>
       <div class="dp-acc-body${state.dpAccordion.eval ? '' : ' dp-acc-collapsed'}" id="dp-acc-eval">
       <div class="dp-section" style="border:none;padding-top:0">
       <div class="dp-section-label-row">
-        <div class="dp-section-label">Lu's Evaluation</div>
+        <div class="dp-section-label">Affiliate Manager Evaluation</div>
         ${(EVAL_QUESTIONS.some(q => r[q.key])) ? `
           <button class="btn-reset-eval" onclick="resetEvaluation('${r.id}')">Reset</button>
         ` : ''}
@@ -1118,7 +1118,7 @@ function renderDetailPanel() {
     <div class="dp-eval-comparison">
       <div class="dp-eval-comp-row">
         <div class="dp-eval-comp-item">
-          <div class="dp-eval-comp-who">Lu</div>
+          <div class="dp-eval-comp-who">Affiliate Manager</div>
           <div class="dp-eval-comp-score">${evalScore}/12 &nbsp;${gradeBadge(autoTier)}</div>
         </div>
         <div class="dp-eval-comp-vs">vs</div>
@@ -1130,7 +1130,7 @@ function renderDetailPanel() {
       <div class="dp-eval-comp-diff ${founderEvalScore === evalScore ? '' : founderEvalScore > evalScore ? 'dp-eval-comp-up' : 'dp-eval-comp-down'}">
         ${founderEvalScore === evalScore
           ? '✓ Both evaluations agree on the grade'
-          : `${founderEvalScore > evalScore ? '↑' : '↓'} ${Math.abs(founderEvalScore - evalScore)}pt gap — Founder rates ${founderEvalScore > evalScore ? 'higher' : 'lower'} than Lu`}
+          : `${founderEvalScore > evalScore ? '↑' : '↓'} ${Math.abs(founderEvalScore - evalScore)}pt gap — Founder rates ${founderEvalScore > evalScore ? 'higher' : 'lower'} than AM`}
       </div>
     </div>
     ` : ''}
@@ -1167,7 +1167,7 @@ function renderDetailPanel() {
           const differs = cur && amVal && cur !== amVal;
           return `
           <div class="dp-rubric-step${differs ? ' dp-rubric-step-differs' : ''}">
-            <div class="dp-rubric-label">${q.label}${differs ? ' <span class="dp-rubric-differs-dot" title="Differs from Lu">●</span>' : ''}</div>
+            <div class="dp-rubric-label">${q.label}${differs ? ' <span class="dp-rubric-differs-dot" title="Differs from AM">●</span>' : ''}</div>
             <div class="dp-rubric-question">${q.q}</div>
             <div class="dp-rubric-options">
               ${opts.map((o, i) => `
