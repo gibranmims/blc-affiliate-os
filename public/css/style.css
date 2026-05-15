@@ -2594,20 +2594,20 @@ body {
   margin-top: 14px;
 }
 .dp-final-action-row .dp-generate-final-btn { flex: 1; margin-top: 0; }
-.dp-deny-counter-btn {
-  flex: 0 0 auto;
+.dp-adjust-rate-btn {
+  flex: 1;
   padding: 12px 16px;
   font-size: 13px;
   font-weight: 600;
   border-radius: 8px;
-  border: 1.5px solid var(--red);
-  background: rgba(248,113,113,0.08);
-  color: var(--red);
+  border: 1.5px solid rgba(139,92,246,0.6);
+  background: rgba(139,92,246,0.1);
+  color: #a78bfa;
   cursor: pointer;
   transition: background 0.15s;
 }
-.dp-deny-counter-btn:hover:not(:disabled) { background: rgba(248,113,113,0.2); }
-.dp-deny-counter-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.dp-adjust-rate-btn:hover:not(:disabled) { background: rgba(139,92,246,0.2); }
+.dp-adjust-rate-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
 /* Counter Approved card (shown to Lu in counter_approved status) */
 .dp-approved-counter-card {
