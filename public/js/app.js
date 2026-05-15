@@ -1185,7 +1185,133 @@ function renderDetailPanel() {
       </div></div>
 
     <!-- Counter offer -->
-    ${(r.tier || autoTier) ? `
+    ${r.status === 'counter_review' ? `
+
+    <!-- === COUNTER REVIEW: AM proposal · Founder proposal · Final offer === -->
+
+    <!-- 1. AM Counter Offer Proposal -->
+    <div class="dp-section dp-proposal-card">
+      <div class="dp-proposal-card-header">
+        <div class="dp-section-label" style="margin-bottom:0">AM Counter Offer Proposal</div>
+        ${(r.tier || autoTier) ? (() => {
+          const g = gradeInfo(r.tier || autoTier);
+          return g ? `<span class="dp-counter-suggested" style="font-size:12px">${gradeBadge(g.grade)} · Suggested ${fmt$(g.perVid)}/vid</span>` : '';
+        })() : ''}
+      </div>
+      <div class="dp-counter-offer-fields" style="margin-top:12px">
+        <div class="dp-form-group">
+          <label># Videos</label>
+          <input type="number" class="dp-input" id="dp-counter-videos"
+            value="${r.video_count || ''}"
+            placeholder="e.g. 5"
+            oninput="updateCounterCalc()">
+        </div>
+        <div class="dp-form-group">
+          <label>Total Offer</label>
+          <div class="dp-input-money">
+            <span class="dp-money-prefix">$</span>
+            <input type="number" class="dp-input" id="dp-counter-total"
+              value="${r.counter_offer_amount && r.video_count ? Math.round(r.counter_offer_amount * r.video_count) : ''}"
+              placeholder="e.g. 700"
+              oninput="updateCounterCalc()">
+          </div>
+        </div>
+      </div>
+      <div class="dp-counter-per-vid" id="dp-counter-per-vid">${
+        r.counter_offer_amount && r.video_count
+          ? `<span class="dp-per-vid-calc">${fmt$(r.counter_offer_amount)}/vid avg</span>`
+          : ''
+      }</div>
+    </div>
+
+    <!-- 2. Founder Counter Offer Proposal -->
+    <div class="dp-section dp-proposal-card dp-proposal-card-founder">
+      <div class="dp-proposal-card-header">
+        <div class="dp-section-label" style="margin-bottom:0">Founder Counter Offer Proposal</div>
+        <span class="dp-founder-counter-hint">optional</span>
+      </div>
+      <div class="dp-founder-counter-fields" style="margin-top:12px">
+        <div class="dp-form-group" style="flex:1">
+          <label>Your rate / vid</label>
+          <div class="dp-input-money">
+            <span class="dp-money-prefix">$</span>
+            <input type="number" class="dp-input" id="dp-founder-counter-rate"
+              value="${r.founder_counter_amount || ''}"
+              placeholder="${r.counter_offer_amount ? Math.round(r.counter_offer_amount) : 'e.g. 100'}"
+              onblur="saveFounderCounter('${r.id}')">
+          </div>
+        </div>
+        <div class="dp-form-group" style="flex:0 0 60px;text-align:center">
+          <label>Videos</label>
+          <div style="font-size:15px;font-weight:700;color:var(--text-primary);padding:8px 0">${r.video_count || '—'}</div>
+        </div>
+        ${r.founder_counter_amount && r.video_count ? `
+        <div class="dp-form-group" style="flex:0 0 80px;text-align:right">
+          <label>Total</label>
+          <div class="dp-rate-display dp-rate-counter" style="font-size:14px">${fmt$(parseFloat(r.founder_counter_amount) * parseInt(r.video_count))}</div>
+        </div>` : ''}
+      </div>
+      ${(() => {
+        if (!r.founder_counter_amount || !r.counter_offer_amount) return '';
+        const diff = parseFloat(r.founder_counter_amount) - parseFloat(r.counter_offer_amount);
+        if (diff === 0) return `<div class="dp-founder-counter-diff">= Same rate as AM (${fmt$(r.counter_offer_amount)}/vid)</div>`;
+        const totalDiff = Math.abs(diff) * (parseInt(r.video_count) || 0);
+        const cls = diff < 0 ? 'dp-counter-diff-down' : 'dp-counter-diff-up';
+        const totalNote = r.video_count ? ` · ${fmt$(totalDiff)} ${diff < 0 ? 'less' : 'more'} on ${r.video_count} vids` : '';
+        return `<div class="dp-founder-counter-diff ${cls}">${diff < 0 ? '↓' : '↑'} ${fmt$(Math.abs(diff))}/vid ${diff < 0 ? 'lower' : 'higher'} than AM${totalNote}</div>`;
+      })()}
+      <div class="dp-form-group" style="margin-top:10px">
+        <label>Reasoning <span class="dp-label-hint">why you'd price differently</span></label>
+        <textarea class="dp-input dp-textarea" id="dp-founder-counter-notes"
+          placeholder="e.g. Strong energy but no viral track record yet — start lower and scale up after first batch..."
+          onblur="saveFounderCounter('${r.id}')">${esc(r.founder_counter_notes || '')}</textarea>
+      </div>
+    </div>
+
+    <!-- 3. Final Counter Offer -->
+    <div class="dp-section dp-final-counter-card">
+      <div class="dp-section-label">Final Counter Offer</div>
+      <div class="dp-counter-offer-fields" style="margin-top:12px">
+        <div class="dp-form-group" style="flex:1">
+          <label>Final rate / vid</label>
+          <div class="dp-input-money">
+            <span class="dp-money-prefix">$</span>
+            <input type="number" class="dp-input" id="dp-final-counter-rate"
+              value="${r.final_counter_amount || ''}"
+              placeholder="${r.counter_offer_amount ? Math.round(r.counter_offer_amount) : 'e.g. 140'}"
+              oninput="updateFinalCounterCalc()"
+              onblur="saveFinalCounter('${r.id}')">
+          </div>
+        </div>
+        <div class="dp-form-group" style="flex:0 0 60px;text-align:center">
+          <label>Videos</label>
+          <div style="font-size:15px;font-weight:700;color:var(--text-primary);padding:8px 0">${r.video_count || '—'}</div>
+        </div>
+        ${r.final_counter_amount && r.video_count ? `
+        <div class="dp-form-group" style="flex:0 0 80px;text-align:right">
+          <label>Total</label>
+          <div class="dp-rate-display dp-rate-counter" style="font-size:14px">${fmt$(parseFloat(r.final_counter_amount) * parseInt(r.video_count))}</div>
+        </div>` : ''}
+      </div>
+      <div id="dp-final-counter-calc" style="font-size:12px;color:var(--text-muted);min-height:18px;margin-bottom:4px"></div>
+      <div class="dp-form-group">
+        <label>Reason for final decision <span class="dp-label-hint">optional</span></label>
+        <textarea class="dp-input dp-textarea" id="dp-final-counter-notes"
+          placeholder="e.g. Both evals agree she's strong — going with AM's rate..."
+          onblur="saveFinalCounter('${r.id}')">${esc(r.final_counter_notes || '')}</textarea>
+      </div>
+      <button class="btn dp-generate-final-btn" id="dp-gen-final-counter-btn"
+        onclick="generateFinalCounter('${r.id}')">
+        Generate Counter Message → Counter Sent
+      </button>
+      <div style="font-size:11px;color:var(--text-muted);text-align:center;margin-top:6px;">
+        Message signed from Lu · moves to Counter Sent
+      </div>
+    </div>
+
+    ` : (r.tier || autoTier) ? `
+
+    <!-- === OTHER STATUSES: standard counter offer accordion === -->
     <div class="dp-accordion">
       <button class="dp-acc-header ${state.dpAccordion.counter ? 'open' : ''}" onclick="toggleAccordion('counter')">
         <span>Counter Offer</span>
@@ -1193,7 +1319,6 @@ function renderDetailPanel() {
       </button>
       <div class="dp-acc-body${state.dpAccordion.counter ? '' : ' dp-acc-collapsed'}" id="dp-acc-counter">
       <div class="dp-section dp-section-counter" style="border:none;padding-top:0">
-      <div class="dp-section-label dp-section-label-lg" style="display:none"></div>
 
       ${(() => {
         const g = gradeInfo(r.tier || autoTier);
@@ -1206,7 +1331,6 @@ function renderDetailPanel() {
       })()}
 
       ${(() => {
-        // Show BLC's counter rates (not creator's asked rates — those are visible above)
         const counterPerVid = r.counter_offer_amount || (gradeInfo(r.tier || autoTier) || {}).perVid;
         if (!counterPerVid) return '';
         const cpv = parseFloat(counterPerVid);
@@ -1249,88 +1373,11 @@ function renderDetailPanel() {
           onclick="generateCounterOffer('${r.id}')">
           Generate Counter Message
         </button>
-        ${r.status === 'counter_review' ? `
-        <button class="btn dp-counter-btn-approve" id="dp-approve-counter-btn"
-          onclick="approveCounter('${r.id}')">
-          Approve ✓
-        </button>
-        <button class="btn dp-counter-btn-reject" id="dp-reject-counter-btn"
-          onclick="toggleRejectPanel()">
-          Reject
-        </button>
-        ` : `
         <button class="btn dp-counter-btn-draft" id="dp-send-counter-btn"
           onclick="sendCounterForReview('${r.id}')">
           Send Counter for Review
         </button>
-        `}
       </div>
-
-      ${r.status === 'counter_review' ? `
-      <div class="dp-reject-panel${r.counter_feedback ? ' dp-reject-panel-visible' : ''}" id="dp-reject-panel">
-        <div class="dp-reject-label">Rejection reason / preferred rate:</div>
-        <textarea class="dp-input dp-textarea" id="dp-reject-feedback"
-          placeholder="e.g. Rate too high — counter at $150/vid...">${esc(r.counter_feedback || '')}</textarea>
-        <button class="btn dp-counter-btn-reject-submit"
-          onclick="rejectCounter('${r.id}')">
-          Submit Rejection
-        </button>
-      </div>
-      ${r.counter_feedback ? `
-      <div class="dp-rejection-note">
-        <span class="dp-rejection-icon">⚑</span>
-        <div>
-          <div class="dp-rejection-title">Flagged — Pending Revision</div>
-          <div class="dp-rejection-text">${esc(r.counter_feedback)}</div>
-        </div>
-      </div>` : ''}
-
-      <!-- Founder Counter Offer (only in counter_review) -->
-      <div class="dp-founder-counter">
-        <div class="dp-founder-counter-header">
-          <div class="dp-section-label" style="margin-bottom:0">Founder Counter</div>
-          <span class="dp-founder-counter-hint">optional — your independent rate</span>
-        </div>
-        <div class="dp-founder-counter-fields">
-          <div class="dp-form-group" style="flex:1">
-            <label>Your rate / vid</label>
-            <div class="dp-input-money">
-              <span class="dp-money-prefix">$</span>
-              <input type="number" class="dp-input" id="dp-founder-counter-rate"
-                value="${r.founder_counter_amount || ''}"
-                placeholder="${r.counter_offer_amount ? Math.round(r.counter_offer_amount) : 'e.g. 100'}"
-                onblur="saveFounderCounter('${r.id}')">
-            </div>
-          </div>
-          <div class="dp-form-group" style="flex:0 0 60px;text-align:center">
-            <label>Videos</label>
-            <div style="font-size:15px;font-weight:700;color:var(--text-primary);padding:8px 0">${r.video_count || '—'}</div>
-          </div>
-          ${r.founder_counter_amount && r.video_count ? `
-          <div class="dp-form-group" style="flex:0 0 80px;text-align:right">
-            <label>Total</label>
-            <div class="dp-rate-display dp-rate-counter" style="font-size:14px">${fmt$(parseFloat(r.founder_counter_amount) * parseInt(r.video_count))}</div>
-          </div>` : ''}
-        </div>
-        ${(() => {
-          if (!r.founder_counter_amount || !r.counter_offer_amount) return '';
-          const diff = parseFloat(r.founder_counter_amount) - parseFloat(r.counter_offer_amount);
-          if (diff === 0) return `<div class="dp-founder-counter-diff">= Same rate as AM (${fmt$(r.counter_offer_amount)}/vid)</div>`;
-          const totalDiff = Math.abs(diff) * (parseInt(r.video_count) || 0);
-          const dir = diff < 0 ? '↓' : '↑';
-          const cls = diff < 0 ? 'dp-counter-diff-down' : 'dp-counter-diff-up';
-          const word = diff < 0 ? 'lower' : 'higher';
-          const totalNote = r.video_count ? ` · ${fmt$(totalDiff)} ${diff < 0 ? 'less' : 'more'} on ${r.video_count} vids` : '';
-          return `<div class="dp-founder-counter-diff ${cls}">${dir} ${fmt$(Math.abs(diff))}/vid ${word} than AM${totalNote}</div>`;
-        })()}
-        <div class="dp-form-group" style="margin-top:10px">
-          <label>Reasoning <span class="dp-label-hint">why you'd price differently</span></label>
-          <textarea class="dp-input dp-textarea" id="dp-founder-counter-notes"
-            placeholder="e.g. Strong energy but no viral track record yet — start lower and scale up after first batch..."
-            onblur="saveFounderCounter('${r.id}')">${esc(r.founder_counter_notes || '')}</textarea>
-        </div>
-      </div>
-      ` : ''}
 
       ${r.counter_offer_email ? `
       <div class="dp-counter-preview">
@@ -1775,6 +1822,102 @@ async function saveFounderCounter(id) {
     renderDetailPanel();
   } catch (err) {
     showToast(err.message, 'error');
+  }
+}
+
+function updateFinalCounterCalc() {
+  const rate = parseFloat(document.getElementById('dp-final-counter-rate')?.value);
+  const vids = parseInt(document.getElementById('dp-counter-videos')?.value);
+  const el   = document.getElementById('dp-final-counter-calc');
+  if (!el) return;
+  el.innerHTML = (rate > 0 && vids > 0)
+    ? `<span class="dp-per-vid-calc">${fmt$(rate * vids)} total · ${fmt$(rate)}/vid</span>`
+    : '';
+}
+
+async function saveFinalCounter(id) {
+  const rateEl  = document.getElementById('dp-final-counter-rate');
+  const notesEl = document.getElementById('dp-final-counter-notes');
+  const updates = {};
+  if (rateEl)  updates.final_counter_amount = rateEl.value !== '' ? parseFloat(rateEl.value) : null;
+  if (notesEl) updates.final_counter_notes  = notesEl.value.trim() || null;
+  if (!Object.keys(updates).length) return;
+  try {
+    const saved = await fetchAPI(`${API.outreach}/${id}`, { method: 'PUT', body: JSON.stringify(updates) });
+    const i = state.outreach.findIndex(x => x.id === id);
+    if (i !== -1) state.outreach[i] = saved;
+    renderDetailPanel();
+  } catch (err) { showToast(err.message, 'error'); }
+}
+
+async function generateFinalCounter(id) {
+  const r = state.outreach.find(x => x.id === id);
+  if (!r) return;
+
+  const rateInput  = document.getElementById('dp-final-counter-rate');
+  const vidInput   = document.getElementById('dp-counter-videos');
+  const notesInput = document.getElementById('dp-final-counter-notes');
+
+  const perVid = rateInput?.value ? parseFloat(rateInput.value) : (r.final_counter_amount || r.counter_offer_amount);
+  const videos = vidInput?.value  ? parseInt(vidInput.value)    : r.video_count;
+
+  if (!perVid || isNaN(perVid)) { showToast('Enter a final rate first', 'error'); return; }
+  if (!videos || isNaN(videos)) { showToast('Enter # videos in the AM proposal', 'error'); return; }
+
+  const total      = perVid * videos;
+  const finalNotes = notesInput?.value?.trim() || null;
+
+  const btn = document.getElementById('dp-gen-final-counter-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Generating…'; }
+
+  // Save final counter + set counter_offer_amount to final rate + move to counter_offered
+  const saved = await fetchAPI(`${API.outreach}/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify({
+      final_counter_amount: perVid,
+      final_counter_notes:  finalNotes,
+      counter_offer_amount: perVid,
+      video_count:          videos,
+      status:               'counter_offered',
+      ...counterFollowupPayload()
+    })
+  }).catch(() => null);
+  if (saved) {
+    const i = state.outreach.findIndex(x => x.id === id);
+    if (i !== -1) state.outreach[i] = saved;
+  }
+  updateRepliedBadge();
+
+  try {
+    const { email } = await fetchAPI(`${API.outreachGen}/counter-offer`, {
+      method: 'POST',
+      body: JSON.stringify({
+        name:                 r.name,
+        handle:               r.handle,
+        askedRate3:           r.asked_rate_3,
+        askedRate5:           r.asked_rate_5,
+        askedRate10:          r.asked_rate_10,
+        askedRateCustom:      r.asked_rate_custom,
+        askedRateCustomCount: r.asked_rate_custom_count,
+        counterVideos:        videos,
+        counterTotal:         total,
+        counterPerVid:        perVid,
+        tier:                 r.tier,
+        sender:               'Lu'
+      })
+    });
+    await fetchAPI(`${API.outreach}/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ counter_offer_email: email })
+    }).catch(() => null);
+    const j = state.outreach.findIndex(x => x.id === id);
+    if (j !== -1) state.outreach[j] = { ...state.outreach[j], counter_offer_email: email, status: 'counter_offered' };
+    renderOutreachPage();
+    renderDetailPanel();
+    showToast('Counter message generated → moved to Counter Sent ✓');
+  } catch (err) {
+    showToast(err.message, 'error');
+    if (btn) { btn.disabled = false; btn.textContent = 'Generate Counter Message → Counter Sent'; }
   }
 }
 
