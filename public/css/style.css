@@ -2396,6 +2396,94 @@ body {
   cursor: not-allowed;
 }
 
+/* Approve button (green) */
+.dp-counter-btn-approve {
+  flex: 1;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 8px;
+  border: 1.5px solid var(--green);
+  background: rgba(74,222,128,0.12);
+  color: var(--green);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.dp-counter-btn-approve:hover:not(:disabled) {
+  background: var(--green);
+  color: #0d1117;
+}
+.dp-counter-btn-approve:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Reject button (red outline) */
+.dp-counter-btn-reject {
+  flex: 1;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 8px;
+  border: 1.5px solid var(--red);
+  background: rgba(248,113,113,0.08);
+  color: var(--red);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.dp-counter-btn-reject:hover:not(:disabled) {
+  background: rgba(248,113,113,0.2);
+}
+.dp-counter-btn-reject:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Reject expand panel */
+.dp-reject-panel {
+  display: none;
+  margin-top: 12px;
+  padding: 12px 14px;
+  background: rgba(248,113,113,0.05);
+  border: 1.5px solid rgba(248,113,113,0.25);
+  border-radius: 8px;
+}
+.dp-reject-panel.dp-reject-panel-visible { display: block; }
+.dp-reject-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--red);
+  margin-bottom: 8px;
+  letter-spacing: 0.03em;
+}
+.dp-counter-btn-reject-submit {
+  margin-top: 8px;
+  width: 100%;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 8px;
+  border: none;
+  background: var(--red);
+  color: #fff;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.dp-counter-btn-reject-submit:hover:not(:disabled) { opacity: 0.85; }
+.dp-counter-btn-reject-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Rejection flag note (shown after feedback saved) */
+.dp-rejection-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 10px 13px;
+  background: rgba(248,113,113,0.08);
+  border: 1.5px solid rgba(248,113,113,0.3);
+  border-radius: 8px;
+}
+.dp-rejection-icon { color: var(--red); font-size: 15px; line-height: 1.4; }
+.dp-rejection-title { font-size: 12px; font-weight: 700; color: var(--red); }
+.dp-rejection-text { font-size: 12px; color: var(--text-muted); margin-top: 3px; line-height: 1.4; }
+
+/* Flagged label variant */
+.dp-section-label-rejected { color: var(--red) !important; }
+
 /* ============================================================
    SIGNED SECTION IN DETAIL PANEL
    ============================================================ */

@@ -1171,11 +1171,42 @@ function renderDetailPanel() {
           onclick="generateCounterOffer('${r.id}')">
           Generate Counter Message
         </button>
+        ${r.status === 'counter_review' ? `
+        <button class="btn dp-counter-btn-approve" id="dp-approve-counter-btn"
+          onclick="approveCounter('${r.id}')">
+          Approve ✓
+        </button>
+        <button class="btn dp-counter-btn-reject" id="dp-reject-counter-btn"
+          onclick="toggleRejectPanel()">
+          Reject
+        </button>
+        ` : `
         <button class="btn dp-counter-btn-draft" id="dp-send-counter-btn"
           onclick="sendCounterForReview('${r.id}')">
           Send Counter for Review
         </button>
+        `}
       </div>
+
+      ${r.status === 'counter_review' ? `
+      <div class="dp-reject-panel${r.counter_feedback ? ' dp-reject-panel-visible' : ''}" id="dp-reject-panel">
+        <div class="dp-reject-label">Rejection reason / preferred rate:</div>
+        <textarea class="dp-input dp-textarea" id="dp-reject-feedback"
+          placeholder="e.g. Rate too high — counter at $150/vid...">${esc(r.counter_feedback || '')}</textarea>
+        <button class="btn dp-counter-btn-reject-submit"
+          onclick="rejectCounter('${r.id}')">
+          Submit Rejection
+        </button>
+      </div>
+      ${r.counter_feedback ? `
+      <div class="dp-rejection-note">
+        <span class="dp-rejection-icon">⚑</span>
+        <div>
+          <div class="dp-rejection-title">Flagged — Pending Revision</div>
+          <div class="dp-rejection-text">${esc(r.counter_feedback)}</div>
+        </div>
+      </div>` : ''}
+      ` : ''}
 
       ${r.counter_offer_email ? `
       <div class="dp-counter-preview">
@@ -1277,7 +1308,7 @@ function renderDetailPanel() {
     <!-- Counter summary (read-only — counter_offered, counter_approved, or counter_review) -->
     ${['counter_offered','counter_approved','counter_review'].includes(r.status) ? `
     <div class="dp-section">
-      <div class="dp-section-label">${r.status === 'counter_review' ? 'Counter Pending Review' : r.status === 'counter_approved' ? 'Counter Approved — Ready to Send' : 'Counter Sent'}</div>
+      <div class="dp-section-label${r.status === 'counter_review' && r.counter_feedback ? ' dp-section-label-rejected' : ''}">${r.status === 'counter_review' ? (r.counter_feedback ? '⚑ Counter Flagged — Pending Revision' : 'Counter Pending Review') : r.status === 'counter_approved' ? 'Counter Approved — Ready to Send' : 'Counter Sent'}</div>
       ${r.counter_offer_amount && r.video_count ? `
         <div class="dp-deal-summary">
           <span>${fmt$(r.counter_offer_amount)}/vid &middot; ${r.video_count} videos &middot; Total: <strong>${fmt$(parseFloat(r.counter_offer_amount) * parseInt(r.video_count))}</strong></span>
@@ -1525,6 +1556,51 @@ async function sendCounterForReview(id) {
   } catch (err) {
     showToast(err.message, 'error');
     if (btn) { btn.disabled = false; btn.textContent = 'Send Counter for Review'; }
+  }
+}
+
+function toggleRejectPanel() {
+  const panel = document.getElementById('dp-reject-panel');
+  if (panel) panel.classList.toggle('dp-reject-panel-visible');
+}
+
+async function approveCounter(id) {
+  const btn = document.getElementById('dp-approve-counter-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Approving…'; }
+  try {
+    const saved = await fetchAPI(`${API.outreach}/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ status: 'counter_approved', counter_feedback: null })
+    });
+    const i = state.outreach.findIndex(x => x.id === id);
+    if (i !== -1) state.outreach[i] = saved;
+    renderDetailPanel();
+    renderOutreachPage();
+    showToast('Counter approved ✓');
+  } catch (err) {
+    showToast(err.message, 'error');
+    if (btn) { btn.disabled = false; btn.textContent = 'Approve ✓'; }
+  }
+}
+
+async function rejectCounter(id) {
+  const feedback = document.getElementById('dp-reject-feedback')?.value?.trim();
+  if (!feedback) { showToast('Please enter rejection feedback first', 'error'); return; }
+  const btn = document.querySelector('.dp-counter-btn-reject-submit');
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+  try {
+    const saved = await fetchAPI(`${API.outreach}/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ counter_feedback: feedback })
+    });
+    const i = state.outreach.findIndex(x => x.id === id);
+    if (i !== -1) state.outreach[i] = saved;
+    renderDetailPanel();
+    renderOutreachPage();
+    showToast('Counter flagged — team notified ⚑');
+  } catch (err) {
+    showToast(err.message, 'error');
+    if (btn) { btn.disabled = false; btn.textContent = 'Submit Rejection'; }
   }
 }
 

@@ -14,7 +14,7 @@ const FIELDS = [
   'asked_rate_3', 'asked_rate_5', 'asked_rate_10', 'asked_rate_custom', 'asked_rate_custom_count',
   'product_fit', 'on_camera_energy', 'production_quality', 'viral_track_record', 'viral_potential', 'sales_structure',
   'on_camera', 'feels_natural', 'tier', 'evaluation_notes',
-  'counter_offer_amount', 'counter_offer_email',
+  'counter_offer_amount', 'counter_offer_email', 'counter_feedback',
   'video_count', 'start_date',
   'sent_date', 'followup1_date', 'followup1_sent', 'followup1_sent_date',
   'followup2_date', 'followup2_sent', 'followup2_sent_date',
