@@ -14,6 +14,7 @@ const STATUSES = [
   { key: 'sent',             label: 'Sent',               color: 'blue'   },
   { key: 'replied',          label: 'Replied',            color: 'yellow' },
   { key: 'counter_review',   label: 'Ctr. For Review',   color: 'purple' },
+  { key: 'counter_approved', label: 'Ctr. Approved',     color: 'teal'   },
   { key: 'counter_offered',  label: 'Countered',          color: 'orange' },
   { key: 'counter_rejected', label: 'Ctr. Rejected',      color: 'red'    },
   { key: 'signed',           label: 'Signed',             color: 'green'  },
@@ -201,7 +202,7 @@ function renderFUBadge(r) {
 }
 
 // Statuses where follow-ups are no longer relevant
-const FU_HIDDEN_STATUSES = new Set(['replied','counter_review','counter_rejected','signed','archived']);
+const FU_HIDDEN_STATUSES = new Set(['replied','counter_review','counter_approved','counter_rejected','signed','archived']);
 
 // Renders a table cell for FU1 or FU2 columns — color-coded by status
 function renderFUCell(r, num) {
@@ -505,7 +506,7 @@ function renderPipelineView() {
   }, {});
   const allCount = state.outreach.filter(r => r.status !== 'archived').length;
 
-  const STATUS_PRIORITY = { signed: 0, counter_offered: 1, counter_review: 2, replied: 3, sent: 4, drafted: 5, archived: 6 };
+  const STATUS_PRIORITY = { signed: 0, counter_offered: 1, counter_approved: 2, counter_review: 3, replied: 4, sent: 5, drafted: 6, archived: 7 };
   const filtered = (state.outreachFilter === 'all'
     ? state.outreach.filter(r => r.status !== 'archived')
     : state.outreachFilter === 'archived'
@@ -532,7 +533,7 @@ function renderPipelineView() {
 
   state.filteredIds = filtered.map(r => r.id);
 
-  const inPipeline = ['sent','replied','counter_review','counter_offered']
+  const inPipeline = ['sent','replied','counter_review','counter_approved','counter_offered']
     .reduce((s, k) => s + (counts[k] || 0), 0);
 
   const anySelected = state.selectedIds.size > 0;
@@ -646,8 +647,8 @@ function renderPipelineView() {
                 </td>
                 <td>${fmtNum(r.follower_count)}</td>
                 <td class="rate-cell">${(() => {
-                  const hasReq = ['replied','counter_review','counter_offered','signed'].includes(r.status);
-                  const hasCtr = ['counter_review','counter_offered','signed'].includes(r.status);
+                  const hasReq = ['replied','counter_review','counter_approved','counter_offered','signed'].includes(r.status);
+                  const hasCtr = ['counter_review','counter_approved','counter_offered','signed'].includes(r.status);
                   const req = avgRatePerVid(r);
                   if (!hasReq || req === null) return '—';
                   if (!hasCtr) return `<span class="rate-req">${fmt$(req)}</span>`;
@@ -783,7 +784,7 @@ function renderDetailPanel() {
 
   document.getElementById('detail-drawer-title').textContent = 'Creator Detail';
 
-  const hasReplied = ['replied', 'counter_review'].includes(r.status);
+  const hasReplied = ['replied', 'counter_review', 'counter_approved'].includes(r.status);
   const evalScore  = calcEvalScore(r);
   const allEvalDone = EVAL_QUESTIONS.every(q => r[q.key]);
   const autoTier   = allEvalDone ? autoTierFromScore(evalScore) : null;
@@ -1273,10 +1274,10 @@ function renderDetailPanel() {
     </div>
     ` : ''}
 
-    <!-- Counter summary (read-only — counter_offered or counter_review) -->
-    ${['counter_offered','counter_review'].includes(r.status) ? `
+    <!-- Counter summary (read-only — counter_offered, counter_approved, or counter_review) -->
+    ${['counter_offered','counter_approved','counter_review'].includes(r.status) ? `
     <div class="dp-section">
-      <div class="dp-section-label">${r.status === 'counter_review' ? 'Counter Pending Review' : 'Counter Sent'}</div>
+      <div class="dp-section-label">${r.status === 'counter_review' ? 'Counter Pending Review' : r.status === 'counter_approved' ? 'Counter Approved — Ready to Send' : 'Counter Sent'}</div>
       ${r.counter_offer_amount && r.video_count ? `
         <div class="dp-deal-summary">
           <span>${fmt$(r.counter_offer_amount)}/vid &middot; ${r.video_count} videos &middot; Total: <strong>${fmt$(parseFloat(r.counter_offer_amount) * parseInt(r.video_count))}</strong></span>
