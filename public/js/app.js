@@ -908,8 +908,8 @@ function renderDetailPanel() {
     </div>
     ` : ''}
 
-    <!-- Counter Follow-up Tracker (shown when status is counter_offered or counter_review) -->
-    ${['counter_offered','counter_review'].includes(r.status) ? `
+    <!-- Counter Follow-up Tracker (shown when status is counter_offered) -->
+    ${r.status === 'counter_offered' ? `
     <div class="dp-section">
       <div class="dp-section-label">Counter Follow-ups</div>
       <div class="fu-timeline">
