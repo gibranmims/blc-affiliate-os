@@ -1300,13 +1300,56 @@ function renderDetailPanel() {
           placeholder="e.g. Both evals agree she's strong — going with AM's rate..."
           onblur="saveFinalCounter('${r.id}')">${esc(r.final_counter_notes || '')}</textarea>
       </div>
+      <div class="dp-final-action-row">
+        <button class="btn dp-generate-final-btn" id="dp-approve-final-btn"
+          onclick="approveFinalCounter('${r.id}')">
+          Finalize &amp; Approve →
+        </button>
+        <button class="btn dp-deny-counter-btn" id="dp-deny-counter-btn"
+          onclick="denyCounter('${r.id}')">
+          Deny Counter
+        </button>
+      </div>
+      <div style="font-size:11px;color:var(--text-muted);text-align:center;margin-top:6px;">
+        Approve → Ctr. Approved · Lu generates &amp; sends from there
+      </div>
+    </div>
+
+    ` : r.status === 'counter_approved' ? `
+
+    <!-- === COUNTER APPROVED: Lu generates & sends from here === -->
+    <div class="dp-section dp-approved-counter-card">
+      <div class="dp-approved-counter-header">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        Counter Approved — Ready to Send
+      </div>
+
+      ${r.final_counter_amount && r.video_count ? `
+      <div class="dp-approved-rate-display">
+        <span class="dp-approved-per-vid">${fmt$(r.final_counter_amount)}/vid</span>
+        <span class="dp-approved-rate-meta">· ${r.video_count} videos · Total: <strong>${fmt$(parseFloat(r.final_counter_amount) * parseInt(r.video_count))}</strong></span>
+      </div>
+      ${r.counter_offer_amount && Math.round(parseFloat(r.final_counter_amount) * 100) !== Math.round(parseFloat(r.counter_offer_amount) * 100) ? `
+      <div class="dp-approved-revised">↓ Founder revised from AM's ${fmt$(r.counter_offer_amount)}/vid</div>
+      ` : `
+      <div class="dp-approved-same">✓ Approved at AM's proposed rate</div>`}
+      ` : `
+      <div style="color:var(--text-muted);font-size:13px;margin:8px 0">No final rate set — go back to Ctr. For Review to set one.</div>`}
+
+      ${r.final_counter_notes ? `
+      <div class="dp-approved-notes">
+        <div class="dp-approved-notes-label">Founder's reasoning</div>
+        <div class="dp-approved-notes-text">${esc(r.final_counter_notes)}</div>
+      </div>` : ''}
+
+      ${r.final_counter_amount ? `
       <button class="btn dp-generate-final-btn" id="dp-gen-final-counter-btn"
         onclick="generateFinalCounter('${r.id}')">
-        Generate Counter Message → Counter Sent
+        Generate &amp; Send Counter →
       </button>
       <div style="font-size:11px;color:var(--text-muted);text-align:center;margin-top:6px;">
-        Message signed from Lu · moves to Counter Sent
-      </div>
+        Signs email from Lu · moves to Counter Sent
+      </div>` : ''}
     </div>
 
     ` : (r.tier || autoTier) ? `
@@ -1835,6 +1878,65 @@ function updateFinalCounterCalc() {
     : '';
 }
 
+async function approveFinalCounter(id) {
+  const r = state.outreach.find(x => x.id === id);
+  if (!r) return;
+
+  const rateInput  = document.getElementById('dp-final-counter-rate');
+  const vidInput   = document.getElementById('dp-counter-videos');
+  const notesInput = document.getElementById('dp-final-counter-notes');
+
+  const perVid = rateInput?.value ? parseFloat(rateInput.value) : (r.final_counter_amount || r.counter_offer_amount);
+  const videos = vidInput?.value  ? parseInt(vidInput.value)    : r.video_count;
+  const notes  = notesInput?.value?.trim() || r.final_counter_notes || null;
+
+  if (!perVid || isNaN(perVid)) { showToast('Enter a final rate first', 'error'); return; }
+  if (!videos || isNaN(videos)) { showToast('Enter # videos in the AM proposal', 'error'); return; }
+
+  const btn = document.getElementById('dp-approve-final-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Approving…'; }
+
+  try {
+    const saved = await fetchAPI(`${API.outreach}/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({
+        final_counter_amount: perVid,
+        final_counter_notes:  notes,
+        video_count:          videos,
+        status:               'counter_approved'
+      })
+    });
+    const i = state.outreach.findIndex(x => x.id === id);
+    if (i !== -1) state.outreach[i] = saved;
+    renderDetailPanel();
+    renderOutreachPage();
+    showToast('Counter approved ✓ — Lu can now generate & send');
+  } catch (err) {
+    showToast(err.message, 'error');
+    if (btn) { btn.disabled = false; btn.textContent = 'Finalize & Approve →'; }
+  }
+}
+
+async function denyCounter(id) {
+  if (!confirm('Deny this counter? Moves to Ctr. Rejected.')) return;
+  const btn = document.getElementById('dp-deny-counter-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Denying…'; }
+  try {
+    const saved = await fetchAPI(`${API.outreach}/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ status: 'counter_rejected' })
+    });
+    const i = state.outreach.findIndex(x => x.id === id);
+    if (i !== -1) state.outreach[i] = saved;
+    renderDetailPanel();
+    renderOutreachPage();
+    showToast('Counter denied → Ctr. Rejected');
+  } catch (err) {
+    showToast(err.message, 'error');
+    if (btn) { btn.disabled = false; btn.textContent = 'Deny Counter'; }
+  }
+}
+
 async function saveFinalCounter(id) {
   const rateEl  = document.getElementById('dp-final-counter-rate');
   const notesEl = document.getElementById('dp-final-counter-notes');
@@ -1917,7 +2019,7 @@ async function generateFinalCounter(id) {
     showToast('Counter message generated → moved to Counter Sent ✓');
   } catch (err) {
     showToast(err.message, 'error');
-    if (btn) { btn.disabled = false; btn.textContent = 'Generate Counter Message → Counter Sent'; }
+    if (btn) { btn.disabled = false; btn.textContent = 'Generate & Send Counter →'; }
   }
 }
 

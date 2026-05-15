@@ -2587,6 +2587,92 @@ body {
   padding: 14px 16px !important;
   background: rgba(74,222,128,0.03);
 }
+/* Final action row: Approve + Deny side by side */
+.dp-final-action-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+}
+.dp-final-action-row .dp-generate-final-btn { flex: 1; margin-top: 0; }
+.dp-deny-counter-btn {
+  flex: 0 0 auto;
+  padding: 12px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 8px;
+  border: 1.5px solid var(--red);
+  background: rgba(248,113,113,0.08);
+  color: var(--red);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.dp-deny-counter-btn:hover:not(:disabled) { background: rgba(248,113,113,0.2); }
+.dp-deny-counter-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Counter Approved card (shown to Lu in counter_approved status) */
+.dp-approved-counter-card {
+  border: 2px solid var(--green) !important;
+  border-radius: 10px;
+  padding: 16px !important;
+  background: rgba(74,222,128,0.03);
+}
+.dp-approved-counter-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--green);
+  margin-bottom: 14px;
+}
+.dp-approved-rate-display {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.dp-approved-per-vid {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+}
+.dp-approved-rate-meta {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.dp-approved-revised {
+  font-size: 12px;
+  font-weight: 600;
+  color: #f59e0b;
+  margin-bottom: 10px;
+}
+.dp-approved-same {
+  font-size: 12px;
+  color: var(--green);
+  margin-bottom: 10px;
+}
+.dp-approved-notes {
+  margin: 12px 0;
+  padding: 10px 12px;
+  background: var(--bg-elevated);
+  border-radius: 6px;
+  border: 1px solid var(--border);
+}
+.dp-approved-notes-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+.dp-approved-notes-text {
+  font-size: 13px;
+  color: var(--text-primary);
+  line-height: 1.5;
+}
+
 .dp-generate-final-btn {
   width: 100%;
   margin-top: 14px;
