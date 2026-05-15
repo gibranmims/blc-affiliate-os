@@ -31,7 +31,7 @@ const state = {
   activeRosterId:     null,
   selectedIds:        new Set(),
   outreachSort:       { col: 'followers', dir: 'desc' },
-  dpAccordion:        { rates: false, eval: true, counter: true },
+  dpAccordion:        { rates: false, eval: true, founderEval: false, counter: true },
   tiktokConnected:    false,
   scripts:            [],
   scriptsLoaded:      false,
@@ -389,6 +389,10 @@ function evalFieldScore(key, val) {
 
 function calcEvalScore(r) {
   return EVAL_QUESTIONS.reduce((sum, q) => sum + evalFieldScore(q.key, r[q.key] || ''), 0);
+}
+
+function calcFounderEvalScore(r) {
+  return EVAL_QUESTIONS.reduce((sum, q) => sum + evalFieldScore(q.key, r[`founder_${q.key}`] || ''), 0);
 }
 
 function autoTierFromScore(score) {
@@ -788,6 +792,9 @@ function renderDetailPanel() {
   const evalScore  = calcEvalScore(r);
   const allEvalDone = EVAL_QUESTIONS.every(q => r[q.key]);
   const autoTier   = allEvalDone ? autoTierFromScore(evalScore) : null;
+  const founderEvalScore   = calcFounderEvalScore(r);
+  const allFounderEvalDone = EVAL_QUESTIONS.every(q => r[`founder_${q.key}`]);
+  const founderAutoTier    = allFounderEvalDone ? autoTierFromScore(founderEvalScore) : null;
 
   document.getElementById('detail-drawer-body').innerHTML = `
 
@@ -1061,13 +1068,13 @@ function renderDetailPanel() {
 
     <div class="dp-accordion">
       <button class="dp-acc-header ${state.dpAccordion.eval ? 'open' : ''}" onclick="toggleAccordion('eval')">
-        <span>Creator Evaluation</span>
+        <span>Affiliate Manager Evaluation</span>
         <span class="dp-acc-arrow">${state.dpAccordion.eval ? '▾' : '▸'}</span>
       </button>
       <div class="dp-acc-body${state.dpAccordion.eval ? '' : ' dp-acc-collapsed'}" id="dp-acc-eval">
       <div class="dp-section" style="border:none;padding-top:0">
       <div class="dp-section-label-row">
-        <div class="dp-section-label">Creator Evaluation</div>
+        <div class="dp-section-label">Affiliate Manager Evaluation</div>
         ${(EVAL_QUESTIONS.some(q => r[q.key])) ? `
           <button class="btn-reset-eval" onclick="resetEvaluation('${r.id}')">Reset</button>
         ` : ''}
@@ -1104,6 +1111,77 @@ function renderDetailPanel() {
 
     </div>
 
+      </div></div>
+
+    <!-- Evaluation comparison card (shown when both are complete) -->
+    ${allEvalDone && allFounderEvalDone ? `
+    <div class="dp-eval-comparison">
+      <div class="dp-eval-comp-row">
+        <div class="dp-eval-comp-item">
+          <div class="dp-eval-comp-who">Affiliate Manager</div>
+          <div class="dp-eval-comp-score">${evalScore}/12 &nbsp;${gradeBadge(autoTier)}</div>
+        </div>
+        <div class="dp-eval-comp-vs">vs</div>
+        <div class="dp-eval-comp-item">
+          <div class="dp-eval-comp-who">Founder</div>
+          <div class="dp-eval-comp-score">${founderEvalScore}/12 &nbsp;${gradeBadge(founderAutoTier)}</div>
+        </div>
+      </div>
+      <div class="dp-eval-comp-diff ${founderEvalScore === evalScore ? '' : founderEvalScore > evalScore ? 'dp-eval-comp-up' : 'dp-eval-comp-down'}">
+        ${founderEvalScore === evalScore
+          ? '✓ Both evaluations agree on the grade'
+          : `${founderEvalScore > evalScore ? '↑' : '↓'} ${Math.abs(founderEvalScore - evalScore)}pt gap — Founder rates ${founderEvalScore > evalScore ? 'higher' : 'lower'} than AM`}
+      </div>
+    </div>
+    ` : ''}
+
+    <div class="dp-accordion">
+      <button class="dp-acc-header ${state.dpAccordion.founderEval ? 'open' : ''}" onclick="toggleAccordion('founderEval')">
+        <span>Founder Evaluation <span class="dp-acc-optional">optional</span></span>
+        <span class="dp-acc-arrow">${state.dpAccordion.founderEval ? '▾' : '▸'}</span>
+      </button>
+      <div class="dp-acc-body${state.dpAccordion.founderEval ? '' : ' dp-acc-collapsed'}" id="dp-acc-founderEval">
+      <div class="dp-section" style="border:none;padding-top:0">
+      <div class="dp-section-label-row">
+        <div class="dp-section-label">Founder Evaluation</div>
+        ${EVAL_QUESTIONS.some(q => r[`founder_${q.key}`]) ? `
+          <button class="btn-reset-eval" onclick="resetFounderEvaluation('${r.id}')">Reset</button>
+        ` : ''}
+      </div>
+      <div class="dp-eval-hint">Grade independently — compare side by side with the affiliate manager's take.</div>
+
+      <div class="dp-eval-score-bar">
+        <span class="dp-eval-score-num">${founderEvalScore}<span class="dp-eval-score-denom">/12</span></span>
+        ${allFounderEvalDone ? (() => {
+          const g = gradeInfo(founderAutoTier);
+          return `<span class="dp-eval-auto-tier">${gradeBadge(founderAutoTier)}<span class="dp-eval-grade-desc">${g ? g.desc : ''}</span></span>`;
+        })() : `<span class="dp-eval-pending">Answer all 6 to auto-assign grade</span>`}
+      </div>
+
+      <div class="dp-rubric">
+        ${EVAL_QUESTIONS.map(q => {
+          const opts = q.opts      || ['yes','maybe','no'];
+          const lbls = q.optLabels || ['Yes','Maybe','No'];
+          const cur  = r[`founder_${q.key}`] || '';
+          const amVal = r[q.key] || '';
+          const differs = cur && amVal && cur !== amVal;
+          return `
+          <div class="dp-rubric-step${differs ? ' dp-rubric-step-differs' : ''}">
+            <div class="dp-rubric-label">${q.label}${differs ? ' <span class="dp-rubric-differs-dot" title="Differs from AM">●</span>' : ''}</div>
+            <div class="dp-rubric-question">${q.q}</div>
+            <div class="dp-rubric-options">
+              ${opts.map((o, i) => `
+                <button class="dp-opt-btn ${cur === o ? 'active' : ''}"
+                  onclick="setFounderEvalField('${r.id}', '${q.key}', '${o}')">
+                  ${lbls[i]}${cur === o ? ` <span class="dp-opt-pts">(${evalFieldScore(q.key, o)}pt)</span>` : ''}
+                </button>
+              `).join('')}
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+
+    </div>
       </div></div>
 
     <!-- Counter offer -->
@@ -1458,6 +1536,36 @@ async function setEvalField(id, field, value) {
     ]);
   } else {
     await updateOutreachField(id, field, value);
+  }
+  renderDetailPanel();
+}
+
+async function resetFounderEvaluation(id) {
+  const r = state.outreach.find(x => x.id === id);
+  if (!r) return;
+  const fields = [...EVAL_QUESTIONS.map(q => `founder_${q.key}`), 'founder_tier'];
+  fields.forEach(f => { r[f] = null; });
+  const updates = {};
+  fields.forEach(f => { updates[f] = null; });
+  await fetchAPI(`${API.outreach}/${id}`, { method: 'PUT', body: JSON.stringify(updates) });
+  renderDetailPanel();
+}
+
+async function setFounderEvalField(id, field, value) {
+  const r = state.outreach.find(x => x.id === id);
+  if (!r) return;
+  r[`founder_${field}`] = value;
+  const allDone = EVAL_QUESTIONS.every(q => r[`founder_${q.key}`]);
+  if (allDone) {
+    const score = calcFounderEvalScore(r);
+    const tier  = autoTierFromScore(score);
+    r.founder_tier = tier;
+    await fetchAPI(`${API.outreach}/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ [`founder_${field}`]: value, founder_tier: tier })
+    });
+  } else {
+    await updateOutreachField(id, `founder_${field}`, value);
   }
   renderDetailPanel();
 }
