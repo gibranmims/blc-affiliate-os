@@ -16,7 +16,7 @@ const STATUSES = [
   { key: 'counter_review',   label: 'Ctr. For Review',   color: 'purple' },
   { key: 'counter_approved', label: 'Ctr. Approved',     color: 'teal'   },
   { key: 'counter_offered',  label: 'Countered',          color: 'orange' },
-  { key: 'counter_rejected', label: 'Ctr. Rejected',      color: 'red'    },
+  { key: 'counter_rejected', label: 'Creator Declined',    color: 'red'    },
   { key: 'signed',           label: 'Signed',             color: 'green'  },
   { key: 'archived',         label: 'Archived',           color: 'gray'   }
 ];
@@ -344,7 +344,7 @@ const EVAL_QUESTIONS = [
     q: 'Good lighting, audio, native captions, understands viral video basics?',
     optLabels: ['Fire', 'Mid', 'Trash'] },
   { key: 'viral_track_record', label: 'Viral Track Record',
-    q: 'How many videos over 1M views?',
+    q: 'How many TikTok Shop videos over 1M views?',
     opts: ['none','1to3','4plus'], optLabels: ['None', '1–3', '4+'] },
   { key: 'viral_potential',    label: 'Viral Potential',
     q: 'Can you imagine her going viral specifically for BLC?',
@@ -1918,19 +1918,19 @@ async function approveFinalCounter(id) {
 }
 
 async function denyCounter(id) {
-  if (!confirm('Deny this counter? Moves to Ctr. Rejected.')) return;
+  if (!confirm('Deny this counter? Moves back to Replied so Lu can revise and resubmit.')) return;
   const btn = document.getElementById('dp-deny-counter-btn');
   if (btn) { btn.disabled = true; btn.textContent = 'Denying…'; }
   try {
     const saved = await fetchAPI(`${API.outreach}/${id}`, {
       method: 'PUT',
-      body: JSON.stringify({ status: 'counter_rejected' })
+      body: JSON.stringify({ status: 'replied' })
     });
     const i = state.outreach.findIndex(x => x.id === id);
     if (i !== -1) state.outreach[i] = saved;
     renderDetailPanel();
     renderOutreachPage();
-    showToast('Counter denied → Ctr. Rejected');
+    showToast('Counter denied — moved back to Replied for revision');
   } catch (err) {
     showToast(err.message, 'error');
     if (btn) { btn.disabled = false; btn.textContent = 'Deny Counter'; }
