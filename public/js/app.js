@@ -3528,9 +3528,9 @@ function copyOutput(id) {
 // ============================================================
 
 function reviewPendingPayments() {
-  // Pulls from roster onboarding entries where the 50% deposit hasn't been paid yet
+  // Only show payment due AFTER serum has been shipped (contract confirmed)
   return state.roster.filter(r =>
-    r.status === 'onboarding' && !r.invoice_received && r.per_vid_rate && r.video_count
+    r.status === 'onboarding' && r.serum_shipped && !r.invoice_received && r.per_vid_rate && r.video_count
   );
 }
 
@@ -3609,14 +3609,36 @@ function renderForReviewPage() {
       </div>
     </div>
 
-    <!-- Payments Due -->
+    <!-- Serum Shipment Needed (step 1 — always first) -->
+    <div class="review-section">
+      <div class="review-section-header">
+        <span class="review-section-title">📦 Serum Shipment Needed</span>
+        ${serum.length > 0 ? `<span class="review-section-count">${serum.length}</span>` : ''}
+      </div>
+      ${serum.length === 0
+        ? `<div class="review-empty">All serums shipped ✓</div>`
+        : serum.map(r => `
+            <div class="review-card">
+              <div class="review-card-main">
+                <div class="review-card-name">${esc(r.name || r.handle)}</div>
+                <div class="review-card-sub">@${esc(r.handle)} · ${r.video_count || '?'} video deal · BBL Serum needed</div>
+              </div>
+              <button class="btn btn-primary btn-sm" onclick="markRosterField('${r.id}', 'serum_shipped', true)">
+                Mark Shipped
+              </button>
+            </div>`
+          ).join('')
+      }
+    </div>
+
+    <!-- Payments Due (step 2 — only after serum shipped) -->
     <div class="review-section">
       <div class="review-section-header">
         <span class="review-section-title">💰 Payments Due</span>
         ${payments.length > 0 ? `<span class="review-section-count">${payments.length}</span>` : ''}
       </div>
       ${payments.length === 0
-        ? `<div class="review-empty">No pending payments — all clear ✓</div>`
+        ? `<div class="review-empty">${serum.length > 0 ? 'Awaiting serum shipment before payment' : 'No pending payments — all clear ✓'}</div>`
         : payments.map(r => {
             const deal = parseFloat(r.per_vid_rate) * parseInt(r.video_count);
             const half = deal / 2;
@@ -3639,28 +3661,6 @@ function renderForReviewPage() {
               </div>
             </div>`;
           }).join('')
-      }
-    </div>
-
-    <!-- Serum Shipment Needed -->
-    <div class="review-section">
-      <div class="review-section-header">
-        <span class="review-section-title">📦 Serum Shipment Needed</span>
-        ${serum.length > 0 ? `<span class="review-section-count">${serum.length}</span>` : ''}
-      </div>
-      ${serum.length === 0
-        ? `<div class="review-empty">All serums shipped ✓</div>`
-        : serum.map(r => `
-            <div class="review-card">
-              <div class="review-card-main">
-                <div class="review-card-name">${esc(r.name || r.handle)}</div>
-                <div class="review-card-sub">@${esc(r.handle)} · ${r.video_count || '?'} video deal · BBL Serum needed</div>
-              </div>
-              <button class="btn btn-primary btn-sm" onclick="markRosterField('${r.id}', 'serum_shipped', true)">
-                Mark Shipped
-              </button>
-            </div>`
-          ).join('')
       }
     </div>
 
