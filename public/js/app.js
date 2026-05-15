@@ -10,13 +10,14 @@ const API = {
 };
 
 const STATUSES = [
-  { key: 'drafted',          label: 'In Drafts',       color: 'gray'   },
-  { key: 'sent',             label: 'Sent',             color: 'blue'   },
-  { key: 'replied',          label: 'Replied',          color: 'yellow' },
-  { key: 'counter_offered',  label: 'Countered',        color: 'orange' },
-  { key: 'counter_rejected', label: 'Ctr. Rejected',    color: 'red'    },
-  { key: 'signed',           label: 'Signed',           color: 'green'  },
-  { key: 'archived',         label: 'Archived',         color: 'gray'   }
+  { key: 'drafted',          label: 'In Drafts',         color: 'gray'   },
+  { key: 'sent',             label: 'Sent',               color: 'blue'   },
+  { key: 'replied',          label: 'Replied',            color: 'yellow' },
+  { key: 'counter_review',   label: 'Ctr. For Review',   color: 'purple' },
+  { key: 'counter_offered',  label: 'Countered',          color: 'orange' },
+  { key: 'counter_rejected', label: 'Ctr. Rejected',      color: 'red'    },
+  { key: 'signed',           label: 'Signed',             color: 'green'  },
+  { key: 'archived',         label: 'Archived',           color: 'gray'   }
 ];
 
 const state = {
@@ -200,7 +201,7 @@ function renderFUBadge(r) {
 }
 
 // Statuses where follow-ups are no longer relevant
-const FU_HIDDEN_STATUSES = new Set(['replied','counter_rejected','signed','archived']);
+const FU_HIDDEN_STATUSES = new Set(['replied','counter_review','counter_rejected','signed','archived']);
 
 // Renders a table cell for FU1 or FU2 columns — color-coded by status
 function renderFUCell(r, num) {
@@ -1507,44 +1508,19 @@ async function sendCounterForReview(id) {
   const r = state.outreach.find(x => x.id === id);
   if (!r) return;
 
-  // Need a generated message first — generate inline if missing
-  let emailBody = r.counter_offer_email;
-  if (!emailBody) {
-    const videos = parseInt(document.getElementById('dp-counter-videos')?.value);
-    const total  = parseFloat(document.getElementById('dp-counter-total')?.value);
-    if (!videos || !total) { showToast('Enter # videos and total offer first', 'error'); return; }
-    // Generate the message first
-    await generateCounterOffer(id);
-    const updated = state.outreach.find(x => x.id === id);
-    emailBody = updated?.counter_offer_email;
-    if (!emailBody) return; // generateCounterOffer will have shown an error
-  }
-
   const btn = document.getElementById('dp-send-counter-btn');
-  if (btn) { btn.disabled = true; btn.textContent = 'Creating draft…'; }
+  if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
 
   try {
-    await fetchAPI(`${API.outreachGen}/counter-offer-draft`, {
-      method: 'POST',
-      body: JSON.stringify({
-        outreachId:    id,
-        emailBody,
-        creatorEmail:  r.email,
-        creatorName:   r.name,
-        creatorHandle: r.handle
-      })
-    });
-
-    // Update status + state
     const saved = await fetchAPI(`${API.outreach}/${id}`, {
       method: 'PUT',
-      body: JSON.stringify({ status: 'counter_offered' })
+      body: JSON.stringify({ status: 'counter_review' })
     });
     const i = state.outreach.findIndex(x => x.id === id);
     if (i !== -1) state.outreach[i] = saved;
     renderDetailPanel();
     renderOutreachPage();
-    showToast('Counter offer draft created in Gmail ✓');
+    showToast('Counter moved to "Ctr. For Review" ✓');
   } catch (err) {
     showToast(err.message, 'error');
     if (btn) { btn.disabled = false; btn.textContent = 'Send Counter for Review'; }

@@ -600,7 +600,8 @@ body {
 .inline-status-select.status-key-sent           { background-color: var(--blue-dim);    color: var(--blue); }
 .inline-status-select.status-key-replied        { background-color: var(--yellow-dim);  color: var(--yellow); }
 .inline-status-select.status-key-evaluating     { background-color: var(--purple-dim);  color: var(--purple); }
-.inline-status-select.status-key-counter_offered{ background-color: var(--orange-dim);  color: var(--orange); }
+.inline-status-select.status-key-counter_review  { background-color: var(--purple-dim);  color: var(--purple); }
+.inline-status-select.status-key-counter_offered { background-color: var(--orange-dim);  color: var(--orange); }
 .inline-status-select.status-key-signed         { background-color: var(--green-dim);   color: var(--green); }
 .inline-status-select.status-key-archived       { background-color: var(--bg-elevated); color: var(--text-muted); }
 .inline-status-select.status-key-ghosted        { background-color: var(--bg-elevated); color: var(--text-muted); }
@@ -2314,10 +2315,15 @@ body {
 .filter-tabs .filter-tab-replied.active { color: #2dd4bf; background: rgba(45,212,191,0.1); }
 .filter-tabs .filter-tab-replied.active .filter-count { background: rgba(45,212,191,0.2); color: #2dd4bf; }
 
-.filter-tabs .filter-tab-counter_offered        { color: rgba(251,191,36,0.75); }
-.filter-tabs .filter-tab-counter_offered .filter-count { color: rgba(251,191,36,0.75); }
-.filter-tabs .filter-tab-counter_offered.active { color: var(--yellow); background: var(--yellow-dim); }
-.filter-tabs .filter-tab-counter_offered.active .filter-count { background: rgba(251,191,36,0.2); color: var(--yellow); }
+.filter-tabs .filter-tab-counter_review        { color: rgba(168,85,247,0.75); }
+.filter-tabs .filter-tab-counter_review .filter-count { color: rgba(168,85,247,0.75); }
+.filter-tabs .filter-tab-counter_review.active { color: var(--purple); background: var(--purple-dim); }
+.filter-tabs .filter-tab-counter_review.active .filter-count { background: rgba(168,85,247,0.2); color: var(--purple); }
+
+.filter-tabs .filter-tab-counter_offered        { color: rgba(251,146,60,0.75); }
+.filter-tabs .filter-tab-counter_offered .filter-count { color: rgba(251,146,60,0.75); }
+.filter-tabs .filter-tab-counter_offered.active { color: var(--orange); background: var(--orange-dim); }
+.filter-tabs .filter-tab-counter_offered.active .filter-count { background: rgba(251,146,60,0.2); color: var(--orange); }
 
 .filter-tabs .filter-tab-counter_rejected        { color: rgba(248,113,113,0.75); }
 .filter-tabs .filter-tab-counter_rejected .filter-count { color: rgba(248,113,113,0.75); }
