@@ -18,6 +18,7 @@ const FIELDS = [
   'founder_viral_track_record', 'founder_viral_potential', 'founder_sales_structure',
   'founder_tier',
   'counter_offer_amount', 'counter_offer_email', 'counter_feedback',
+  'founder_counter_amount', 'founder_counter_notes',
   'video_count', 'start_date',
   'sent_date', 'followup1_date', 'followup1_sent', 'followup1_sent_date',
   'followup2_date', 'followup2_sent', 'followup2_sent_date',
@@ -27,7 +28,7 @@ const FIELDS = [
 const BOOL_FIELDS  = ['followup1_sent', 'followup2_sent', 'payment_sent'];
 const DATE_FIELDS  = ['sent_date', 'followup1_date', 'followup1_sent_date', 'followup2_date', 'followup2_sent_date', 'start_date'];
 const INT_FIELDS   = ['follower_count', 'video_count', 'asked_rate_custom_count'];
-const FLOAT_FIELDS = ['last_30d_gmv', 'asked_rate_3', 'asked_rate_5', 'asked_rate_10', 'asked_rate_custom', 'counter_offer_amount'];
+const FLOAT_FIELDS = ['last_30d_gmv', 'asked_rate_3', 'asked_rate_5', 'asked_rate_10', 'asked_rate_custom', 'counter_offer_amount', 'founder_counter_amount'];
 
 function addDays(dateStr, n) {
   const d = new Date(dateStr + 'T12:00:00');

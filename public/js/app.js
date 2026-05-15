@@ -1284,6 +1284,52 @@ function renderDetailPanel() {
           <div class="dp-rejection-text">${esc(r.counter_feedback)}</div>
         </div>
       </div>` : ''}
+
+      <!-- Founder Counter Offer (only in counter_review) -->
+      <div class="dp-founder-counter">
+        <div class="dp-founder-counter-header">
+          <div class="dp-section-label" style="margin-bottom:0">Founder Counter</div>
+          <span class="dp-founder-counter-hint">optional — your independent rate</span>
+        </div>
+        <div class="dp-founder-counter-fields">
+          <div class="dp-form-group" style="flex:1">
+            <label>Your rate / vid</label>
+            <div class="dp-input-money">
+              <span class="dp-money-prefix">$</span>
+              <input type="number" class="dp-input" id="dp-founder-counter-rate"
+                value="${r.founder_counter_amount || ''}"
+                placeholder="${r.counter_offer_amount ? Math.round(r.counter_offer_amount) : 'e.g. 100'}"
+                onblur="saveFounderCounter('${r.id}')">
+            </div>
+          </div>
+          <div class="dp-form-group" style="flex:0 0 60px;text-align:center">
+            <label>Videos</label>
+            <div style="font-size:15px;font-weight:700;color:var(--text-primary);padding:8px 0">${r.video_count || '—'}</div>
+          </div>
+          ${r.founder_counter_amount && r.video_count ? `
+          <div class="dp-form-group" style="flex:0 0 80px;text-align:right">
+            <label>Total</label>
+            <div class="dp-rate-display dp-rate-counter" style="font-size:14px">${fmt$(parseFloat(r.founder_counter_amount) * parseInt(r.video_count))}</div>
+          </div>` : ''}
+        </div>
+        ${(() => {
+          if (!r.founder_counter_amount || !r.counter_offer_amount) return '';
+          const diff = parseFloat(r.founder_counter_amount) - parseFloat(r.counter_offer_amount);
+          if (diff === 0) return `<div class="dp-founder-counter-diff">= Same rate as AM (${fmt$(r.counter_offer_amount)}/vid)</div>`;
+          const totalDiff = Math.abs(diff) * (parseInt(r.video_count) || 0);
+          const dir = diff < 0 ? '↓' : '↑';
+          const cls = diff < 0 ? 'dp-counter-diff-down' : 'dp-counter-diff-up';
+          const word = diff < 0 ? 'lower' : 'higher';
+          const totalNote = r.video_count ? ` · ${fmt$(totalDiff)} ${diff < 0 ? 'less' : 'more'} on ${r.video_count} vids` : '';
+          return `<div class="dp-founder-counter-diff ${cls}">${dir} ${fmt$(Math.abs(diff))}/vid ${word} than AM${totalNote}</div>`;
+        })()}
+        <div class="dp-form-group" style="margin-top:10px">
+          <label>Reasoning <span class="dp-label-hint">why you'd price differently</span></label>
+          <textarea class="dp-input dp-textarea" id="dp-founder-counter-notes"
+            placeholder="e.g. Strong energy but no viral track record yet — start lower and scale up after first batch..."
+            onblur="saveFounderCounter('${r.id}')">${esc(r.founder_counter_notes || '')}</textarea>
+        </div>
+      </div>
       ` : ''}
 
       ${r.counter_offer_email ? `
@@ -1709,6 +1755,26 @@ async function rejectCounter(id) {
   } catch (err) {
     showToast(err.message, 'error');
     if (btn) { btn.disabled = false; btn.textContent = 'Submit Rejection'; }
+  }
+}
+
+async function saveFounderCounter(id) {
+  const rateEl  = document.getElementById('dp-founder-counter-rate');
+  const notesEl = document.getElementById('dp-founder-counter-notes');
+  const updates = {};
+  if (rateEl)  updates.founder_counter_amount = rateEl.value !== '' ? parseFloat(rateEl.value) : null;
+  if (notesEl) updates.founder_counter_notes  = notesEl.value.trim() || null;
+  if (!Object.keys(updates).length) return;
+  try {
+    const saved = await fetchAPI(`${API.outreach}/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(updates)
+    });
+    const i = state.outreach.findIndex(x => x.id === id);
+    if (i !== -1) state.outreach[i] = saved;
+    renderDetailPanel();
+  } catch (err) {
+    showToast(err.message, 'error');
   }
 }
 
