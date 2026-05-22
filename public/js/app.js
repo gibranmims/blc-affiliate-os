@@ -35,7 +35,8 @@ const state = {
   tiktokConnected:    false,
   scripts:            [],
   scriptsLoaded:      false,
-  contentLabTab:      'generator',
+  contentLabTab:      'creators',
+  contentLabCreatorId: null,
   rosterTab:          'paid'
 };
 
@@ -331,6 +332,14 @@ function copyText(text) {
   navigator.clipboard.writeText(text)
     .then(() => showToast('Copied to clipboard!'))
     .catch(() => showToast('Copy failed — select and copy manually', 'error'));
+}
+
+function normalizeBLCVideos(raw) {
+  if (!Array.isArray(raw)) return [];
+  return raw.map(v => typeof v === 'string'
+    ? { url: v, views: null, gmv: null, posted_date: null, title: '', transcript: '' }
+    : { url: v.url || '', views: v.views ?? null, gmv: v.gmv ?? null, posted_date: v.posted_date || null, title: v.title || '', transcript: v.transcript || '' }
+  );
 }
 
 const EVAL_QUESTIONS = [
@@ -2897,7 +2906,7 @@ function renderRosterDetailPanel() {
   document.getElementById('detail-drawer-title').textContent = 'Affiliate Profile';
 
   const topVids  = Array.isArray(r.top_videos)      ? r.top_videos      : [];
-  const blcVids  = Array.isArray(r.blc_videos)       ? r.blc_videos      : [];
+  const blcVids  = normalizeBLCVideos(r.blc_videos).map(v => v.url);
   const schedule = Array.isArray(r.posting_schedule) ? r.posting_schedule : [];
   const startISO = r.start_date ? r.start_date.split('T')[0] : '';
   const endISO   = startISO ? (() => {
@@ -3346,8 +3355,36 @@ function _removeVideoFromList(rosterId, field, idx, listId, removeFn) {
 
 function addTopVideo(id)    { _addVideoToList(id, 'top_videos', 'rs-new-video-url', 'rs-videos-list', 'removeTopVideo'); }
 function removeTopVideo(id, i) { _removeVideoFromList(id, 'top_videos', i, 'rs-videos-list', 'removeTopVideo'); }
-function addBLCVideo(id)    { _addVideoToList(id, 'blc_videos', 'rs-new-blc-url', 'rs-blc-videos-list', 'removeBLCVideo'); }
-function removeBLCVideo(id, i) { _removeVideoFromList(id, 'blc_videos', i, 'rs-blc-videos-list', 'removeBLCVideo'); }
+function addBLCVideo(id) {
+  const input = document.getElementById('rs-new-blc-url');
+  const url   = input?.value?.trim();
+  if (!url) return;
+  const r = state.roster.find(x => x.id === id);
+  if (!r) return;
+  const existing = normalizeBLCVideos(r.blc_videos);
+  const updated  = [...existing, { url, views: null, gmv: null, posted_date: null, title: '', transcript: '' }];
+  input.value = '';
+  r.blc_videos = updated;
+  saveRosterField(id, 'blc_videos', updated);
+  const list = document.getElementById('rs-blc-videos-list');
+  if (list) {
+    const idx = updated.length - 1;
+    const div = document.createElement('div');
+    div.className = 'rs-video-item';
+    div.dataset.idx = idx;
+    div.innerHTML = `<a href="${esc(url)}" target="_blank" class="rs-video-link" title="${esc(url)}">${esc(url)}</a><button class="rs-remove-btn" onclick="removeBLCVideo('${id}',${idx})" title="Remove">✕</button>`;
+    list.appendChild(div);
+  }
+}
+function removeBLCVideo(id, idx) {
+  const r = state.roster.find(x => x.id === id);
+  if (!r) return;
+  const videos = normalizeBLCVideos(r.blc_videos).filter((_, i) => i !== idx);
+  r.blc_videos = videos;
+  saveRosterField(id, 'blc_videos', videos);
+  const list = document.getElementById('rs-blc-videos-list');
+  if (list) list.innerHTML = videos.map((v, i) => `<div class="rs-video-item" data-idx="${i}"><a href="${esc(v.url)}" target="_blank" class="rs-video-link" title="${esc(v.url)}">${esc(v.url)}</a><button class="rs-remove-btn" onclick="removeBLCVideo('${id}',${i})" title="Remove">✕</button></div>`).join('');
+}
 
 // ── Posting Schedule ──────────────────────────────────────────
 
@@ -3686,8 +3723,9 @@ function switchContentLabTab(tab) {
 }
 
 function renderScriptsPage() {
-  const libCount = state.scripts.length;
-  const blcCount = state.roster.reduce((s, r) => s + (Array.isArray(r.blc_videos) ? r.blc_videos.length : 0), 0);
+  const libCount      = state.scripts.length;
+  const paidCreators  = state.roster.filter(r => r.affiliate_type !== 'free' || !r.affiliate_type);
+  const creatorsCount = paidCreators.length;
 
   document.getElementById('page-content').innerHTML = `
     <div class="page-header">
@@ -3698,9 +3736,9 @@ function renderScriptsPage() {
     </div>
 
     <div class="cl-tabs">
+      <button class="cl-tab ${state.contentLabTab === 'creators'  ? 'active' : ''}" onclick="switchContentLabTab('creators')">Creators${creatorsCount > 0 ? ` <span class="cl-tab-count">${creatorsCount}</span>` : ''}</button>
       <button class="cl-tab ${state.contentLabTab === 'generator' ? 'active' : ''}" onclick="switchContentLabTab('generator')">Script Generator</button>
       <button class="cl-tab ${state.contentLabTab === 'library'   ? 'active' : ''}" onclick="switchContentLabTab('library')">Saved Scripts${libCount > 0 ? ` <span class="cl-tab-count">${libCount}</span>` : ''}</button>
-      <button class="cl-tab ${state.contentLabTab === 'videos'    ? 'active' : ''}" onclick="switchContentLabTab('videos')">BLC Videos${blcCount > 0 ? ` <span class="cl-tab-count">${blcCount}</span>` : ''}</button>
     </div>
 
     <div id="cl-body">
@@ -3710,9 +3748,9 @@ function renderScriptsPage() {
 
 function renderContentLabTab() {
   switch (state.contentLabTab) {
-    case 'library': return renderLibraryTab();
-    case 'videos':  return renderBLCVideosTab();
-    default:        return renderGeneratorTab();
+    case 'creators': return renderCreatorsTab();
+    case 'library':  return renderLibraryTab();
+    default:         return renderGeneratorTab();
   }
 }
 
@@ -3897,49 +3935,250 @@ async function deleteScript(e, id) {
     showToast('Script deleted');
     // update tab count
     document.querySelectorAll('.cl-tab').forEach((btn, i) => {
-      if (i === 1) btn.innerHTML = `Saved Scripts${state.scripts.length > 0 ? ` <span class="cl-tab-count">${state.scripts.length}</span>` : ''}`;
+      if (i === 2) btn.innerHTML = `Saved Scripts${state.scripts.length > 0 ? ` <span class="cl-tab-count">${state.scripts.length}</span>` : ''}`;
     });
   } catch (err) {
     showToast(err.message, 'error');
   }
 }
 
-function renderBLCVideosTab() {
-  const creatorsWithVideos = state.roster.filter(r =>
-    Array.isArray(r.blc_videos) && r.blc_videos.length > 0
-  );
+function renderCreatorsTab() {
+  if (state.contentLabCreatorId) return renderCreatorContentProfile(state.contentLabCreatorId);
+  return renderCreatorGrid();
+}
 
-  if (creatorsWithVideos.length === 0) {
-    return `<div class="empty-state">
-      <div class="empty-icon">🎵</div>
-      <h3>No BLC videos yet</h3>
-      <p>Add them through each creator's profile in the Roster</p>
-      <button class="btn btn-primary" onclick="navigate('roster')">Go to Roster</button>
-    </div>`;
+function openCreatorProfile(id) {
+  state.contentLabCreatorId = id;
+  const body = document.getElementById('cl-body');
+  if (body) body.innerHTML = renderCreatorsTab();
+}
+
+function backToCreators() {
+  state.contentLabCreatorId = null;
+  const body = document.getElementById('cl-body');
+  if (body) body.innerHTML = renderCreatorsTab();
+}
+
+function showAddVideoForm(rosterId) {
+  const form = document.getElementById(`cl-add-form-${rosterId}`);
+  if (form) { form.style.display = ''; form.querySelector('input')?.focus(); }
+}
+
+function renderCreatorGrid() {
+  const creators = state.roster.filter(r => r.affiliate_type !== 'free' || !r.affiliate_type);
+  if (creators.length === 0) {
+    return `<div class="empty-state"><div class="empty-icon">👥</div><h3>No creators on your roster yet</h3><p>Add creators to your Roster to track their content here</p><button class="btn btn-primary" onclick="navigate('roster')">Go to Roster</button></div>`;
   }
+  const totalVideos = creators.reduce((s, r) => s + normalizeBLCVideos(r.blc_videos).length, 0);
+  const totalGMV    = creators.reduce((s, r) => s + normalizeBLCVideos(r.blc_videos).reduce((vs, v) => vs + (parseFloat(v.gmv) || 0), 0), 0);
+  return `
+    <div class="cl-creators-summary">
+      ${creators.length} creator${creators.length !== 1 ? 's' : ''} · ${totalVideos} video${totalVideos !== 1 ? 's' : ''} logged · ${fmt$(totalGMV)} total GMV
+    </div>
+    <div class="cl-creators-grid">
+      ${creators.map(r => {
+        const videos    = normalizeBLCVideos(r.blc_videos);
+        const totalGMV  = videos.reduce((s, v) => s + (parseFloat(v.gmv) || 0), 0);
+        const totalViews = videos.reduce((s, v) => s + (parseInt(v.views) || 0), 0);
+        const avgViews  = videos.length > 0 ? Math.round(totalViews / videos.length) : 0;
+        const topVideo  = videos.length > 0 ? [...videos].sort((a, b) => (parseFloat(b.gmv) || 0) - (parseFloat(a.gmv) || 0))[0] : null;
+        return `
+        <div class="cl-creator-card" onclick="openCreatorProfile('${r.id}')">
+          <div class="cl-card-top">
+            <div class="cl-card-identity">
+              <div class="cl-card-name">${esc(r.name || r.handle)}</div>
+              <div class="cl-card-handle">@${esc(r.handle)}</div>
+            </div>
+            <div class="cl-card-badges">
+              ${r.tier ? `<span class="grade-badge grade-${r.tier}">${r.tier}</span>` : ''}
+            </div>
+          </div>
+          <div class="cl-card-stats">
+            <div class="cl-card-stat">
+              <div class="cl-card-stat-val">${videos.length}</div>
+              <div class="cl-card-stat-label">Videos</div>
+            </div>
+            <div class="cl-card-stat">
+              <div class="cl-card-stat-val">${fmt$(totalGMV)}</div>
+              <div class="cl-card-stat-label">Total GMV</div>
+            </div>
+            <div class="cl-card-stat">
+              <div class="cl-card-stat-val">${avgViews > 0 ? fmtNum(avgViews) : '—'}</div>
+              <div class="cl-card-stat-label">Avg Views</div>
+            </div>
+          </div>
+          ${topVideo && topVideo.gmv ? `<div class="cl-card-top-video">🏆 Top: ${topVideo.views ? fmtNum(topVideo.views) + ' views · ' : ''}${fmt$(topVideo.gmv)} GMV</div>` : `<div class="cl-card-no-videos">${videos.length === 0 ? 'No videos logged yet' : 'No GMV tracked yet'}</div>`}
+          <div class="cl-card-arrow">→</div>
+        </div>`;
+      }).join('')}
+    </div>`;
+}
+
+function renderCreatorContentProfile(id) {
+  const r = state.roster.find(x => x.id === id);
+  if (!r) return '<div class="empty-state">Creator not found</div>';
+  const videos     = normalizeBLCVideos(r.blc_videos);
+  const sorted     = [...videos].sort((a, b) => (parseFloat(b.gmv) || 0) - (parseFloat(a.gmv) || 0));
+  const totalGMV   = videos.reduce((s, v) => s + (parseFloat(v.gmv) || 0), 0);
+  const totalViews = videos.reduce((s, v) => s + (parseInt(v.views) || 0), 0);
+  const totalDeal  = (parseFloat(r.per_vid_rate) || 0) * (parseInt(r.video_count) || 0);
+  const gmvPer1k   = totalViews > 0 ? (totalGMV / totalViews * 1000) : 0;
 
   return `
-    <div class="blc-videos-all">
-      <div class="blc-videos-summary">
-        ${creatorsWithVideos.length} creator${creatorsWithVideos.length !== 1 ? 's' : ''} ·
-        ${creatorsWithVideos.reduce((s, r) => s + r.blc_videos.length, 0)} total videos
+    <div class="cl-profile">
+      <div class="cl-profile-nav">
+        <button class="cl-back-btn" onclick="backToCreators()">← All Creators</button>
+        <button class="btn btn-primary btn-sm" onclick="showAddVideoForm('${r.id}')">+ Add Video</button>
       </div>
-      ${creatorsWithVideos.map(r => `
-        <div class="blc-creator-section">
-          <div class="blc-creator-header">
-            <span class="blc-creator-handle">@${esc(r.handle)}</span>
-            ${r.tier ? `<span class="grade-badge grade-${r.tier}">${r.tier}</span>` : ''}
-            <span class="blc-video-count">${r.blc_videos.length} video${r.blc_videos.length !== 1 ? 's' : ''}</span>
+
+      <div class="cl-profile-header">
+        <div class="cl-profile-identity">
+          <div class="cl-profile-name">${esc(r.name || r.handle)}</div>
+          <div class="cl-profile-handle">@${esc(r.handle)}</div>
+          <div class="cl-profile-meta">
+            ${r.tier ? `${r.tier} grade · ` : ''}${r.video_count ? `${r.video_count} video deal` : ''}${r.per_vid_rate ? ` · ${fmt$(r.per_vid_rate)}/vid` : ''}${totalDeal > 0 ? ` · ${fmt$(totalDeal)} total` : ''}
           </div>
-          <div class="blc-videos-grid">
-            ${r.blc_videos.map(url => `
-              <a href="${esc(url)}" target="_blank" class="blc-video-link">
-                <span class="blc-video-icon">🎵</span>
-                <span class="blc-video-url">${esc(url.replace('https://www.tiktok.com/', '').replace('https://tiktok.com/', ''))}</span>
-              </a>`).join('')}
+        </div>
+      </div>
+
+      <div class="cl-profile-stats">
+        <div class="cl-pstat"><div class="cl-pstat-val">${videos.length}</div><div class="cl-pstat-label">Videos Logged</div></div>
+        <div class="cl-pstat"><div class="cl-pstat-val">${totalViews > 0 ? fmtNum(totalViews) : '—'}</div><div class="cl-pstat-label">Total Views</div></div>
+        <div class="cl-pstat cl-pstat-highlight"><div class="cl-pstat-val">${fmt$(totalGMV)}</div><div class="cl-pstat-label">Total GMV</div></div>
+        <div class="cl-pstat"><div class="cl-pstat-val">${gmvPer1k > 0 ? fmt$(gmvPer1k) : '—'}</div><div class="cl-pstat-label">GMV / 1k views</div></div>
+      </div>
+
+      <!-- Add Video Form -->
+      <div class="cl-add-video-form" id="cl-add-form-${r.id}" style="display:none">
+        <div class="cl-add-video-label">Add a new video</div>
+        <input type="url" class="dp-input" id="cl-new-video-url-${r.id}" placeholder="Paste TikTok URL..." style="margin-bottom:10px">
+        <div class="cl-add-video-fields">
+          <div class="cl-add-field">
+            <label>Views</label>
+            <input type="number" class="dp-input" id="cl-new-video-views-${r.id}" placeholder="e.g. 50000">
           </div>
-        </div>`).join('')}
+          <div class="cl-add-field">
+            <label>GMV ($)</label>
+            <input type="number" class="dp-input" id="cl-new-video-gmv-${r.id}" placeholder="e.g. 450" step="0.01">
+          </div>
+          <div class="cl-add-field">
+            <label>Date Posted</label>
+            <input type="date" class="dp-input" id="cl-new-video-date-${r.id}">
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <button class="btn btn-primary btn-sm" onclick="addBLCVideoEntry('${r.id}')">Add Video</button>
+          <button class="btn btn-secondary btn-sm" onclick="document.getElementById('cl-add-form-${r.id}').style.display='none'">Cancel</button>
+        </div>
+      </div>
+
+      ${sorted.length === 0
+        ? `<div class="cl-no-videos">No videos logged yet — click "+ Add Video" to add the first one</div>`
+        : `<div class="cl-videos-list">
+          ${sorted.map((v, displayIdx) => {
+            const origIdx = videos.findIndex(x => x.url === v.url && x.posted_date === v.posted_date);
+            const isTop   = displayIdx === 0 && (parseFloat(v.gmv) || 0) > 0;
+            const shortUrl = v.url.replace(/https?:\/\/(www\.)?tiktok\.com\//, '');
+            return `
+            <div class="cl-video-entry${isTop ? ' cl-video-entry-top' : ''}">
+              <div class="cl-video-entry-header">
+                <span class="cl-video-rank${isTop ? ' cl-video-rank-top' : ''}">${isTop ? '🏆' : '#' + (displayIdx + 1)}</span>
+                <a href="${esc(v.url)}" target="_blank" class="cl-video-link">${esc(shortUrl)}</a>
+                <button class="rs-remove-btn" onclick="removeBLCVideoEntry('${r.id}', ${origIdx})" title="Remove">✕</button>
+              </div>
+              <div class="cl-video-stats-row">
+                <div class="cl-video-stat-group">
+                  <label class="cl-video-stat-label">Views</label>
+                  <input type="number" class="dp-input cl-video-stat-input" value="${v.views || ''}"
+                    placeholder="0" onblur="updateBLCVideoField('${r.id}', ${origIdx}, 'views', this.value)">
+                </div>
+                <div class="cl-video-stat-group">
+                  <label class="cl-video-stat-label">GMV ($)</label>
+                  <input type="number" step="0.01" class="dp-input cl-video-stat-input" value="${v.gmv || ''}"
+                    placeholder="0.00" onblur="updateBLCVideoField('${r.id}', ${origIdx}, 'gmv', this.value)">
+                </div>
+                <div class="cl-video-stat-group">
+                  <label class="cl-video-stat-label">Date Posted</label>
+                  <input type="date" class="dp-input cl-video-stat-input" value="${v.posted_date || ''}"
+                    onblur="updateBLCVideoField('${r.id}', ${origIdx}, 'posted_date', this.value)">
+                </div>
+              </div>
+              <div class="cl-transcript-row">
+                <button class="cl-transcript-btn${v.transcript ? ' cl-transcript-btn-saved' : ''}"
+                  onclick="toggleVideoTranscript('${r.id}', ${origIdx})">
+                  ${v.transcript ? '📋 Transcript saved ▾' : '📋 Add transcript ▾'}
+                </button>
+              </div>
+              <div class="cl-transcript-panel" id="cl-transcript-${r.id}-${origIdx}" style="display:none">
+                <div class="cl-transcript-hint">Paste the video transcript or notes here — saved automatically on blur</div>
+                <textarea class="dp-textarea cl-transcript-ta" rows="6"
+                  placeholder="Paste transcript here..."
+                  onblur="updateBLCVideoField('${r.id}', ${origIdx}, 'transcript', this.value)">${esc(v.transcript || '')}</textarea>
+              </div>
+            </div>`;
+          }).join('')}
+        </div>`}
     </div>`;
+}
+
+function toggleVideoTranscript(rosterId, idx) {
+  const panel = document.getElementById(`cl-transcript-${rosterId}-${idx}`);
+  if (panel) panel.style.display = panel.style.display === 'none' ? '' : 'none';
+}
+
+async function addBLCVideoEntry(rosterId) {
+  const urlEl   = document.getElementById(`cl-new-video-url-${rosterId}`);
+  const viewsEl = document.getElementById(`cl-new-video-views-${rosterId}`);
+  const gmvEl   = document.getElementById(`cl-new-video-gmv-${rosterId}`);
+  const dateEl  = document.getElementById(`cl-new-video-date-${rosterId}`);
+  const url = urlEl?.value?.trim();
+  if (!url) { showToast('Paste a video URL first', 'error'); return; }
+  const r = state.roster.find(x => x.id === rosterId);
+  const existing = normalizeBLCVideos(r?.blc_videos);
+  const newEntry = {
+    url,
+    views:       viewsEl?.value ? parseFloat(viewsEl.value) : null,
+    gmv:         gmvEl?.value   ? parseFloat(gmvEl.value)   : null,
+    posted_date: dateEl?.value  || null,
+    title: '', transcript: ''
+  };
+  const updated = [...existing, newEntry];
+  await saveRosterBLCVideos(rosterId, updated, true);
+  showToast('Video added ✓');
+}
+
+async function updateBLCVideoField(rosterId, idx, field, value) {
+  const r = state.roster.find(x => x.id === rosterId);
+  if (!r) return;
+  const videos = normalizeBLCVideos(r.blc_videos);
+  if (!videos[idx]) return;
+  const numFields = ['views', 'gmv'];
+  videos[idx][field] = numFields.includes(field)
+    ? (value !== '' && value != null ? parseFloat(value) : null)
+    : value;
+  await saveRosterBLCVideos(rosterId, videos, false);
+}
+
+async function removeBLCVideoEntry(rosterId, idx) {
+  if (!confirm('Remove this video entry?')) return;
+  const r = state.roster.find(x => x.id === rosterId);
+  const videos = normalizeBLCVideos(r?.blc_videos).filter((_, i) => i !== idx);
+  await saveRosterBLCVideos(rosterId, videos, true);
+  showToast('Video removed');
+}
+
+async function saveRosterBLCVideos(rosterId, videos, rerender = false) {
+  try {
+    const rec = await fetchAPI(`${API.roster}/${rosterId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ blc_videos: videos })
+    });
+    const i = state.roster.findIndex(x => x.id === rosterId);
+    if (i !== -1) state.roster[i] = rec;
+    if (rerender) openCreatorProfile(rosterId);
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
 }
 
 async function generateScript() {
