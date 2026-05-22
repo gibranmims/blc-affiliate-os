@@ -3103,6 +3103,7 @@ body {
 .inline-status-select.status-key-rs-watching   { background-color: var(--blue-dim);    color: var(--blue); }
 .inline-status-select.status-key-rs-paused     { background-color: var(--yellow-dim);  color: var(--yellow); }
 .inline-status-select.status-key-rs-inactive   { background-color: var(--bg-elevated); color: var(--text-muted); }
+.inline-status-select.status-key-rs-completed  { background-color: var(--orange-dim);  color: var(--orange); }
 
 /* No-deal indicator in table */
 .deal-cell-none { font-size: 12px; color: var(--text-muted); font-style: italic; }
@@ -3992,6 +3993,49 @@ body {
 .review-section-rejected .review-section-title { color: var(--red); }
 .review-count-red { background: var(--red) !important; color: #fff !important; }
 .review-card-rejected { border-left: 3px solid var(--red) !important; }
+
+/* Final payment due section */
+.review-section-final .review-section-title { color: var(--orange); }
+.review-count-orange { background: var(--orange) !important; color: #fff !important; }
+.review-card-final { border-left: 3px solid var(--orange) !important; }
+
+/* Mark Videos Complete bar in Roster detail panel */
+.rs-complete-bar {
+  margin: 0 0 16px;
+  padding: 14px 16px;
+  background: var(--orange-dim);
+  border: 1px solid rgba(251,146,60,0.3);
+  border-radius: var(--radius);
+}
+.rs-complete-bar-done {
+  background: var(--green-dim);
+  border-color: rgba(34,197,94,0.3);
+}
+.rs-complete-bar-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--orange);
+  margin-bottom: 4px;
+}
+.rs-complete-bar-done .rs-complete-bar-label { color: var(--green); }
+.rs-complete-bar-hint {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+}
+.rs-complete-bar-done .rs-complete-bar-hint { margin-bottom: 0; }
+.rs-complete-btn {
+  background: var(--orange);
+  color: #fff;
+  border: none;
+  padding: 7px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.rs-complete-btn:hover { opacity: 0.88; }
 .review-archive-btn {
   background: transparent;
   border: 1px solid var(--border);
@@ -4316,6 +4360,7 @@ body {
 .fin-status-due     { background: var(--yellow-dim);  color: var(--yellow); border: 1px solid rgba(251,191,36,0.2); }
 .fin-status-deposit { background: rgba(249,115,22,0.12); color: #f97316; border: 1px solid rgba(249,115,22,0.2); }
 .fin-status-pending { background: var(--bg-elevated); color: var(--text-muted); border: 1px solid var(--border); }
+.fin-status-final   { background: var(--orange-dim);  color: var(--orange); border: 1px solid rgba(251,146,60,0.35); font-weight: 700; }
 
 .fin-td-action { text-align: right; width: 110px; }
 .fin-paid-check { font-size: 16px; color: var(--green); }
@@ -4353,6 +4398,12 @@ body {
   background-color: var(--green-dim);
   color: var(--green);
   border-color: rgba(74,222,128,0.25);
+}
+.fin-status-select-final_due {
+  background-color: var(--orange-dim);
+  color: var(--orange);
+  border-color: rgba(251,146,60,0.3);
+  font-weight: 700;
 }
 
 .fin-empty {

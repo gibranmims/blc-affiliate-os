@@ -312,8 +312,8 @@ function gradeBadge(grade) {
 }
 
 function rosterStatusBadge(status) {
-  const map    = { active: 'green', onboarding: 'purple', watching: 'blue', paused: 'yellow', inactive: 'gray' };
-  const labels = { active: 'Active', onboarding: 'Onboarding', watching: 'Watching', paused: 'Paused', inactive: 'Inactive' };
+  const map    = { active: 'green', onboarding: 'purple', watching: 'blue', paused: 'yellow', inactive: 'gray', completed: 'orange' };
+  const labels = { active: 'Active', onboarding: 'Onboarding', watching: 'Watching', paused: 'Paused', inactive: 'Inactive', completed: 'Completed' };
   return `<span class="badge badge-${map[status] || 'gray'}">${labels[status] || esc(status)}</span>`;
 }
 
@@ -2853,7 +2853,7 @@ function renderRosterDetailPanel() {
     return d.toISOString().split('T')[0];
   })() : '';
   const total = (parseFloat(r.per_vid_rate) || 0) * (parseInt(r.video_count) || 0);
-  const ROSTER_STATUSES = [['active','Active'],['onboarding','Onboarding'],['watching','Watching'],['paused','Paused'],['inactive','Inactive']];
+  const ROSTER_STATUSES = [['active','Active'],['onboarding','Onboarding'],['completed','Completed'],['watching','Watching'],['paused','Paused'],['inactive','Inactive']];
 
   const videoListHTML = (videos, listId, removeFn, inputId, addFn) => `
     <div id="${listId}" class="rs-video-list">
@@ -3013,6 +3013,20 @@ function renderRosterDetailPanel() {
       ${videoListHTML(blcVids, 'rs-blc-videos-list', 'removeBLCVideo', 'rs-new-blc-url', 'addBLCVideo')}
     </div>
 
+    <!-- Completion milestone -->
+    ${r.status === 'active' ? `
+    <div class="rs-complete-bar">
+      <div class="rs-complete-bar-label">All videos delivered?</div>
+      <div class="rs-complete-bar-hint">Once the creator confirms all videos are posted, mark them complete to flag the final 50% payment in For Review.</div>
+      <button class="rs-complete-btn" onclick="markVideosComplete('${r.id}')">✓ Mark All Videos Complete</button>
+    </div>
+    ` : r.status === 'completed' ? `
+    <div class="rs-complete-bar rs-complete-bar-done">
+      <div class="rs-complete-bar-label">✓ Videos Complete — Final Payment Pending</div>
+      <div class="rs-complete-bar-hint">Head to For Review to mark the final 50% payment as sent.</div>
+    </div>
+    ` : ''}
+
     <!-- Remove -->
     <div class="dp-delete-zone">
       <button class="btn btn-danger-outline" onclick="deleteRosterFromPanel('${r.id}')">Remove from Roster</button>
@@ -3023,6 +3037,40 @@ function renderRosterDetailPanel() {
 // ============================================================
 // ROSTER — SAVE / CRUD
 // ============================================================
+
+async function markVideosComplete(id) {
+  if (!confirm('Mark all videos as complete? This will flag the final 50% payment in For Review.')) return;
+  try {
+    const rec = await fetchAPI(`${API.roster}/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ status: 'completed' })
+    });
+    const i = state.roster.findIndex(x => x.id === id);
+    if (i !== -1) state.roster[i] = rec;
+    updateReviewBadge();
+    renderRosterPage();
+    showToast('Videos marked complete — final payment flagged in For Review ✓');
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+async function markFinalPaymentSent(rosterId) {
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    const rec = await fetchAPI(`${API.roster}/${rosterId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ payment_sent: true, payment_sent_date: today })
+    });
+    const i = state.roster.findIndex(x => x.id === rosterId);
+    if (i !== -1) state.roster[i] = rec;
+    updateReviewBadge();
+    renderForReviewPage();
+    showToast('Final payment marked as sent ✓');
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
 
 async function saveRosterField(id, field, value) {
   try {
@@ -3992,8 +4040,14 @@ function reviewNeedsCreativeAssets() {
   return state.roster.filter(r => (r.creative_assets_needed || 0) > 0);
 }
 
+function reviewFinalPayments() {
+  return state.roster.filter(r =>
+    r.status === 'completed' && !r.payment_sent && r.per_vid_rate && r.video_count
+  );
+}
+
 function reviewCount() {
-  return reviewPendingPayments().length + reviewPendingSerum().length + reviewPendingAssets().length + reviewCounterRejected().length + reviewNeedsCreativeAssets().length;
+  return reviewPendingPayments().length + reviewPendingSerum().length + reviewPendingAssets().length + reviewCounterRejected().length + reviewNeedsCreativeAssets().length + reviewFinalPayments().length;
 }
 
 function updateReviewBadge() {
@@ -4030,11 +4084,12 @@ function calcPostingSchedule(serumShipDate, videoCount) {
 
 function renderForReviewPage() {
   const payments        = reviewPendingPayments();
+  const finalPayments   = reviewFinalPayments();
   const serum           = reviewPendingSerum();
   const assets          = reviewPendingAssets();
   const rejected        = reviewCounterRejected();
   const creativeNeeded  = reviewNeedsCreativeAssets();
-  const total           = payments.length + serum.length + assets.length + rejected.length + creativeNeeded.length;
+  const total           = payments.length + finalPayments.length + serum.length + assets.length + rejected.length + creativeNeeded.length;
 
   document.getElementById('page-content').innerHTML = `
     <div class="page-header">
@@ -4094,6 +4149,39 @@ function renderForReviewPage() {
               <div class="review-card-actions">
                 <button class="btn btn-primary btn-sm" onclick="markRosterField('${r.id}', 'invoice_received', true)">
                   Mark 50% Paid
+                </button>
+              </div>
+            </div>`;
+          }).join('')
+      }
+    </div>
+
+    <!-- Final Payments Due (50% remaining after all videos posted) -->
+    <div class="review-section review-section-final">
+      <div class="review-section-header">
+        <span class="review-section-title">💸 Final Payments Due</span>
+        ${finalPayments.length > 0 ? `<span class="review-section-count review-count-orange">${finalPayments.length}</span>` : ''}
+      </div>
+      ${finalPayments.length === 0
+        ? `<div class="review-empty">No final payments pending ✓</div>`
+        : finalPayments.map(r => {
+            const deal  = parseFloat(r.per_vid_rate) * parseInt(r.video_count);
+            const half  = deal / 2;
+            return `
+            <div class="review-card review-card-final review-card-column">
+              <div class="review-card-row">
+                <div class="review-card-main">
+                  <div class="review-card-name">${esc(r.name || r.handle)}</div>
+                  <div class="review-card-sub">@${esc(r.handle)} · ${r.video_count} videos delivered · ${fmt$(r.per_vid_rate)}/vid · <strong>50% remaining</strong></div>
+                </div>
+                <div class="review-card-amount">
+                  <div class="review-amount-value">${fmt$(half)}</div>
+                  <div class="review-amount-hint">final payment</div>
+                </div>
+              </div>
+              <div class="review-card-actions">
+                <button class="btn btn-primary btn-sm" onclick="markFinalPaymentSent('${r.id}')">
+                  Mark Final Payment Sent
                 </button>
               </div>
             </div>`;
@@ -4294,14 +4382,15 @@ function openRosterCreatorFromReview(id) {
 
 function financeAffiliates() {
   return state.roster.filter(r =>
-    r.affiliate_type === 'paid' && (r.status === 'active' || r.status === 'onboarding')
+    r.affiliate_type === 'paid' && (r.status === 'active' || r.status === 'onboarding' || r.status === 'completed')
   );
 }
 
 function financePaymentStatus(r) {
-  if (r.payment_sent)      return { val: 'paid_full',       label: 'Paid in Full',    cls: 'fin-status-paid'    };
-  if (r.invoice_received)  return { val: 'deposit_paid',    label: '50% Down Paid',   cls: 'fin-status-deposit' };
-  return                          { val: 'pending_invoice', label: 'Pending Invoice', cls: 'fin-status-pending' };
+  if (r.payment_sent)                               return { val: 'paid_full',     label: 'Paid in Full',      cls: 'fin-status-paid'    };
+  if (r.status === 'completed' && r.invoice_received) return { val: 'final_due',   label: 'Final Payment Due', cls: 'fin-status-final'   };
+  if (r.invoice_received)                           return { val: 'deposit_paid',  label: '50% Down Paid',     cls: 'fin-status-deposit' };
+  return                                                   { val: 'pending_invoice', label: 'Pending Invoice', cls: 'fin-status-pending' };
 }
 
 function financeMonthlyRate(r) {
@@ -4410,9 +4499,11 @@ function renderFinancePage() {
                   onchange="setFinancePaymentStatus('${r.id}', this.value); this.className='fin-status-select fin-status-select-'+this.value">
                   <option value="pending_invoice" ${ps.val === 'pending_invoice' ? 'selected' : ''}>Pending Invoice</option>
                   <option value="deposit_paid"    ${ps.val === 'deposit_paid'    ? 'selected' : ''}>50% Down Paid</option>
+                  ${ps.val === 'final_due' ? `<option value="final_due" selected>Final Payment Due</option>` : ''}
                   <option value="paid_full"       ${ps.val === 'paid_full'       ? 'selected' : ''}>Paid in Full</option>
                 </select>
                 ${ps.val === 'deposit_paid' ? `<div class="fin-deposit-hint">${fmt$(deposit)} remaining</div>` : ''}
+                ${ps.val === 'final_due'    ? `<div class="fin-deposit-hint" style="color:var(--orange)">${fmt$(deposit)} final payment due</div>` : ''}
                 ${ps.val === 'paid_full' && r.payment_sent_date ? `<div class="fin-deposit-hint">Paid ${fmtDateShort(r.payment_sent_date)}</div>` : ''}
               </td>
             </tr>`;

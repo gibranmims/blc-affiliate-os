@@ -148,3 +148,11 @@ CREATE TABLE IF NOT EXISTS scripts (
 ALTER TABLE scripts DISABLE ROW LEVEL SECURITY;
 GRANT ALL ON TABLE scripts TO anon;
 GRANT ALL ON TABLE scripts TO authenticated;
+
+-- ============================================================
+-- Roster — add 'completed' status (videos done, final payment pending)
+-- Run this in a new Supabase SQL editor tab
+-- ============================================================
+ALTER TABLE roster DROP CONSTRAINT IF EXISTS roster_status_check;
+ALTER TABLE roster ADD CONSTRAINT roster_status_check
+  CHECK (status IN ('active', 'inactive', 'paused', 'watching', 'onboarding', 'completed'));
