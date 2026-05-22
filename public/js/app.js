@@ -1509,6 +1509,58 @@ function renderDetailPanel() {
     </div>
     ` : ''}
 
+    <!-- Creator Declined — decision panel (counter_rejected only) -->
+    ${r.status === 'counter_rejected' ? (() => {
+      const askedRate = r.asked_rate_custom ||
+        (parseInt(r.video_count) >= 10 ? r.asked_rate_10 :
+         parseInt(r.video_count) >= 5  ? r.asked_rate_5  : r.asked_rate_3) || null;
+      const ourTotal = r.counter_offer_amount && r.video_count
+        ? parseFloat(r.counter_offer_amount) * parseInt(r.video_count) : null;
+      const theirTotal = askedRate && r.video_count
+        ? parseFloat(askedRate) * parseInt(r.video_count) : null;
+      return `
+    <div class="dp-section dp-rejected-decision">
+      <div class="dp-section-label dp-section-label-rejected">🚫 Creator Declined Our Counter</div>
+      <div class="dp-rejected-recap">
+        ${r.counter_offer_amount ? `
+        <div class="dp-rejected-recap-row">
+          <span class="dp-rejected-recap-label">Our offer</span>
+          <span class="dp-rejected-recap-value">${fmt$(r.counter_offer_amount)}/vid${r.video_count ? ` · ${r.video_count} videos · <strong>${fmt$(ourTotal)} total</strong>` : ''}</span>
+        </div>` : ''}
+        ${askedRate ? `
+        <div class="dp-rejected-recap-row dp-rejected-recap-row-ask">
+          <span class="dp-rejected-recap-label">Their ask</span>
+          <span class="dp-rejected-recap-value">${fmt$(askedRate)}/vid${r.video_count ? ` · ${r.video_count} videos · <strong>${fmt$(theirTotal)} total</strong>` : ''}</span>
+        </div>` : ''}
+      </div>
+      <div class="dp-rejected-hint">How do you want to respond?</div>
+      <div class="dp-rejected-actions">
+        <button class="btn dp-rejected-btn-counter" onclick="reviseCounter('${r.id}')">
+          ↩ Revise Our Offer
+        </button>
+        <button class="btn dp-rejected-btn-accept" onclick="toggleAcceptRatePanel('${r.id}')">
+          ✓ Accept Their Rate
+        </button>
+        <button class="btn dp-rejected-btn-close" onclick="closeDeal('${r.id}')">
+          ✕ Close Deal
+        </button>
+      </div>
+      <div class="dp-accept-rate-panel" id="dp-accept-rate-panel-${r.id}" style="display:none">
+        <div class="dp-accept-rate-label">Sign at rate ($/vid):</div>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
+          <div class="dp-input-money" style="width:140px">
+            <span class="dp-money-prefix">$</span>
+            <input type="number" class="dp-input" id="dp-accept-rate-input-${r.id}"
+              value="${askedRate || ''}" placeholder="e.g. 150">
+          </div>
+          ${r.video_count ? `<span style="font-size:12px;color:var(--text-muted)">× ${r.video_count} videos</span>` : ''}
+        </div>
+        <button class="btn btn-primary btn-sm" style="margin-top:10px"
+          onclick="signAtCreatorRate('${r.id}')">Confirm &amp; Sign →</button>
+      </div>
+    </div>`;
+    })() : ''}
+
     <!-- Notes (always visible at every stage) -->
     <div class="dp-section">
       <div class="dp-section-label">Notes</div>
@@ -4295,9 +4347,9 @@ function renderForReviewPage() {
 }
 
 function openOutreachFromReview(outreachId) {
-  state.currentPage = 'outreach';
-  state.selectedOutreachId = outreachId;
+  state.outreachFilter = 'counter_rejected';
   navigate('outreach');
+  openDetailPanel(outreachId);
 }
 
 async function archiveFromReview(outreachId) {
@@ -4311,6 +4363,78 @@ async function archiveFromReview(outreachId) {
     updateRepliedBadge();
     renderForReviewPage();
     showToast('Archived');
+  } catch (err) { showToast(err.message, 'error'); }
+}
+
+// --- Counter-rejected decision panel actions ---
+
+function toggleAcceptRatePanel(id) {
+  const panel = document.getElementById(`dp-accept-rate-panel-${id}`);
+  if (panel) panel.style.display = panel.style.display === 'none' ? '' : 'none';
+}
+
+async function reviseCounter(id) {
+  if (!confirm('This clears the current counter and moves the creator back to Replied so you can build a new offer. Continue?')) return;
+  try {
+    const rec = await fetchAPI(`${API.outreach}/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({
+        status: 'replied',
+        counter_offer_amount:   null,
+        counter_offer_email:    null,
+        founder_counter_amount: null,
+        founder_counter_notes:  null,
+        final_counter_amount:   null,
+        final_counter_notes:    null,
+        counter_feedback:       null
+      })
+    });
+    const i = state.outreach.findIndex(x => x.id === id);
+    if (i !== -1) state.outreach[i] = rec;
+    updateReviewBadge();
+    updateRepliedBadge();
+    renderDetailPanel();
+    renderPipelineView();
+    showToast('Moved back to Replied — build a new offer ✓');
+  } catch (err) { showToast(err.message, 'error'); }
+}
+
+async function signAtCreatorRate(id) {
+  const input = document.getElementById(`dp-accept-rate-input-${id}`);
+  const rate  = parseFloat(input?.value);
+  if (!rate || isNaN(rate)) { showToast('Enter a valid rate first', 'error'); return; }
+  try {
+    const rec = await fetchAPI(`${API.outreach}/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({
+        status:               'signed',
+        counter_offer_amount: rate,
+        final_counter_amount: rate
+      })
+    });
+    const i = state.outreach.findIndex(x => x.id === id);
+    if (i !== -1) state.outreach[i] = rec;
+    updateReviewBadge();
+    updateRepliedBadge();
+    renderDetailPanel();
+    renderPipelineView();
+    showToast('🎉 Signed at creator\'s rate! Fill in deal details, then Finalize & Onboard →');
+  } catch (err) { showToast(err.message, 'error'); }
+}
+
+async function closeDeal(id) {
+  if (!confirm('Archive this deal? This ends negotiations.')) return;
+  try {
+    const rec = await fetchAPI(`${API.outreach}/${id}`, {
+      method: 'PUT', body: JSON.stringify({ status: 'archived' })
+    });
+    const i = state.outreach.findIndex(x => x.id === id);
+    if (i !== -1) state.outreach[i] = rec;
+    updateReviewBadge();
+    updateRepliedBadge();
+    closeDetailPanel();
+    renderPipelineView();
+    showToast('Deal closed and archived');
   } catch (err) { showToast(err.message, 'error'); }
 }
 

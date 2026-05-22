@@ -3994,6 +3994,99 @@ body {
 .review-count-red { background: var(--red) !important; color: #fff !important; }
 .review-card-rejected { border-left: 3px solid var(--red) !important; }
 
+/* Counter-rejected decision panel inside detail panel */
+.dp-rejected-decision { border-left: 3px solid var(--red) !important; }
+
+.dp-rejected-recap {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  margin: 10px 0 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.dp-rejected-recap-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-size: 13px;
+}
+.dp-rejected-recap-row-ask { color: var(--green); }
+.dp-rejected-recap-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  min-width: 72px;
+}
+.dp-rejected-recap-value { color: var(--text-primary); }
+.dp-rejected-recap-row-ask .dp-rejected-recap-value { color: var(--green); }
+
+.dp-rejected-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+
+.dp-rejected-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.dp-rejected-btn-counter {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 7px 14px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.dp-rejected-btn-counter:hover { border-color: var(--blue); color: var(--blue); }
+.dp-rejected-btn-accept {
+  background: var(--green-dim);
+  border: 1px solid rgba(74,222,128,0.3);
+  color: var(--green);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 7px 14px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.dp-rejected-btn-accept:hover { opacity: 0.8; }
+.dp-rejected-btn-close {
+  background: transparent;
+  border: 1px solid rgba(239,68,68,0.35);
+  color: var(--red);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 7px 14px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.dp-rejected-btn-close:hover { background: rgba(239,68,68,0.08); }
+
+.dp-accept-rate-panel {
+  margin-top: 14px;
+  padding: 12px 14px;
+  background: var(--green-dim);
+  border: 1px solid rgba(74,222,128,0.25);
+  border-radius: var(--radius-sm);
+}
+.dp-accept-rate-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--green);
+  margin-bottom: 2px;
+}
+
 /* Final payment due section */
 .review-section-final .review-section-title { color: var(--orange); }
 .review-count-orange { background: var(--orange) !important; color: #fff !important; }
