@@ -165,6 +165,26 @@ function todayStr() {
   return new Date().toISOString().split('T')[0];
 }
 
+// Returns a profile URL for a creator's handle based on platform
+function creatorProfileUrl(handle, platform) {
+  const h = (handle || '').replace(/^@/, '');
+  const p = (platform || 'TikTok').toLowerCase();
+  if (p === 'instagram') return `https://www.instagram.com/${h}/`;
+  if (p === 'youtube')   return `https://www.youtube.com/@${h}`;
+  return `https://www.tiktok.com/@${h}`;  // default TikTok
+}
+
+// Renders a consistent creator name+handle cell used in all tables
+// name on top (bold), @handle below as a hyperlink to their profile
+function creatorCell(name, handle, platform) {
+  const url = creatorProfileUrl(handle, platform);
+  const displayName = esc(name || handle);
+  return `<div class="creator-cell">
+    <div class="creator-name">${displayName}</div>
+    <a class="creator-handle-link" href="${url}" target="_blank" rel="noopener" onclick="event.stopPropagation()">@${esc(handle)}</a>
+  </div>`;
+}
+
 // Month navigation helpers (YYYY-MM format)
 function monthLabel(yyyymm) {
   if (!yyyymm) return '';
@@ -681,12 +701,7 @@ function renderPipelineView() {
                     ${state.selectedIds.has(r.id) ? 'checked' : ''}
                     onchange="toggleRowSelect('${r.id}', this.checked)">
                 </td>
-                <td>
-                  <div class="creator-cell">
-                    <div class="creator-name">${esc(r.name || r.handle)}</div>
-                    <div class="creator-handle-small">@${esc(r.handle)}</div>
-                  </div>
-                </td>
+                <td>${creatorCell(r.name, r.handle, 'TikTok')}</td>
                 <td>${fmtNum(r.follower_count)}</td>
                 <td class="rate-cell">${(() => {
                   const hasReq = ['replied','counter_review','counter_approved','counter_offered','signed'].includes(r.status);
@@ -2879,10 +2894,7 @@ function renderRosterPage() {
               return `
               <tr class="clickable-row${isActive ? ' row-active' : ''}" onclick="openRosterDetail('${r.id}')">
                 <td>
-                  <div class="creator-cell">
-                    <span class="creator-handle">@${esc(r.handle)}</span>
-                    ${r.name ? `<span class="creator-email">${esc(r.name)}</span>` : ''}
-                  </div>
+                  ${creatorCell(r.name, r.handle, r.platform)}
                 </td>
                 ${isPaid ? `
                   <td>${r.tier ? `<span class="grade-badge grade-${r.tier}">${r.tier}</span>` : '—'}</td>
@@ -4132,7 +4144,7 @@ function renderCreatorGrid() {
           <div class="cl-card-top">
             <div class="cl-card-identity">
               <div class="cl-card-name">${esc(r.name || r.handle)}</div>
-              <div class="cl-card-handle">@${esc(r.handle)}</div>
+              <a class="cl-card-handle" href="${creatorProfileUrl(r.handle, r.platform)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">@${esc(r.handle)}</a>
             </div>
             <div class="cl-card-badges">
               ${r.tier ? `<span class="grade-badge grade-${r.tier}">${r.tier}</span>` : ''}
@@ -4937,10 +4949,7 @@ function renderFinancePage() {
             const ps      = financePaymentStatus(r);
             return `
             <tr class="fin-row">
-              <td class="fin-td-creator">
-                <div class="fin-creator-name">${esc(r.name || r.handle)}</div>
-                <div class="fin-creator-handle">@${esc(r.handle)}</div>
-              </td>
+              <td class="fin-td-creator">${creatorCell(r.name, r.handle, r.platform)}</td>
               <td class="fin-td-num">
                 <div class="fin-amount">${monthly > 0 ? fmt$(monthly) : '—'}</div>
                 ${r.per_vid_rate ? `<div class="fin-amount-sub">${fmt$(r.per_vid_rate)}/vid</div>` : ''}
