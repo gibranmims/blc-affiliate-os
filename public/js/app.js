@@ -396,8 +396,8 @@ function copyText(text) {
 function normalizeBLCVideos(raw) {
   if (!Array.isArray(raw)) return [];
   return raw.map(v => typeof v === 'string'
-    ? { url: v, views: null, gmv: null, posted_date: null, title: '', transcript: '' }
-    : { url: v.url || '', views: v.views ?? null, gmv: v.gmv ?? null, posted_date: v.posted_date || null, title: v.title || '', transcript: v.transcript || '' }
+    ? { url: v, views: null, gmv: null, posted_date: null, title: '', transcript: '', thumbnail_url: null }
+    : { url: v.url || '', views: v.views ?? null, gmv: v.gmv ?? null, posted_date: v.posted_date || null, title: v.title || '', transcript: v.transcript || '', thumbnail_url: v.thumbnail_url || null }
   );
 }
 
@@ -4276,47 +4276,59 @@ function renderCreatorContentProfile(id) {
             No videos logged for ${monthLabel(month)}
             ${otherCount > 0 ? `<span class="cl-other-months-hint"> · ${otherCount} video${otherCount !== 1 ? 's' : ''} in other months</span>` : ' — click "+ Add Video" to add the first one'}
            </div>`
-        : `<div class="cl-videos-list">
-          ${otherCount > 0 ? `<div class="cl-month-scope-note">${videos.length} video${videos.length !== 1 ? 's' : ''} in ${monthLabel(month)} · ${otherCount} in other months</div>` : ''}
+        : `<div class="cl-videos-grid">
+          ${otherCount > 0 ? `<div class="cl-month-scope-note" style="grid-column:1/-1">${videos.length} video${videos.length !== 1 ? 's' : ''} in ${monthLabel(month)} · ${otherCount} in other months</div>` : ''}
           ${sorted.map((v, displayIdx) => {
             const origIdx = allVideos.findIndex(x => x.url === v.url && x.posted_date === v.posted_date);
             const isTop   = displayIdx === 0 && (parseFloat(v.gmv) || 0) > 0;
-            const shortUrl = v.url.replace(/https?:\/\/(www\.)?tiktok\.com\//, '');
+            const rank    = isTop ? '🏆' : `#${displayIdx + 1}`;
+            const thumb   = v.thumbnail_url || '';
+            const dateShort = v.posted_date ? fmtDateShort(v.posted_date) : '—';
             return `
-            <div class="cl-video-entry${isTop ? ' cl-video-entry-top' : ''}">
-              <div class="cl-video-entry-header">
-                <span class="cl-video-rank${isTop ? ' cl-video-rank-top' : ''}">${isTop ? '🏆' : '#' + (displayIdx + 1)}</span>
-                <a href="${esc(v.url)}" target="_blank" class="cl-video-link">${esc(shortUrl)}</a>
-                <button class="rs-remove-btn" onclick="removeBLCVideoEntry('${r.id}', ${origIdx})" title="Remove">✕</button>
-              </div>
-              <div class="cl-video-stats-row">
-                <div class="cl-video-stat-group">
-                  <label class="cl-video-stat-label">Views</label>
-                  <input type="number" class="dp-input cl-video-stat-input" value="${v.views || ''}"
-                    placeholder="0" onblur="updateBLCVideoField('${r.id}', ${origIdx}, 'views', this.value)">
+            <div class="cl-video-card${isTop ? ' cl-video-card-top' : ''}">
+              <!-- Thumbnail -->
+              <a href="${esc(v.url)}" target="_blank" rel="noopener" class="cl-vc-thumb"
+                style="${thumb ? `background-image:url('${esc(thumb)}')` : ''}">
+                ${!thumb ? `<div class="cl-vc-thumb-placeholder">🎬</div>` : ''}
+                <div class="cl-vc-rank-badge">${rank}</div>
+                <div class="cl-vc-gmv-badge">${v.gmv ? fmt$(v.gmv) : ''}</div>
+              </a>
+              <!-- Stats & edit inputs -->
+              <div class="cl-vc-body">
+                <div class="cl-vc-stats-row">
+                  <div class="cl-vc-stat-group">
+                    <label class="cl-vc-label">Views</label>
+                    <input type="number" class="dp-input cl-vc-input" value="${v.views || ''}"
+                      placeholder="0" onblur="updateBLCVideoField('${r.id}', ${origIdx}, 'views', this.value)">
+                  </div>
+                  <div class="cl-vc-stat-group">
+                    <label class="cl-vc-label">GMV ($)</label>
+                    <input type="number" step="0.01" class="dp-input cl-vc-input" value="${v.gmv || ''}"
+                      placeholder="0.00" onblur="updateBLCVideoField('${r.id}', ${origIdx}, 'gmv', this.value)">
+                  </div>
+                  <div class="cl-vc-stat-group">
+                    <label class="cl-vc-label">Date</label>
+                    <input type="date" class="dp-input cl-vc-input" value="${v.posted_date || ''}"
+                      onblur="updateBLCVideoField('${r.id}', ${origIdx}, 'posted_date', this.value)">
+                  </div>
                 </div>
-                <div class="cl-video-stat-group">
-                  <label class="cl-video-stat-label">GMV ($)</label>
-                  <input type="number" step="0.01" class="dp-input cl-video-stat-input" value="${v.gmv || ''}"
-                    placeholder="0.00" onblur="updateBLCVideoField('${r.id}', ${origIdx}, 'gmv', this.value)">
+                <!-- Transcript -->
+                <div class="cl-vc-transcript-row">
+                  <button class="cl-vc-transcript-btn${v.transcript ? ' cl-vc-transcript-saved' : ''}"
+                    onclick="toggleVideoTranscript('${r.id}', ${origIdx})">
+                    ${v.transcript ? '📋 Transcript ▾' : '📋 Add transcript ▾'}
+                  </button>
+                  <button class="cl-vc-fetch-btn" data-fetch-btn="${r.id}-${origIdx}"
+                    onclick="fetchTranscript('${r.id}', ${origIdx})">
+                    ⚡ Auto-fetch
+                  </button>
+                  <button class="cl-vc-remove-btn" onclick="removeBLCVideoEntry('${r.id}', ${origIdx})" title="Remove">✕</button>
                 </div>
-                <div class="cl-video-stat-group">
-                  <label class="cl-video-stat-label">Date Posted</label>
-                  <input type="date" class="dp-input cl-video-stat-input" value="${v.posted_date || ''}"
-                    onblur="updateBLCVideoField('${r.id}', ${origIdx}, 'posted_date', this.value)">
+                <div class="cl-transcript-panel" id="cl-transcript-${r.id}-${origIdx}" style="display:none">
+                  <textarea class="dp-textarea cl-transcript-ta" id="cl-transcript-ta-${r.id}-${origIdx}" rows="5"
+                    placeholder="Paste transcript here or click ⚡ Auto-fetch…"
+                    onblur="updateBLCVideoField('${r.id}', ${origIdx}, 'transcript', this.value)">${esc(v.transcript || '')}</textarea>
                 </div>
-              </div>
-              <div class="cl-transcript-row">
-                <button class="cl-transcript-btn${v.transcript ? ' cl-transcript-btn-saved' : ''}"
-                  onclick="toggleVideoTranscript('${r.id}', ${origIdx})">
-                  ${v.transcript ? '📋 Transcript saved ▾' : '📋 Add transcript ▾'}
-                </button>
-              </div>
-              <div class="cl-transcript-panel" id="cl-transcript-${r.id}-${origIdx}" style="display:none">
-                <div class="cl-transcript-hint">Paste the video transcript or notes here — saved automatically on blur</div>
-                <textarea class="dp-textarea cl-transcript-ta" rows="6"
-                  placeholder="Paste transcript here..."
-                  onblur="updateBLCVideoField('${r.id}', ${origIdx}, 'transcript', this.value)">${esc(v.transcript || '')}</textarea>
               </div>
             </div>`;
           }).join('')}
@@ -4338,12 +4350,22 @@ async function addBLCVideoEntry(rosterId) {
   if (!url) { showToast('Paste a video URL first', 'error'); return; }
   const r = state.roster.find(x => x.id === rosterId);
   const existing = normalizeBLCVideos(r?.blc_videos);
+
+  // Auto-fetch thumbnail from TikTok oEmbed
+  let thumbnail_url = null;
+  try {
+    const oe = await fetchAPI(`/api/oembed?url=${encodeURIComponent(url)}`);
+    thumbnail_url = oe.thumbnail_url || null;
+  } catch (_) { /* thumbnail is optional — continue without */ }
+
   const newEntry = {
     url,
-    views:       viewsEl?.value ? parseFloat(viewsEl.value) : null,
-    gmv:         gmvEl?.value   ? parseFloat(gmvEl.value)   : null,
-    posted_date: dateEl?.value  || null,
-    title: '', transcript: ''
+    views:        viewsEl?.value ? parseFloat(viewsEl.value) : null,
+    gmv:          gmvEl?.value   ? parseFloat(gmvEl.value)   : null,
+    posted_date:  dateEl?.value  || null,
+    title:        '',
+    transcript:   '',
+    thumbnail_url
   };
   const updated = [...existing, newEntry];
   await saveRosterBLCVideos(rosterId, updated, true);
@@ -4368,6 +4390,44 @@ async function removeBLCVideoEntry(rosterId, idx) {
   const videos = normalizeBLCVideos(r?.blc_videos).filter((_, i) => i !== idx);
   await saveRosterBLCVideos(rosterId, videos, true);
   showToast('Video removed');
+}
+
+async function fetchTranscript(rosterId, origIdx) {
+  const r = state.roster.find(x => x.id === rosterId);
+  if (!r) return;
+  const videos = normalizeBLCVideos(r.blc_videos);
+  const v = videos[origIdx];
+  if (!v?.url) return;
+
+  // Show loading state in the textarea
+  const taId = `cl-transcript-ta-${rosterId}-${origIdx}`;
+  const ta = document.getElementById(taId);
+  const btn = document.querySelector(`[data-fetch-btn="${rosterId}-${origIdx}"]`);
+  if (ta) { ta.value = 'Fetching transcript…'; ta.disabled = true; }
+  if (btn) { btn.textContent = '⏳ Fetching…'; btn.disabled = true; }
+
+  try {
+    const result = await fetchAPI('/api/transcript', {
+      method: 'POST',
+      body: JSON.stringify({ url: v.url })
+    });
+    const transcript = result.transcript || '';
+    if (ta) { ta.value = transcript; ta.disabled = false; }
+    if (btn) { btn.textContent = '⚡ Re-fetch'; btn.disabled = false; }
+    // Save to DB
+    videos[origIdx].transcript = transcript;
+    await saveRosterBLCVideos(rosterId, videos, false);
+    showToast('Transcript fetched ✓');
+  } catch (err) {
+    if (ta) { ta.value = ''; ta.disabled = false; ta.placeholder = 'Paste transcript here…'; }
+    if (btn) { btn.textContent = '⚡ Auto-fetch'; btn.disabled = false; }
+    const msg = err.message.includes('TOKSCRIPT_TOKEN')
+      ? 'Add TOKSCRIPT_TOKEN to Railway env vars — get it from your TokScript account'
+      : err.message.includes('ANTHROPIC_API_KEY')
+      ? 'Add your ANTHROPIC_API_KEY to Railway env vars'
+      : err.message;
+    showToast(msg, 'error');
+  }
 }
 
 async function saveRosterBLCVideos(rosterId, videos, rerender = false) {
