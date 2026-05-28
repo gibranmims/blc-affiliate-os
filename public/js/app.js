@@ -208,9 +208,19 @@ function switchRosterMonth(dir) {
   closeDetailPanel();
   if (state.currentPage === 'finance') {
     renderFinancePage();
+  } else if (state.currentPage === 'scripts' && state.contentLabTab === 'creators') {
+    // Re-render the content lab creators section in place
+    const body = document.getElementById('cl-body');
+    if (body) body.innerHTML = renderCreatorsTab();
   } else {
     renderRosterPage();
   }
+}
+
+// Filter a video list to those posted in a given YYYY-MM month
+function videosForMonth(videos, month) {
+  if (!month) return videos;
+  return videos.filter(v => v.posted_date && v.posted_date.startsWith(month));
 }
 
 // Returns fresh follow-up dates when a counter offer is sent (today +4, +8 days)
@@ -4100,8 +4110,18 @@ async function deleteScript(e, id) {
 }
 
 function renderCreatorsTab() {
-  if (state.contentLabCreatorId) return renderCreatorContentProfile(state.contentLabCreatorId);
-  return renderCreatorGrid();
+  const isCurrentMonth = state.rosterMonth === new Date().toISOString().slice(0, 7);
+  const nav = `
+    <div class="month-nav cl-month-nav">
+      <button class="month-nav-btn" onclick="switchRosterMonth('prev')">‹</button>
+      <div class="month-nav-label">
+        ${monthLabel(state.rosterMonth)}
+        ${isCurrentMonth ? `<span class="month-nav-current-chip">Current</span>` : ''}
+      </div>
+      <button class="month-nav-btn" onclick="switchRosterMonth('next')">›</button>
+    </div>`;
+  if (state.contentLabCreatorId) return nav + renderCreatorContentProfile(state.contentLabCreatorId);
+  return nav + renderCreatorGrid();
 }
 
 function openCreatorProfile(id) {
@@ -4126,21 +4146,33 @@ function renderCreatorGrid() {
   if (creators.length === 0) {
     return `<div class="empty-state"><div class="empty-icon">👥</div><h3>No creators on your roster yet</h3><p>Add creators to your Roster to track their content here</p><button class="btn btn-primary" onclick="navigate('roster')">Go to Roster</button></div>`;
   }
-  const totalVideos = creators.reduce((s, r) => s + normalizeBLCVideos(r.blc_videos).length, 0);
-  const totalGMV    = creators.reduce((s, r) => s + normalizeBLCVideos(r.blc_videos).reduce((vs, v) => vs + (parseFloat(v.gmv) || 0), 0), 0);
+  const month = state.rosterMonth;
+  // Monthly totals for summary line
+  const monthVideos = creators.reduce((s, r) => s + videosForMonth(normalizeBLCVideos(r.blc_videos), month).length, 0);
+  const monthGMV    = creators.reduce((s, r) => s + videosForMonth(normalizeBLCVideos(r.blc_videos), month).reduce((vs, v) => vs + (parseFloat(v.gmv) || 0), 0), 0);
+
+  // Sort creators: those with monthly videos first (by monthly GMV desc), then the rest
+  const sorted = [...creators].sort((a, b) => {
+    const aGMV = videosForMonth(normalizeBLCVideos(a.blc_videos), month).reduce((s, v) => s + (parseFloat(v.gmv) || 0), 0);
+    const bGMV = videosForMonth(normalizeBLCVideos(b.blc_videos), month).reduce((s, v) => s + (parseFloat(v.gmv) || 0), 0);
+    return bGMV - aGMV;
+  });
+
   return `
     <div class="cl-creators-summary">
-      ${creators.length} creator${creators.length !== 1 ? 's' : ''} · ${totalVideos} video${totalVideos !== 1 ? 's' : ''} logged · ${fmt$(totalGMV)} total GMV
+      ${creators.length} creator${creators.length !== 1 ? 's' : ''} · ${monthVideos} video${monthVideos !== 1 ? 's' : ''} in ${monthLabel(month)} · <strong>${fmt$(monthGMV)} GMV</strong>
     </div>
     <div class="cl-creators-grid">
-      ${creators.map(r => {
-        const videos    = normalizeBLCVideos(r.blc_videos);
-        const totalGMV  = videos.reduce((s, v) => s + (parseFloat(v.gmv) || 0), 0);
-        const totalViews = videos.reduce((s, v) => s + (parseInt(v.views) || 0), 0);
-        const avgViews  = videos.length > 0 ? Math.round(totalViews / videos.length) : 0;
-        const topVideo  = videos.length > 0 ? [...videos].sort((a, b) => (parseFloat(b.gmv) || 0) - (parseFloat(a.gmv) || 0))[0] : null;
+      ${sorted.map(r => {
+        const allVideos  = normalizeBLCVideos(r.blc_videos);
+        const videos     = videosForMonth(allVideos, month);
+        const mGMV       = videos.reduce((s, v) => s + (parseFloat(v.gmv) || 0), 0);
+        const mViews     = videos.reduce((s, v) => s + (parseInt(v.views) || 0), 0);
+        const avgViews   = videos.length > 0 ? Math.round(mViews / videos.length) : 0;
+        const topVideo   = videos.length > 0 ? [...videos].sort((a, b) => (parseFloat(b.gmv) || 0) - (parseFloat(a.gmv) || 0))[0] : null;
+        const hasOther   = allVideos.length > videos.length; // has videos in other months
         return `
-        <div class="cl-creator-card" onclick="openCreatorProfile('${r.id}')">
+        <div class="cl-creator-card${videos.length === 0 ? ' cl-creator-card-empty' : ''}" onclick="openCreatorProfile('${r.id}')">
           <div class="cl-card-top">
             <div class="cl-card-identity">
               <div class="cl-card-name">${esc(r.name || r.handle)}</div>
@@ -4156,15 +4188,19 @@ function renderCreatorGrid() {
               <div class="cl-card-stat-label">Videos</div>
             </div>
             <div class="cl-card-stat">
-              <div class="cl-card-stat-val">${fmt$(totalGMV)}</div>
-              <div class="cl-card-stat-label">Total GMV</div>
+              <div class="cl-card-stat-val">${fmt$(mGMV)}</div>
+              <div class="cl-card-stat-label">GMV</div>
             </div>
             <div class="cl-card-stat">
               <div class="cl-card-stat-val">${avgViews > 0 ? fmtNum(avgViews) : '—'}</div>
               <div class="cl-card-stat-label">Avg Views</div>
             </div>
           </div>
-          ${topVideo && topVideo.gmv ? `<div class="cl-card-top-video">🏆 Top: ${topVideo.views ? fmtNum(topVideo.views) + ' views · ' : ''}${fmt$(topVideo.gmv)} GMV</div>` : `<div class="cl-card-no-videos">${videos.length === 0 ? 'No videos logged yet' : 'No GMV tracked yet'}</div>`}
+          ${topVideo && topVideo.gmv
+            ? `<div class="cl-card-top-video">🏆 Top: ${topVideo.views ? fmtNum(topVideo.views) + ' views · ' : ''}${fmt$(topVideo.gmv)} GMV</div>`
+            : `<div class="cl-card-no-videos">${videos.length === 0
+                ? (hasOther ? `No videos in ${monthLabel(month)}` : 'No videos logged yet')
+                : 'No GMV tracked yet'}</div>`}
           <div class="cl-card-arrow">→</div>
         </div>`;
       }).join('')}
@@ -4174,12 +4210,18 @@ function renderCreatorGrid() {
 function renderCreatorContentProfile(id) {
   const r = state.roster.find(x => x.id === id);
   if (!r) return '<div class="empty-state">Creator not found</div>';
-  const videos     = normalizeBLCVideos(r.blc_videos);
+  const month      = state.rosterMonth;
+  const allVideos  = normalizeBLCVideos(r.blc_videos);
+  const videos     = videosForMonth(allVideos, month);  // monthly filter
   const sorted     = [...videos].sort((a, b) => (parseFloat(b.gmv) || 0) - (parseFloat(a.gmv) || 0));
-  const totalGMV   = videos.reduce((s, v) => s + (parseFloat(v.gmv) || 0), 0);
-  const totalViews = videos.reduce((s, v) => s + (parseInt(v.views) || 0), 0);
+  const mGMV       = videos.reduce((s, v) => s + (parseFloat(v.gmv) || 0), 0);
+  const mViews     = videos.reduce((s, v) => s + (parseInt(v.views) || 0), 0);
   const totalDeal  = (parseFloat(r.per_vid_rate) || 0) * (parseInt(r.video_count) || 0);
-  const gmvPer1k   = totalViews > 0 ? (totalGMV / totalViews * 1000) : 0;
+  const gmvPer1k   = mViews > 0 ? (mGMV / mViews * 1000) : 0;
+  const otherCount = allVideos.length - videos.length; // videos in other months
+
+  // Default date for new video form = first day of selected month
+  const defaultDate = `${month}-01`;
 
   return `
     <div class="cl-profile">
@@ -4191,7 +4233,7 @@ function renderCreatorContentProfile(id) {
       <div class="cl-profile-header">
         <div class="cl-profile-identity">
           <div class="cl-profile-name">${esc(r.name || r.handle)}</div>
-          <div class="cl-profile-handle">@${esc(r.handle)}</div>
+          <a class="cl-profile-handle" href="${creatorProfileUrl(r.handle, r.platform)}" target="_blank" rel="noopener">@${esc(r.handle)}</a>
           <div class="cl-profile-meta">
             ${r.tier ? `${r.tier} grade · ` : ''}${r.video_count ? `${r.video_count} video deal` : ''}${r.per_vid_rate ? ` · ${fmt$(r.per_vid_rate)}/vid` : ''}${totalDeal > 0 ? ` · ${fmt$(totalDeal)} total` : ''}
           </div>
@@ -4200,14 +4242,14 @@ function renderCreatorContentProfile(id) {
 
       <div class="cl-profile-stats">
         <div class="cl-pstat"><div class="cl-pstat-val">${videos.length}</div><div class="cl-pstat-label">Videos Logged</div></div>
-        <div class="cl-pstat"><div class="cl-pstat-val">${totalViews > 0 ? fmtNum(totalViews) : '—'}</div><div class="cl-pstat-label">Total Views</div></div>
-        <div class="cl-pstat cl-pstat-highlight"><div class="cl-pstat-val">${fmt$(totalGMV)}</div><div class="cl-pstat-label">Total GMV</div></div>
+        <div class="cl-pstat"><div class="cl-pstat-val">${mViews > 0 ? fmtNum(mViews) : '—'}</div><div class="cl-pstat-label">Total Views</div></div>
+        <div class="cl-pstat cl-pstat-highlight"><div class="cl-pstat-val">${fmt$(mGMV)}</div><div class="cl-pstat-label">GMV — ${monthLabel(month)}</div></div>
         <div class="cl-pstat"><div class="cl-pstat-val">${gmvPer1k > 0 ? fmt$(gmvPer1k) : '—'}</div><div class="cl-pstat-label">GMV / 1k views</div></div>
       </div>
 
       <!-- Add Video Form -->
       <div class="cl-add-video-form" id="cl-add-form-${r.id}" style="display:none">
-        <div class="cl-add-video-label">Add a new video</div>
+        <div class="cl-add-video-label">Add a video for ${monthLabel(month)}</div>
         <input type="url" class="dp-input" id="cl-new-video-url-${r.id}" placeholder="Paste TikTok URL..." style="margin-bottom:10px">
         <div class="cl-add-video-fields">
           <div class="cl-add-field">
@@ -4220,7 +4262,7 @@ function renderCreatorContentProfile(id) {
           </div>
           <div class="cl-add-field">
             <label>Date Posted</label>
-            <input type="date" class="dp-input" id="cl-new-video-date-${r.id}">
+            <input type="date" class="dp-input" id="cl-new-video-date-${r.id}" value="${defaultDate}">
           </div>
         </div>
         <div style="display:flex;gap:8px;margin-top:10px">
@@ -4230,10 +4272,14 @@ function renderCreatorContentProfile(id) {
       </div>
 
       ${sorted.length === 0
-        ? `<div class="cl-no-videos">No videos logged yet — click "+ Add Video" to add the first one</div>`
+        ? `<div class="cl-no-videos">
+            No videos logged for ${monthLabel(month)}
+            ${otherCount > 0 ? `<span class="cl-other-months-hint"> · ${otherCount} video${otherCount !== 1 ? 's' : ''} in other months</span>` : ' — click "+ Add Video" to add the first one'}
+           </div>`
         : `<div class="cl-videos-list">
+          ${otherCount > 0 ? `<div class="cl-month-scope-note">${videos.length} video${videos.length !== 1 ? 's' : ''} in ${monthLabel(month)} · ${otherCount} in other months</div>` : ''}
           ${sorted.map((v, displayIdx) => {
-            const origIdx = videos.findIndex(x => x.url === v.url && x.posted_date === v.posted_date);
+            const origIdx = allVideos.findIndex(x => x.url === v.url && x.posted_date === v.posted_date);
             const isTop   = displayIdx === 0 && (parseFloat(v.gmv) || 0) > 0;
             const shortUrl = v.url.replace(/https?:\/\/(www\.)?tiktok\.com\//, '');
             return `

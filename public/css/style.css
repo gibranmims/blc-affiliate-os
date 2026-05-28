@@ -4677,6 +4677,13 @@ a.cl-card-handle:hover {
   font-size: 14px;
   color: var(--text-muted);
   margin-top: 2px;
+  text-decoration: none;
+  display: inline-block;
+  transition: color 0.15s;
+}
+a.cl-profile-handle:hover {
+  color: var(--accent);
+  text-decoration: underline;
 }
 .cl-profile-meta {
   font-size: 12px;
@@ -4749,6 +4756,32 @@ a.cl-card-handle:hover {
   background: var(--bg-elevated);
   border: 1px dashed var(--border);
   border-radius: var(--radius);
+}
+
+.cl-other-months-hint {
+  color: var(--accent);
+  font-size: 12px;
+}
+
+.cl-month-scope-note {
+  font-size: 12px;
+  color: var(--text-muted);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 7px 12px;
+  margin-bottom: 8px;
+}
+
+.cl-creator-card-empty {
+  opacity: 0.55;
+}
+.cl-creator-card-empty:hover {
+  opacity: 1;
+}
+
+.cl-month-nav {
+  margin-bottom: 16px;
 }
 
 /* Video list */
