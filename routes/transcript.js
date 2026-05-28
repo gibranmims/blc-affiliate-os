@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 
 // POST /api/transcript  { url }
-// Calls TokScript MCP directly via JSON-RPC over HTTP (no Anthropic needed).
+// Calls TokScript MCP via JSON-RPC over HTTP+SSE (no Anthropic needed).
 // Requires: TOKSCRIPT_TOKEN env var
 router.post('/', async (req, res) => {
   const { url } = req.body;
@@ -20,7 +20,6 @@ router.post('/', async (req, res) => {
     const transcript = await fetchFromTokScript(url, token);
     res.json({ transcript });
   } catch (err) {
-    // Send user-friendly message for known limit/plan errors
     const msg = err.message || 'Unknown error';
     res.status(500).json({
       error: msg,
@@ -30,49 +29,62 @@ router.post('/', async (req, res) => {
 });
 
 // ── TokScript MCP (JSON-RPC over HTTP+SSE) ────────────────────────────────────
-async function fetchFromTokScript(videoUrl, token) {
-  const response = await fetch('https://api.tokscript.com/mcp', {
+// MCP protocol requires: initialize → notifications/initialized → tools/call
+async function mcpPost(token, body) {
+  const r = await fetch('https://api.tokscript.com/mcp', {
     method: 'POST',
     headers: {
-      'Authorization':  `Bearer ${token}`,
-      'Content-Type':   'application/json',
-      'Accept':         'application/json, text/event-stream'
+      'Authorization': `Bearer ${token}`,
+      'Content-Type':  'application/json',
+      'Accept':        'application/json, text/event-stream'
     },
-    body: JSON.stringify({
-      jsonrpc: '2.0',
-      id:      Date.now(),
-      method:  'tools/call',
-      params:  {
-        name:      'get_tiktok_transcript',
-        arguments: { video_url: videoUrl, format: 'text' }
-      }
-    })
+    body: JSON.stringify(body)
   });
+  return r;
+}
 
-  if (!response.ok) {
-    throw new Error(`TokScript returned HTTP ${response.status}`);
-  }
-
-  // Response is SSE — find the "data: {...}" line
-  const raw = await response.text();
-  const dataLine = raw.split('\n').find(l => l.startsWith('data: '));
-  if (!dataLine) throw new Error('Unexpected TokScript response format');
-
-  let payload;
-  try { payload = JSON.parse(dataLine.slice(6)); }
+function parseSseJson(raw) {
+  const line = raw.split('\n').find(l => l.startsWith('data: '));
+  if (!line) throw new Error('Unexpected TokScript response format');
+  try { return JSON.parse(line.slice(6)); }
   catch { throw new Error('Could not parse TokScript response'); }
+}
 
-  if (payload.error) {
-    throw new Error(payload.error.message || 'TokScript JSON-RPC error');
-  }
+async function fetchFromTokScript(videoUrl, token) {
+  // 1. Initialize
+  const initRes = await mcpPost(token, {
+    jsonrpc: '2.0', id: 1,
+    method: 'initialize',
+    params: {
+      protocolVersion: '2024-11-05',
+      capabilities: {},
+      clientInfo: { name: 'blc-affiliate-os', version: '1.0' }
+    }
+  });
+  if (!initRes.ok) throw new Error(`TokScript init failed: HTTP ${initRes.status}`);
+  await initRes.text(); // consume body
+
+  // 2. Send initialized notification (fire and forget — 202 response)
+  await mcpPost(token, { jsonrpc: '2.0', method: 'notifications/initialized' });
+
+  // 3. Call the tool
+  const callRes = await mcpPost(token, {
+    jsonrpc: '2.0', id: 2,
+    method: 'tools/call',
+    params: {
+      name:      'get_tiktok_transcript',
+      arguments: { video_url: videoUrl, format: 'text' }
+    }
+  });
+  if (!callRes.ok) throw new Error(`TokScript returned HTTP ${callRes.status}`);
+
+  const payload = parseSseJson(await callRes.text());
+
+  if (payload.error) throw new Error(payload.error.message || 'TokScript JSON-RPC error');
 
   const content = payload.result?.content;
-  if (payload.result?.isError) {
-    throw new Error(content?.[0]?.text || 'TokScript returned an error');
-  }
-  if (!content?.length) {
-    throw new Error('No transcript returned — video may have no captions');
-  }
+  if (payload.result?.isError) throw new Error(content?.[0]?.text || 'TokScript error');
+  if (!content?.length)        throw new Error('No transcript returned — video may have no captions');
 
   return content.map(c => c.text || '').join(' ').trim();
 }
