@@ -36,6 +36,7 @@ const state = {
   scripts:            [],
   scriptsLoaded:      false,
   contentLabTab:      'creators',
+  rosterMonth:        new Date().toISOString().slice(0, 7),
   contentLabCreatorId: null,
   rosterTab:          'paid'
 };
@@ -162,6 +163,34 @@ function fmtDateShort(d) {
 
 function todayStr() {
   return new Date().toISOString().split('T')[0];
+}
+
+// Month navigation helpers (YYYY-MM format)
+function monthLabel(yyyymm) {
+  if (!yyyymm) return '';
+  const [y, m] = yyyymm.split('-');
+  return new Date(parseInt(y), parseInt(m) - 1, 1)
+    .toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+}
+function prevMonth(yyyymm) {
+  const [y, m] = yyyymm.split('-').map(Number);
+  const d = new Date(y, m - 2, 1);
+  return d.toISOString().slice(0, 7);
+}
+function nextMonth(yyyymm) {
+  const [y, m] = yyyymm.split('-').map(Number);
+  const d = new Date(y, m, 1);
+  return d.toISOString().slice(0, 7);
+}
+function switchRosterMonth(dir) {
+  state.rosterMonth = dir === 'prev' ? prevMonth(state.rosterMonth) : nextMonth(state.rosterMonth);
+  state.activeRosterId = null;
+  closeDetailPanel();
+  if (state.currentPage === 'finance') {
+    renderFinancePage();
+  } else {
+    renderRosterPage();
+  }
 }
 
 // Returns fresh follow-up dates when a counter offer is sent (today +4, +8 days)
@@ -2761,13 +2790,20 @@ function switchRosterTab(tab) {
 }
 
 function renderRosterPage() {
-  const isPaid  = state.rosterTab === 'paid';
-  const list    = state.roster.filter(r => isPaid ? (r.affiliate_type !== 'free') : (r.affiliate_type === 'free'));
+  const isPaid   = state.rosterTab === 'paid';
+  const allPaid  = state.roster.filter(r => r.affiliate_type !== 'free');
+  const allFree  = state.roster.filter(r => r.affiliate_type === 'free');
+  // For paid tab: filter by month (creators with no contract_month show in all months)
+  const list = isPaid
+    ? allPaid.filter(r => !r.contract_month || r.contract_month === state.rosterMonth)
+    : allFree;
   const active  = list.filter(r => r.status === 'active').length;
   const totalGMV   = list.reduce((s, r) => s + (parseFloat(r.gmv) || 0), 0);
   const totalPosts = list.reduce((s, r) => s + (parseInt(r.content_submitted) || 0), 0);
-  const paidCount  = state.roster.filter(r => r.affiliate_type !== 'free').length;
-  const freeCount  = state.roster.filter(r => r.affiliate_type === 'free').length;
+  const paidCount  = allPaid.length;
+  const freeCount  = allFree.length;
+  const currentMonth = new Date().toISOString().slice(0, 7);
+  const isCurrentMonth = state.rosterMonth === currentMonth;
 
   document.getElementById('page-content').innerHTML = `
     <div class="page-header">
@@ -2783,6 +2819,17 @@ function renderRosterPage() {
         <button class="btn btn-primary" onclick="openAddRosterModal()">+ Add Affiliate</button>
       </div>
     </div>
+
+    ${isPaid ? `
+    <div class="month-nav">
+      <button class="month-nav-btn" onclick="switchRosterMonth('prev')">‹</button>
+      <div class="month-nav-label">
+        ${monthLabel(state.rosterMonth)}
+        ${isCurrentMonth ? `<span class="month-nav-current-chip">Current</span>` : ''}
+      </div>
+      <button class="month-nav-btn" onclick="switchRosterMonth('next')">›</button>
+    </div>
+    ` : ''}
 
     <div class="stat-cards">
       <div class="stat-card">
@@ -2806,9 +2853,9 @@ function renderRosterPage() {
     <div class="table-container">
       ${list.length === 0 ? `
         <div class="empty-state">
-          <div class="empty-icon">${isPaid ? '👥' : '🔗'}</div>
-          <h3>No ${isPaid ? 'paid' : 'free'} affiliates yet</h3>
-          <p>${isPaid ? 'Signed creators move here from the outreach pipeline' : 'Add commission-only affiliates manually'}</p>
+          <div class="empty-icon">${isPaid ? '📅' : '🔗'}</div>
+          <h3>${isPaid ? `No contracts for ${monthLabel(state.rosterMonth)}` : 'No free affiliates yet'}</h3>
+          <p>${isPaid ? 'Use "Renew Contract" on a completed creator to add them here, or add a new affiliate.' : 'Add commission-only affiliates manually'}</p>
           <button class="btn btn-primary" onclick="openAddRosterModal()">+ Add Affiliate</button>
         </div>
       ` : `
@@ -2821,7 +2868,6 @@ function renderRosterPage() {
               ${isPaid ? `<th>Posts Left</th>` : ''}
               <th>GMV</th>
               <th>Status</th>
-              ${isPaid ? `<th class="tbl-th-assets">Assets Needed</th>` : ''}
             </tr>
           </thead>
           <tbody>
@@ -2865,12 +2911,6 @@ function renderRosterPage() {
                     <option value="inactive"   ${r.status==='inactive'   ?'selected':''}>Inactive</option>
                   </select>
                 </td>
-                ${isPaid ? `
-                <td class="tbl-editable-cell tbl-assets-cell" onclick="rosterCellEdit(this,'${r.id}','creative_assets_needed',${r.creative_assets_needed||0},'number')" title="Click to set number of creative assets needed">
-                  ${(r.creative_assets_needed || 0) > 0
-                    ? `<span class="assets-badge">${r.creative_assets_needed}</span>`
-                    : `<span class="assets-none">—</span>`}
-                </td>` : ''}
               </tr>`;
             }).join('')}
           </tbody>
@@ -3088,6 +3128,15 @@ function renderRosterDetailPanel() {
     </div>
     ` : ''}
 
+    <!-- Renew Contract (for active/completed paid creators) -->
+    ${(r.status === 'active' || r.status === 'completed') && r.affiliate_type !== 'free' ? `
+    <div class="rs-renew-bar">
+      <div class="rs-renew-bar-label">Ready for another contract?</div>
+      <div class="rs-renew-bar-hint">Clone this creator into a fresh contract for a new month — keeps their profile clean and history separate.</div>
+      <button class="rs-renew-btn" onclick="openRenewContractModal('${r.id}')">↻ Renew Contract</button>
+    </div>
+    ` : ''}
+
     <!-- Remove -->
     <div class="dp-delete-zone">
       <button class="btn btn-danger-outline" onclick="deleteRosterFromPanel('${r.id}')">Remove from Roster</button>
@@ -3114,6 +3163,98 @@ async function markVideosComplete(id) {
   } catch (err) {
     showToast(err.message, 'error');
   }
+}
+
+function openRenewContractModal(id) {
+  const r = state.roster.find(x => x.id === id);
+  if (!r) return;
+  const suggestedMonth = nextMonth(state.rosterMonth);
+  const html = `
+    <form id="modal-form">
+      <p style="color:var(--text-muted);margin:0 0 16px;font-size:14px;">
+        Creates a fresh contract for <strong>@${esc(r.handle)}</strong> in a new month.
+        The original contract stays as-is.
+      </p>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Contract Month</label>
+          <input type="month" name="contract_month" value="${suggestedMonth}" required>
+        </div>
+        <div class="form-group">
+          <label>Status</label>
+          <select name="status">
+            <option value="onboarding">Onboarding</option>
+            <option value="active">Active</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label># Videos</label>
+          <input type="number" name="video_count" value="${r.video_count || ''}">
+        </div>
+        <div class="form-group">
+          <label>Total Deal ($)</label>
+          <input type="number" name="deal_total" placeholder="e.g. 1000"
+            value="${r.per_vid_rate && r.video_count ? (parseFloat(r.per_vid_rate) * parseInt(r.video_count)).toFixed(0) : ''}">
+        </div>
+        <div class="form-group">
+          <label>Start Date</label>
+          <input type="date" name="start_date">
+        </div>
+        <div class="form-group">
+          <label>Commission Rate (%)</label>
+          <input type="number" step="0.1" name="commission_rate" value="${r.commission_rate || 20}">
+        </div>
+      </div>
+      <div class="form-actions">
+        <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+        <button type="submit" class="btn btn-primary">Create New Contract</button>
+      </div>
+    </form>`;
+  openModal(`Renew Contract — @${r.handle}`, html, async (e) => {
+    const data = Object.fromEntries(new FormData(e.target));
+    const dealTotal  = parseFloat(data.deal_total);
+    const videoCount = parseInt(data.video_count);
+    delete data.deal_total;
+    if (!isNaN(dealTotal) && !isNaN(videoCount) && videoCount > 0) {
+      data.per_vid_rate = dealTotal / videoCount;
+    }
+    // Carry forward key profile fields from original
+    const newRec = {
+      handle:           r.handle,
+      name:             r.name,
+      platform:         r.platform,
+      niche:            r.niche,
+      followers:        r.followers,
+      email:            r.email,
+      tier:             r.tier,
+      affiliate_type:   r.affiliate_type || 'paid',
+      content_style:    r.content_style,
+      audience_demographics: r.audience_demographics,
+      notes:            r.notes,
+      // Reset per-contract fields
+      content_submitted: 0,
+      gmv:               0,
+      payment_sent:      false,
+      invoice_received:  false,
+      serum_shipped:     false,
+      brief_sent:        false,
+      top_videos:        [],
+      blc_videos:        [],
+      posting_schedule:  [],
+      ...data
+    };
+    try {
+      const rec = await fetchAPI(API.roster, { method: 'POST', body: JSON.stringify(newRec) });
+      state.roster.unshift(rec);
+      // Navigate to the new month
+      state.rosterMonth = data.contract_month;
+      state.activeRosterId = rec.id;
+      updateReviewBadge();
+      closeModal();
+      renderRosterPage();
+      showToast(`New contract created for ${monthLabel(data.contract_month)} ✓`);
+    } catch (err) { showToast(err.message, 'error'); }
+  });
 }
 
 async function markFinalPaymentSent(rosterId) {
@@ -3623,6 +3764,10 @@ function openAddRosterModal() {
     delete data.deal_total;
     if (!isNaN(dealTotal) && !isNaN(videoCount) && videoCount > 0) {
       data.per_vid_rate = dealTotal / videoCount;
+    }
+    // Tag with current month view (paid affiliates only)
+    if (data.affiliate_type !== 'free') {
+      data.contract_month = state.rosterMonth;
     }
     try {
       const rec = await fetchAPI(API.roster, { method: 'POST', body: JSON.stringify(data) });
@@ -4315,20 +4460,14 @@ function reviewPendingSerum() {
 }
 
 function reviewPendingAssets() {
-  // Only surfaces after serum is shipped (so posting schedule dates are real)
+  // Simplified: only check brief_sent (creative angles no longer required)
   return state.roster.filter(r =>
-    r.status === 'onboarding' &&
-    r.serum_shipped &&
-    !(r.brief_sent && r.creative_angles_sent && r.posting_schedule_confirmed)
+    r.status === 'onboarding' && r.serum_shipped && !r.brief_sent
   );
 }
 
 function reviewCounterRejected() {
   return state.outreach.filter(r => r.status === 'counter_rejected');
-}
-
-function reviewNeedsCreativeAssets() {
-  return state.roster.filter(r => (r.creative_assets_needed || 0) > 0);
 }
 
 function reviewFinalPayments() {
@@ -4338,7 +4477,7 @@ function reviewFinalPayments() {
 }
 
 function reviewCount() {
-  return reviewPendingPayments().length + reviewPendingSerum().length + reviewPendingAssets().length + reviewCounterRejected().length + reviewNeedsCreativeAssets().length + reviewFinalPayments().length;
+  return reviewPendingPayments().length + reviewPendingSerum().length + reviewPendingAssets().length + reviewCounterRejected().length + reviewFinalPayments().length;
 }
 
 function updateReviewBadge() {
@@ -4379,8 +4518,7 @@ function renderForReviewPage() {
   const serum           = reviewPendingSerum();
   const assets          = reviewPendingAssets();
   const rejected        = reviewCounterRejected();
-  const creativeNeeded  = reviewNeedsCreativeAssets();
-  const total           = payments.length + finalPayments.length + serum.length + assets.length + rejected.length + creativeNeeded.length;
+  const total           = payments.length + finalPayments.length + serum.length + assets.length + rejected.length;
 
   document.getElementById('page-content').innerHTML = `
     <div class="page-header">
@@ -4480,16 +4618,15 @@ function renderForReviewPage() {
       }
     </div>
 
-    <!-- Creative Assets Needed -->
+    <!-- Brief Needed -->
     <div class="review-section">
       <div class="review-section-header">
-        <span class="review-section-title">🎬 Creative Assets Needed</span>
+        <span class="review-section-title">📋 Brief Needed</span>
         ${assets.length > 0 ? `<span class="review-section-count">${assets.length}</span>` : ''}
       </div>
       ${assets.length === 0
-        ? `<div class="review-empty">${serum.length > 0 ? 'Waiting on serum shipments before scheduling' : 'All creative assets sent ✓'}</div>`
+        ? `<div class="review-empty">${serum.length > 0 ? 'Waiting on serum shipments first' : 'All briefs sent ✓'}</div>`
         : assets.map(r => {
-            const schedule = calcPostingSchedule(r.serum_ship_date, r.video_count);
             const arrivalDate = r.serum_ship_date
               ? (() => { const d = new Date(r.serum_ship_date + 'T00:00:00'); d.setDate(d.getDate()+10); return fmtDateShort(d.toISOString().split('T')[0]); })()
               : null;
@@ -4498,60 +4635,18 @@ function renderForReviewPage() {
               <div class="review-card-row">
                 <div class="review-card-main">
                   <div class="review-card-name">${esc(r.name || r.handle)}</div>
-                  <div class="review-card-sub">@${esc(r.handle)} · ${r.video_count} video deal${arrivalDate ? ` · Serum arrives ~${arrivalDate}` : ''}</div>
+                  <div class="review-card-sub">@${esc(r.handle)} · ${r.video_count || '?'} video deal${arrivalDate ? ` · Serum arrives ~${arrivalDate}` : ''}</div>
                 </div>
               </div>
-              ${schedule.length > 0 ? `
-              <div class="review-schedule">
-                <div class="review-schedule-label">Auto-generated posting schedule (2/week)</div>
-                <div class="review-schedule-dates">
-                  ${schedule.map((d, i) => `<span class="review-schedule-chip">Vid ${i+1}: ${fmtDateShort(d)}</span>`).join('')}
-                </div>
-              </div>` : ''}
               <div class="review-checklist">
                 <label class="review-check-item ${r.brief_sent ? 'review-check-done' : ''}">
                   <input type="checkbox" ${r.brief_sent ? 'checked' : ''}
                     onchange="markRosterField('${r.id}', 'brief_sent', this.checked)">
                   Content brief sent
                 </label>
-                <label class="review-check-item ${r.creative_angles_sent ? 'review-check-done' : ''}">
-                  <input type="checkbox" ${r.creative_angles_sent ? 'checked' : ''}
-                    onchange="markRosterField('${r.id}', 'creative_angles_sent', this.checked)">
-                  Creative angles sent (${r.video_count || '?'} angles)
-                </label>
-                <label class="review-check-item ${r.posting_schedule_confirmed ? 'review-check-done' : ''}">
-                  <input type="checkbox" ${r.posting_schedule_confirmed ? 'checked' : ''}
-                    onchange="markRosterField('${r.id}', 'posting_schedule_confirmed', this.checked)">
-                  Posting schedule confirmed
-                </label>
               </div>
             </div>`;
           }).join('')
-      }
-    </div>
-
-    <!-- Creative Assets to Send -->
-    <div class="review-section">
-      <div class="review-section-header">
-        <span class="review-section-title">🎨 Creative Assets to Send</span>
-        ${creativeNeeded.length > 0 ? `<span class="review-section-count">${creativeNeeded.length}</span>` : ''}
-      </div>
-      ${creativeNeeded.length === 0
-        ? `<div class="review-empty">No creative assets pending ✓</div>`
-        : creativeNeeded.map(r => `
-            <div class="review-card">
-              <div class="review-card-main">
-                <div class="review-card-name">${esc(r.name || r.handle)}</div>
-                <div class="review-card-sub">@${esc(r.handle)}${r.video_count ? ` · ${r.video_count} video deal` : ''} · <strong>${r.creative_assets_needed} asset${r.creative_assets_needed !== 1 ? 's' : ''} needed</strong></div>
-              </div>
-              <div style="display:flex;align-items:center;gap:8px;">
-                <span class="assets-badge assets-badge-lg">${r.creative_assets_needed}</span>
-                <button class="btn btn-primary btn-sm" onclick="markCreativeAssetsSent('${r.id}')">
-                  Mark Sent
-                </button>
-              </div>
-            </div>`
-          ).join('')
       }
     </div>
 
@@ -4677,21 +4772,6 @@ async function closeDeal(id) {
   } catch (err) { showToast(err.message, 'error'); }
 }
 
-async function markCreativeAssetsSent(rosterId) {
-  try {
-    const rec = await fetchAPI(`${API.roster}/${rosterId}`, {
-      method: 'PUT',
-      body: JSON.stringify({ creative_assets_needed: 0 })
-    });
-    const i = state.roster.findIndex(x => x.id === rosterId);
-    if (i !== -1) state.roster[i] = rec;
-    updateReviewBadge();
-    renderForReviewPage();
-    showToast('Creative assets marked as sent ✓');
-  } catch (err) {
-    showToast(err.message, 'error');
-  }
-}
 
 async function markRosterField(rosterId, field, value) {
   try {
@@ -4745,7 +4825,9 @@ function openRosterCreatorFromReview(id) {
 
 function financeAffiliates() {
   return state.roster.filter(r =>
-    r.affiliate_type === 'paid' && (r.status === 'active' || r.status === 'onboarding' || r.status === 'completed')
+    r.affiliate_type === 'paid' &&
+    (r.status === 'active' || r.status === 'onboarding' || r.status === 'completed') &&
+    (!r.contract_month || r.contract_month === state.rosterMonth)
   );
 }
 
@@ -4780,12 +4862,23 @@ function renderFinancePage() {
     .filter(r => !r.payment_sent)
     .reduce((s, r) => s + financeMonthlyRate(r) / 2, 0);
 
+  const isCurrentMonth = state.rosterMonth === new Date().toISOString().slice(0, 7);
+
   document.getElementById('page-content').innerHTML = `
     <div class="page-header">
       <div>
         <h1 class="page-title">Finance</h1>
         <p class="page-subtitle">Live data from Roster & Pipeline · ${affiliates.length} paid affiliate${affiliates.length !== 1 ? 's' : ''}</p>
       </div>
+    </div>
+
+    <div class="month-nav">
+      <button class="month-nav-btn" onclick="switchRosterMonth('prev')">‹</button>
+      <div class="month-nav-label">
+        ${monthLabel(state.rosterMonth)}
+        ${isCurrentMonth ? `<span class="month-nav-current-chip">Current</span>` : ''}
+      </div>
+      <button class="month-nav-btn" onclick="switchRosterMonth('next')">›</button>
     </div>
 
     <!-- Stat Cards -->

@@ -156,3 +156,19 @@ GRANT ALL ON TABLE scripts TO authenticated;
 ALTER TABLE roster DROP CONSTRAINT IF EXISTS roster_status_check;
 ALTER TABLE roster ADD CONSTRAINT roster_status_check
   CHECK (status IN ('active', 'inactive', 'paused', 'watching', 'onboarding', 'completed'));
+
+-- ============================================================
+-- Roster — contract_month for month-based contract tracking
+-- Run this in a new Supabase SQL editor tab
+-- ============================================================
+ALTER TABLE roster ADD COLUMN IF NOT EXISTS contract_month TEXT;
+
+-- Add onboarding checklist fields if not present
+ALTER TABLE roster ADD COLUMN IF NOT EXISTS payment_sent BOOLEAN DEFAULT FALSE;
+ALTER TABLE roster ADD COLUMN IF NOT EXISTS payment_sent_date DATE;
+ALTER TABLE roster ADD COLUMN IF NOT EXISTS invoice_received BOOLEAN DEFAULT FALSE;
+ALTER TABLE roster ADD COLUMN IF NOT EXISTS serum_shipped BOOLEAN DEFAULT FALSE;
+ALTER TABLE roster ADD COLUMN IF NOT EXISTS serum_ship_date DATE;
+ALTER TABLE roster ADD COLUMN IF NOT EXISTS brief_sent BOOLEAN DEFAULT FALSE;
+ALTER TABLE roster ADD COLUMN IF NOT EXISTS creative_angles_sent BOOLEAN DEFAULT FALSE;
+ALTER TABLE roster ADD COLUMN IF NOT EXISTS posting_schedule_confirmed BOOLEAN DEFAULT FALSE;

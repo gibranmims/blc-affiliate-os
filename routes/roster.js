@@ -17,7 +17,8 @@ const FIELDS = [
   // onboarding checklist fields
   'payment_sent', 'payment_sent_date', 'invoice_received',
   'serum_shipped', 'serum_ship_date',
-  'brief_sent', 'creative_angles_sent', 'posting_schedule_confirmed'
+  'brief_sent', 'creative_angles_sent', 'posting_schedule_confirmed',
+  'contract_month'
 ];
 
 const JSON_FIELDS = ['top_videos', 'blc_videos', 'posting_schedule'];
@@ -46,8 +47,7 @@ function buildRosterRecord(body) {
 async function checkAutoGraduate(id) {
   const { data } = await supabase.from('roster').select('*').eq('id', id).single();
   if (!data || data.status !== 'onboarding') return data;
-  const done = data.payment_sent && data.serum_shipped &&
-               data.brief_sent && data.creative_angles_sent && data.posting_schedule_confirmed;
+  const done = data.payment_sent && data.serum_shipped && data.brief_sent;
   if (!done) return data;
   const { data: grad } = await supabase
     .from('roster').update({ status: 'active' }).eq('id', id).select().single();
