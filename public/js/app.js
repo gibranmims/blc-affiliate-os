@@ -2235,7 +2235,7 @@ function showSignedSuccessModal(creatorName, halfDeposit) {
           </div>
         </div>
         <div style="display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--border);background:var(--yellow-dim);">
-          <span style="font-size:20px;flex-shrink:0;">💰</span>
+          <span style="font-size:20px;flex-shrink:0;">📄</span>
           <div>
             <div style="font-weight:700;font-size:14px;color:var(--yellow)">50% payment due: ${fmt$(halfDeposit)}</div>
             <div style="font-size:12px;color:var(--text-muted);margin-top:2px">Waiting on invoice — they'll send via PayPal or wire</div>
@@ -4010,7 +4010,7 @@ function renderGeneratorTab() {
           </div>
           <div id="script-output" class="output-area">
             <div class="output-placeholder">
-              <div class="output-icon">🎬</div>
+              <div class="output-icon"></div>
               <p>Select a creator and click Generate to create a personalized video script</p>
             </div>
           </div>
@@ -4197,7 +4197,7 @@ function renderCreatorGrid() {
             </div>
           </div>
           ${topVideo && topVideo.gmv
-            ? `<div class="cl-card-top-video">🏆 Top: ${topVideo.views ? fmtNum(topVideo.views) + ' views · ' : ''}${fmt$(topVideo.gmv)} GMV</div>`
+            ? `<div class="cl-card-top-video">Top: ${topVideo.views ? fmtNum(topVideo.views) + ' views · ' : ''}${fmt$(topVideo.gmv)} GMV</div>`
             : `<div class="cl-card-no-videos">${videos.length === 0
                 ? (hasOther ? `No videos in ${monthLabel(month)}` : 'No videos logged yet')
                 : 'No GMV tracked yet'}</div>`}
@@ -4281,7 +4281,7 @@ function renderCreatorContentProfile(id) {
           ${sorted.map((v, displayIdx) => {
             const origIdx = allVideos.findIndex(x => x.url === v.url && x.posted_date === v.posted_date);
             const isTop   = displayIdx === 0 && (parseFloat(v.gmv) || 0) > 0;
-            const rank    = isTop ? '🏆' : `#${displayIdx + 1}`;
+            const rank    = `#${displayIdx + 1}`;
             const thumb   = v.thumbnail_url || '';
             const dateShort = v.posted_date ? fmtDateShort(v.posted_date) : '—';
             return `
@@ -4289,7 +4289,7 @@ function renderCreatorContentProfile(id) {
               <!-- Thumbnail -->
               <a href="${esc(v.url)}" target="_blank" rel="noopener" class="cl-vc-thumb"
                 style="${thumb ? `background-image:url('${esc(thumb)}')` : ''}">
-                ${!thumb ? `<div class="cl-vc-thumb-placeholder">🎬</div>` : ''}
+                ${!thumb ? `<div class="cl-vc-thumb-placeholder"></div>` : ''}
                 <div class="cl-vc-rank-badge">${rank}</div>
                 <div class="cl-vc-gmv-badge">${v.gmv ? fmt$(v.gmv) : ''}</div>
               </a>
@@ -4316,17 +4316,17 @@ function renderCreatorContentProfile(id) {
                 <div class="cl-vc-transcript-row">
                   <button class="cl-vc-transcript-btn${v.transcript ? ' cl-vc-transcript-saved' : ''}"
                     onclick="toggleVideoTranscript('${r.id}', ${origIdx})">
-                    ${v.transcript ? '📋 Transcript ▾' : '📋 Add transcript ▾'}
+                    ${v.transcript ? 'Transcript ▾' : 'Add transcript ▾'}
                   </button>
                   <button class="cl-vc-fetch-btn" data-fetch-btn="${r.id}-${origIdx}"
                     onclick="fetchTranscript('${r.id}', ${origIdx})">
-                    ⚡ Auto-fetch
+                    Auto-fetch
                   </button>
                   <button class="cl-vc-remove-btn" onclick="removeBLCVideoEntry('${r.id}', ${origIdx})" title="Remove">✕</button>
                 </div>
                 <div class="cl-transcript-panel" id="cl-transcript-${r.id}-${origIdx}" style="display:none">
                   <textarea class="dp-textarea cl-transcript-ta" id="cl-transcript-ta-${r.id}-${origIdx}" rows="5"
-                    placeholder="Paste transcript here or click ⚡ Auto-fetch…"
+                    placeholder="Paste transcript here or click Auto-fetch…"
                     onblur="updateBLCVideoField('${r.id}', ${origIdx}, 'transcript', this.value)">${esc(v.transcript || '')}</textarea>
                 </div>
               </div>
@@ -4413,16 +4413,16 @@ async function fetchTranscript(rosterId, origIdx) {
     });
     const transcript = result.transcript || '';
     if (ta) { ta.value = transcript; ta.disabled = false; }
-    if (btn) { btn.textContent = '⚡ Re-fetch'; btn.disabled = false; }
+    if (btn) { btn.textContent = 'Re-fetch'; btn.disabled = false; }
     // Save to DB
     videos[origIdx].transcript = transcript;
     await saveRosterBLCVideos(rosterId, videos, false);
     showToast('Transcript fetched ✓');
   } catch (err) {
     if (ta) { ta.value = ''; ta.disabled = false; ta.placeholder = 'Paste transcript here…'; }
-    if (btn) { btn.textContent = '⚡ Auto-fetch'; btn.disabled = false; }
-    const msg = err.message.includes('TOKSCRIPT_TOKEN')
-      ? 'Add TOKSCRIPT_TOKEN to Railway env vars — get it from your TokScript account'
+    if (btn) { btn.textContent = 'Auto-fetch'; btn.disabled = false; }
+    const msg = err.message.includes('SUPADATA_API_KEY')
+      ? 'Add SUPADATA_API_KEY to Railway env vars — get it from supadata.ai'
       : err.message.includes('ANTHROPIC_API_KEY')
       ? 'Add your ANTHROPIC_API_KEY to Railway env vars'
       : err.message;
@@ -4673,7 +4673,7 @@ function renderForReviewPage() {
     <!-- Payments Due (step 2 — only after serum shipped) -->
     <div class="review-section">
       <div class="review-section-header">
-        <span class="review-section-title">💰 Payments Due</span>
+        <span class="review-section-title">Payments Due</span>
         ${payments.length > 0 ? `<span class="review-section-count">${payments.length}</span>` : ''}
       </div>
       ${payments.length === 0
