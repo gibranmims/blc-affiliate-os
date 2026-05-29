@@ -286,6 +286,97 @@ After the rewrite:
 — Compliance check`;
 
 // ─────────────────────────────────────────────────────────────────────────────
+// SYSTEM PROMPT — SCRIPT ANALYZER
+// ─────────────────────────────────────────────────────────────────────────────
+const ANALYZER_SYSTEM_PROMPT = `You are the script and video analyst for The Bikini Line Co.
+
+Your job: given any TikTok or Instagram video transcript, analyze its structural mechanics. What made it watch-worthy. What drove conversion. What to preserve. What to fix.
+
+You are analyzing the underlying mechanics — not the product mention specifically. Hook type, emotional lever, curiosity mechanism, story structure, proof type, conversion architecture.
+
+This analysis is used by an affiliate manager to: identify which structural patterns drive results, inform rewrite decisions, and coach creators on what works and why.
+
+${PRODUCT_CONTEXT}
+
+OUTPUT FORMAT — use exactly this structure. No deviation. No extra sections. No markdown bold or headers beyond what is shown.
+
+HOOK ANALYSIS
+Hook line: [exact first line of the transcript]
+Hook type: [Personal story / Pain point callout / Identity callout / Question hook / Curiosity gap / Dream outcome / Other — specify]
+Hook strength: [Strong / Medium / Weak]
+Why: [one sentence]
+
+EMOTIONAL MECHANICS
+Primary emotional lever: [Insecurity / Hope / Relief / Validation / Curiosity / FOMO / Comparison / Pride / Other]
+Curiosity mechanism: [Incomplete information / Contradiction / Tension between desire and behavior / Unexpected reveal / None detected]
+Shame-to-confidence arc: [Yes / No / Partial]
+Objections addressed: [list each, or "None detected"]
+
+SCRIPT STRUCTURE
+Recognition (problem named): [Present / Missing] — [location or "missing"]
+Relief (blame removed): [Present / Missing] — [quote the line or "missing"]
+Explanation (mechanism): [Present / Missing] — [quote the line or "missing"]
+Proof used: [type and brief description, or "missing"]
+Product reveal timing: [Early / Middle / Late / Not present] — approx [X]% through
+CTA: [Present / Missing] — [style: soft / urgency / value-led]
+
+CONVERSION ARCHITECTURE
+Watch time potential: [1–10] — [one sentence why]
+Conversion potential: [1–10] — [one sentence why]
+BLC persuasion order coverage: [X/6 steps present]
+
+STRENGTHS
+— [specific observation]
+— [specific observation]
+— [specific observation]
+
+OPPORTUNITIES
+— [specific observation — actionable]
+— [specific observation — actionable]
+— [specific observation — actionable]
+
+VERDICT
+[2–3 sentences: what this script does well, where it loses people, and the single most important structural change that would improve it]`;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/generate/analyze — Script Analyzer
+// ─────────────────────────────────────────────────────────────────────────────
+router.post('/analyze', async (req, res) => {
+  if (!process.env.ANTHROPIC_API_KEY) {
+    return res.status(500).json({ error: 'ANTHROPIC_API_KEY is not configured' });
+  }
+
+  const { transcript } = req.body;
+  if (!transcript?.trim()) return res.status(400).json({ error: 'transcript is required' });
+
+  try {
+    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+    const message = await anthropic.messages.create({
+      model:      'claude-opus-4-5',
+      max_tokens: 2000,
+      system:     ANALYZER_SYSTEM_PROMPT,
+      messages: [{
+        role: 'user',
+        content: `Analyze this script/transcript using the framework.
+
+TRANSCRIPT
+---
+${transcript.trim()}
+---
+
+Follow the output format exactly.`
+      }]
+    });
+
+    res.json({ analysis: message.content[0].text });
+  } catch (err) {
+    console.error('Analyzer error:', err);
+    res.status(500).json({ error: err.message || 'Failed to analyze script' });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // POST /api/generate/script — Write mode
 // ─────────────────────────────────────────────────────────────────────────────
 router.post('/script', async (req, res) => {
@@ -295,8 +386,9 @@ router.post('/script', async (req, res) => {
 
   const {
     creatorId,
+    hookType,
     painPoint,
-    entryPoint,
+    tone,
     personalExperience,
     scriptLength,
     mentionIngredients
@@ -355,8 +447,9 @@ Previous BLC videos (avoid repeating these exact angles):
 ${blcVids}
 
 SCRIPT INPUTS
-Pain point focus: ${painPoint || 'Ingrown hairs'}
-Entry point: ${entryPoint || 'Pain point — lead with the problem'}
+Hook type: ${hookType || 'Personal story'}
+Main pain point: ${painPoint || 'Ingrown hairs'}
+Tone: ${tone || 'Vulnerable and relatable'}
 Creator's personal experience: "${personalExperience || 'Not provided — write a strong relatable version based on their niche and audience'}"
 Target length: ${lengthGuide[scriptLength] || lengthGuide.medium}
 Ingredient mentions: ${mentionIngredients || 'Yes — name the ingredients'}

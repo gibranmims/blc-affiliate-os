@@ -3900,9 +3900,11 @@ function renderScriptsPage() {
   const creatorsCount = paidCreators.length;
 
   const CL_TITLES = {
-    creators:  { title: 'Creators',         subtitle: 'Track video performance and GMV across your affiliate roster' },
-    generator: { title: 'Script Generator', subtitle: 'Write and rewrite conversion-driven scripts using BLC\'s framework' },
-    library:   { title: 'Saved Scripts',    subtitle: 'Your library of generated and saved scripts' }
+    creators: { title: 'Creators',       subtitle: 'Track video performance and GMV across your affiliate roster' },
+    write:    { title: 'Write Script',   subtitle: 'Generate a personalized conversion-driven script using BLC\'s framework' },
+    rewrite:  { title: 'Rewrite Script', subtitle: 'Drop a winning transcript — Claude tears it down and rewrites it for a different creator' },
+    analyzer: { title: 'Script Analyzer', subtitle: 'Paste any script or transcript and get a full structural breakdown' },
+    library:  { title: 'Script Library', subtitle: 'All generated and saved scripts' }
   };
   const clTitle = CL_TITLES[state.contentLabTab] || CL_TITLES.creators;
 
@@ -3914,12 +3916,6 @@ function renderScriptsPage() {
       </div>
     </div>
 
-    <div class="cl-tabs">
-      <button class="cl-tab ${state.contentLabTab === 'creators'  ? 'active' : ''}" onclick="switchContentLabTab('creators')">Creators${creatorsCount > 0 ? ` <span class="cl-tab-count">${creatorsCount}</span>` : ''}</button>
-      <button class="cl-tab ${state.contentLabTab === 'generator' ? 'active' : ''}" onclick="switchContentLabTab('generator')">Script Generator</button>
-      <button class="cl-tab ${state.contentLabTab === 'library'   ? 'active' : ''}" onclick="switchContentLabTab('library')">Saved Scripts${libCount > 0 ? ` <span class="cl-tab-count">${libCount}</span>` : ''}</button>
-    </div>
-
     <div id="cl-body">
       ${renderContentLabTab()}
     </div>`;
@@ -3928,17 +3924,17 @@ function renderScriptsPage() {
 function renderContentLabTab() {
   switch (state.contentLabTab) {
     case 'creators': return renderCreatorsTab();
+    case 'write':    return renderWriteScriptTab();
+    case 'rewrite':  return renderRewriteTab();
+    case 'analyzer': return renderAnalyzerTab();
     case 'library':  return renderLibraryTab();
-    default:         return renderGeneratorTab();
+    default:         return renderWriteScriptTab();
   }
 }
 
-function renderGeneratorTab() {
-  const isWrite    = state.scriptMode === 'write';
-  const isTeardown = state.scriptMode === 'teardown';
-
+function renderWriteScriptTab() {
   const creatorOptions = state.roster.map(c =>
-    `<option value="${c.id}">${platformIcon(c.platform)} @${esc(c.handle)}${c.name ? ' · ' + esc(c.name) : ''}${c.niche ? ' · ' + esc(c.niche) : ''}</option>`
+    `<option value="${c.id}">${esc(c.name || c.handle)} · @${esc(c.handle)}</option>`
   ).join('');
 
   return `
@@ -3946,16 +3942,8 @@ function renderGeneratorTab() {
       <div class="generator-form-panel">
         <div class="panel">
 
-          <!-- Mode tabs -->
-          <div class="script-mode-tabs">
-            <button class="script-mode-tab${isWrite ? ' active' : ''}" onclick="setScriptMode('write')">Write</button>
-            <button class="script-mode-tab${isTeardown ? ' active' : ''}" onclick="setScriptMode('teardown')">Teardown & Rewrite</button>
-          </div>
-
-          ${isWrite ? `
-          <!-- ── WRITE MODE ── -->
           <div class="form-group">
-            <label>Creator *</label>
+            <label class="form-label-caps">Creator *</label>
             <select id="script-creator" onchange="updatePreview()">
               <option value="">— Choose a creator —</option>
               ${creatorOptions}
@@ -3965,43 +3953,55 @@ function renderGeneratorTab() {
           <div id="script-preview" class="creator-preview hidden"></div>
 
           <div class="form-group">
-            <label>Pain point focus</label>
+            <label class="form-label-caps">Hook Type</label>
+            <select id="script-hook-type">
+              <option value="Personal story">Personal story — open with your own before/after</option>
+              <option value="Pain point callout">Pain point callout — name their exact frustration first</option>
+              <option value="Question hook">Question hook — open with "If you [pain]..."</option>
+              <option value="Curiosity gap">Curiosity gap — tease the result, hold back the how</option>
+              <option value="Identity callout">Identity callout — "If you shave or wax down there..."</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label-caps">Main Pain Point</label>
             <select id="script-pain-point">
-              <option value="Ingrown hairs">Ingrown hairs</option>
-              <option value="Discoloration">Discoloration / dark spots</option>
-              <option value="Irritation and redness">Irritation and redness</option>
-              <option value="All three equally">All three equally</option>
+              <option value="Ingrown hairs">Ingrown hairs — the ones that won't stop coming back</option>
+              <option value="Dark spots and discoloration">Dark spots — marks that outlast the bump</option>
+              <option value="Irritation and razor burn">Irritation & razor burn — angry skin reaction</option>
+              <option value="All three">All three — full bikini line angle</option>
             </select>
           </div>
 
           <div class="form-group">
-            <label>Entry point</label>
-            <select id="script-entry-point">
-              <option value="Pain point">Pain point — lead with the problem</option>
-              <option value="Dream outcome">Dream outcome — lead with the result</option>
-              <option value="Customer identity">Customer identity — lead with who she is</option>
+            <label class="form-label-caps">Tone</label>
+            <select id="script-tone">
+              <option value="Vulnerable and relatable">Vulnerable & relatable — personal story, shame-to-confidence arc</option>
+              <option value="Calm and educational">Calm & educational — explain the why, be the expert friend</option>
+              <option value="Direct and confident">Direct & confident — straight talk, no sugar coating</option>
             </select>
           </div>
 
           <div class="form-group">
-            <label>Creator's personal experience <span style="color:var(--text-muted);font-weight:400">(optional — 1–2 sentences)</span></label>
+            <label class="form-label-caps">Creator's Personal Experience <span style="color:var(--text-muted);font-weight:400;text-transform:none;letter-spacing:0">(optional — 1–2 sentences)</span></label>
             <textarea id="script-experience" class="dp-textarea" rows="3"
               placeholder="e.g. I used to always wear a coverup at the beach because I had ingrowns and dark spots all along my bikini line…"></textarea>
           </div>
 
           <div class="form-group">
-            <label>Script length</label>
+            <label class="form-label-caps">Script Length</label>
             <select id="script-length">
-              <option value="short">Short — under 30 sec</option>
+              <option value="hook">Hook only — 3–5 sec</option>
+              <option value="short">Short — 15–30 sec</option>
               <option value="medium" selected>Medium — 30–60 sec</option>
               <option value="long">Long — 60–90 sec</option>
             </select>
           </div>
 
           <div class="form-group">
-            <label>Ingredients</label>
+            <label class="form-label-caps">Ingredients</label>
             <select id="script-ingredients">
-              <option value="Yes, name them">Name the ingredients</option>
+              <option value="Yes, name them">Name the key ingredients</option>
               <option value="Keep it simple">Benefits only — keep it simple</option>
             </select>
           </div>
@@ -4009,24 +4009,54 @@ function renderGeneratorTab() {
           <button class="btn btn-primary btn-full" id="script-btn" onclick="generateScript()">
             Generate Script
           </button>
-          ${state.roster.length === 0 ? `<div class="info-box" style="margin-top:16px">Add creators to your Roster first.</div>` : ''}
+          ${state.roster.length === 0 ? `<div class="info-box" style="margin-top:16px">Add creators to your Roster first to generate personalized scripts.</div>` : ''}
 
-          ` : `
-          <!-- ── TEARDOWN & REWRITE MODE ── -->
+        </div>
+      </div>
+
+      <div class="generator-output-panel">
+        <div class="panel">
+          <div class="panel-header">
+            <h3 class="panel-title">Generated Script</h3>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <span class="cl-saved-badge hidden" id="cl-saved-badge">✓ Saved to Library</span>
+              <button class="btn btn-secondary btn-sm hidden" id="copy-script-btn" onclick="copyOutput('script-output')">Copy</button>
+            </div>
+          </div>
+          <div id="script-output" class="output-area">
+            <div class="output-placeholder">
+              <p>Select a creator and click Generate to create a personalized video script</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+}
+
+function renderRewriteTab() {
+  const creatorOptions = state.roster.map(c =>
+    `<option value="${c.id}">${esc(c.name || c.handle)} · @${esc(c.handle)}</option>`
+  ).join('');
+
+  return `
+    <div class="generator-layout">
+      <div class="generator-form-panel">
+        <div class="panel">
+
           <div class="form-group">
-            <label>Source transcript</label>
+            <label class="form-label-caps">Winning Transcript</label>
             <div class="teardown-source-row">
               <textarea id="teardown-transcript" class="dp-textarea" rows="8"
-                placeholder="Paste the transcript of the winning video here…"></textarea>
+                placeholder="Paste the winning transcript here…"></textarea>
               <div class="teardown-url-row">
-                <input type="url" id="teardown-url" class="dp-input" placeholder="Or paste a TikTok URL to auto-fetch…">
+                <input type="url" id="teardown-url" class="dp-input" placeholder="Or paste a TikTok / Instagram URL to auto-fetch…">
                 <button class="btn btn-secondary btn-sm" id="teardown-fetch-btn" onclick="fetchTeardownTranscript()">Fetch</button>
               </div>
             </div>
           </div>
 
           <div class="form-group">
-            <label>Rewrite for creator *</label>
+            <label class="form-label-caps">Rewrite For *</label>
             <select id="teardown-creator">
               <option value="">— Choose a creator —</option>
               ${creatorOptions}
@@ -4034,9 +4064,9 @@ function renderGeneratorTab() {
           </div>
 
           <div class="form-group">
-            <label>Script length</label>
+            <label class="form-label-caps">Target Length</label>
             <select id="teardown-length">
-              <option value="short">Short — under 30 sec</option>
+              <option value="short">Short — 15–30 sec</option>
               <option value="medium" selected>Medium — 30–60 sec</option>
               <option value="long">Long — 60–90 sec</option>
             </select>
@@ -4046,7 +4076,6 @@ function renderGeneratorTab() {
             Analyze & Rewrite
           </button>
           ${state.roster.length === 0 ? `<div class="info-box" style="margin-top:16px">Add creators to your Roster first.</div>` : ''}
-          `}
 
         </div>
       </div>
@@ -4054,7 +4083,7 @@ function renderGeneratorTab() {
       <div class="generator-output-panel">
         <div class="panel">
           <div class="panel-header">
-            <h3 class="panel-title">${isWrite ? 'Generated Script' : 'Teardown + Rewrite'}</h3>
+            <h3 class="panel-title">Teardown + Rewrite</h3>
             <div style="display:flex;gap:8px;align-items:center;">
               <span class="cl-saved-badge hidden" id="cl-saved-badge">✓ Saved to Library</span>
               <button class="btn btn-secondary btn-sm hidden" id="copy-script-btn" onclick="copyOutput('script-output')">Copy</button>
@@ -4062,10 +4091,48 @@ function renderGeneratorTab() {
           </div>
           <div id="script-output" class="output-area">
             <div class="output-placeholder">
-              <div class="output-icon"></div>
-              <p>${isWrite
-                ? 'Select a creator and click Generate to create a personalized video script'
-                : 'Paste a transcript, pick a creator, and click Analyze & Rewrite'}</p>
+              <p>Paste a winning transcript, pick a creator, and click Analyze & Rewrite</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+}
+
+function renderAnalyzerTab() {
+  return `
+    <div class="generator-layout">
+      <div class="generator-form-panel">
+        <div class="panel">
+
+          <div class="form-group">
+            <label class="form-label-caps">Script or Transcript</label>
+            <div class="teardown-source-row">
+              <textarea id="analyzer-transcript" class="dp-textarea" rows="12"
+                placeholder="Paste any TikTok or Instagram script / transcript here…"></textarea>
+              <div class="teardown-url-row">
+                <input type="url" id="analyzer-url" class="dp-input" placeholder="Or paste a TikTok URL to auto-fetch…">
+                <button class="btn btn-secondary btn-sm" id="analyzer-fetch-btn" onclick="fetchAnalyzerTranscript()">Fetch</button>
+              </div>
+            </div>
+          </div>
+
+          <button class="btn btn-primary btn-full" id="analyzer-btn" onclick="analyzeScript()">
+            Analyze Script
+          </button>
+
+        </div>
+      </div>
+
+      <div class="generator-output-panel">
+        <div class="panel">
+          <div class="panel-header">
+            <h3 class="panel-title">Script Analysis</h3>
+            <button class="btn btn-secondary btn-sm hidden" id="copy-analysis-btn" onclick="copyOutput('analyzer-output')">Copy</button>
+          </div>
+          <div id="analyzer-output" class="output-area">
+            <div class="output-placeholder">
+              <p>Paste any script or transcript and get a full structural breakdown — hook strength, emotional mechanics, conversion architecture, what works, what to fix.</p>
             </div>
           </div>
         </div>
@@ -4082,7 +4149,7 @@ function renderLibraryTab() {
       <div class="empty-icon">📄</div>
       <h3>No scripts yet</h3>
       <p>Generated scripts are automatically saved here</p>
-      <button class="btn btn-primary" onclick="switchContentLabTab('generator')">Generate a Script</button>
+      <button class="btn btn-primary" onclick="switchContentLabTab('write')">Write a Script</button>
     </div>`;
   }
 
@@ -4154,10 +4221,6 @@ async function deleteScript(e, id) {
     const card = document.getElementById(`sc-${id}`);
     if (card) card.remove();
     showToast('Script deleted');
-    // update tab count
-    document.querySelectorAll('.cl-tab').forEach((btn, i) => {
-      if (i === 2) btn.innerHTML = `Saved Scripts${state.scripts.length > 0 ? ` <span class="cl-tab-count">${state.scripts.length}</span>` : ''}`;
-    });
   } catch (err) {
     showToast(err.message, 'error');
   }
@@ -4531,8 +4594,9 @@ function updateScriptsNav() {
 
 async function generateScript() {
   const creatorId          = document.getElementById('script-creator').value;
+  const hookType           = document.getElementById('script-hook-type')?.value;
   const painPoint          = document.getElementById('script-pain-point')?.value;
-  const entryPoint         = document.getElementById('script-entry-point')?.value;
+  const tone               = document.getElementById('script-tone')?.value;
   const personalExperience = document.getElementById('script-experience')?.value?.trim();
   const scriptLength       = document.getElementById('script-length').value;
   const mentionIngredients = document.getElementById('script-ingredients')?.value;
@@ -4549,7 +4613,7 @@ async function generateScript() {
   try {
     const res = await fetchAPI(`${API.generate}/script`, {
       method: 'POST',
-      body: JSON.stringify({ creatorId, painPoint, entryPoint, personalExperience, scriptLength, mentionIngredients })
+      body: JSON.stringify({ creatorId, hookType, painPoint, tone, personalExperience, scriptLength, mentionIngredients })
     });
     output.innerHTML = `<div class="output-content">${renderMarkdown(res.script)}</div>`;
     document.getElementById('copy-script-btn').classList.remove('hidden');
@@ -4577,6 +4641,57 @@ async function generateScript() {
   } finally {
     btn.disabled = false;
     btn.textContent = 'Generate Script';
+  }
+}
+
+async function analyzeScript() {
+  const transcript = document.getElementById('analyzer-transcript')?.value?.trim();
+  if (!transcript) { showToast('Paste a transcript first', 'error'); return; }
+
+  const btn    = document.getElementById('analyzer-btn');
+  const output = document.getElementById('analyzer-output');
+
+  btn.disabled = true;
+  btn.textContent = 'Analyzing...';
+  output.innerHTML = `<div class="generating-indicator"><div class="spinner"></div><p>Analyzing script structure...</p></div>`;
+
+  try {
+    const res = await fetchAPI(`${API.generate}/analyze`, {
+      method: 'POST',
+      body: JSON.stringify({ transcript })
+    });
+    output.innerHTML = `<div class="output-content">${renderMarkdown(res.analysis)}</div>`;
+    document.getElementById('copy-analysis-btn').classList.remove('hidden');
+  } catch (err) {
+    showToast(err.message, 'error');
+    output.innerHTML = `<div class="output-placeholder"><p>Analysis failed — try again</p></div>`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Analyze Script';
+  }
+}
+
+async function fetchAnalyzerTranscript() {
+  const urlInput = document.getElementById('analyzer-url');
+  const ta       = document.getElementById('analyzer-transcript');
+  const btn      = document.getElementById('analyzer-fetch-btn');
+  const url      = urlInput?.value?.trim();
+  if (!url) { showToast('Paste a URL first', 'error'); return; }
+
+  btn.disabled = true;
+  btn.textContent = 'Fetching...';
+  try {
+    const res = await fetchAPI('/api/transcript', {
+      method: 'POST',
+      body: JSON.stringify({ url })
+    });
+    if (ta) { ta.value = res.transcript || ''; showToast('Transcript fetched'); }
+    if (urlInput) urlInput.value = '';
+  } catch (err) {
+    showToast(err.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Fetch';
   }
 }
 
