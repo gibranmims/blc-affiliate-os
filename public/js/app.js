@@ -4128,6 +4128,25 @@ function openCreatorProfile(id) {
   state.contentLabCreatorId = id;
   const body = document.getElementById('cl-body');
   if (body) body.innerHTML = renderCreatorsTab();
+  backfillThumbnails(id); // silently fetch missing thumbnails
+}
+
+async function backfillThumbnails(rosterId) {
+  const r = state.roster.find(x => x.id === rosterId);
+  if (!r) return;
+  const videos = normalizeBLCVideos(r.blc_videos);
+  const missing = videos.map((v, i) => ({ v, i })).filter(({ v }) => v.url && !v.thumbnail_url);
+  if (!missing.length) return;
+
+  let changed = false;
+  await Promise.all(missing.map(async ({ v, i }) => {
+    try {
+      const oe = await fetchAPI(`/api/oembed?url=${encodeURIComponent(v.url)}`);
+      if (oe.thumbnail_url) { videos[i].thumbnail_url = oe.thumbnail_url; changed = true; }
+    } catch (_) {}
+  }));
+
+  if (changed) await saveRosterBLCVideos(rosterId, videos, true);
 }
 
 function backToCreators() {
@@ -4325,7 +4344,7 @@ function renderCreatorContentProfile(id) {
                   <button class="cl-vc-remove-btn" onclick="removeBLCVideoEntry('${r.id}', ${origIdx})" title="Remove">✕</button>
                 </div>
                 <div class="cl-transcript-panel" id="cl-transcript-${r.id}-${origIdx}" style="display:none">
-                  <textarea class="dp-textarea cl-transcript-ta" id="cl-transcript-ta-${r.id}-${origIdx}" rows="5"
+                  <textarea class="dp-textarea cl-transcript-ta" id="cl-transcript-ta-${r.id}-${origIdx}" rows="12"
                     placeholder="Paste transcript here or click Auto-fetch…"
                     onblur="updateBLCVideoField('${r.id}', ${origIdx}, 'transcript', this.value)">${esc(v.transcript || '')}</textarea>
                 </div>

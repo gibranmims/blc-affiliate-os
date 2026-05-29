@@ -27,9 +27,11 @@ router.post('/', async (req, res) => {
 
 // ── Supadata Transcript API ───────────────────────────────────────────────────
 // Docs: https://docs.supadata.ai
-// Simple GET request — supports TikTok, YouTube, Instagram, etc.
+// Fetches caption chunks (not plain text) so each chunk = one delivery line.
+// The result is double-spaced line-by-line, matching the video's spoken cadence.
 async function fetchFromSupadata(videoUrl, apiKey) {
-  const endpoint = `https://api.supadata.ai/v1/transcript?url=${encodeURIComponent(videoUrl)}&text=true`;
+  // No text=true — we want chunks so we can preserve per-line cadence
+  const endpoint = `https://api.supadata.ai/v1/transcript?url=${encodeURIComponent(videoUrl)}`;
 
   const res = await fetch(endpoint, {
     headers: { 'x-api-key': apiKey }
@@ -49,9 +51,23 @@ async function fetchFromSupadata(videoUrl, apiKey) {
 
   // Synchronous response
   if (!data.content) throw new Error('No transcript returned — video may have no captions');
-  return typeof data.content === 'string'
-    ? data.content.trim()
-    : data.content.map(c => c.text || '').join(' ').trim();
+  return formatChunks(data.content);
+}
+
+// Each caption chunk is one spoken line — join with double newline for cadence spacing
+function formatChunks(content) {
+  if (typeof content === 'string') {
+    // Plain text fallback — split on sentence endings
+    return content
+      .split(/(?<=[.!?])\s+/)
+      .map(s => s.trim())
+      .filter(Boolean)
+      .join('\n\n');
+  }
+  return content
+    .map(c => (c.text || '').trim())
+    .filter(Boolean)
+    .join('\n\n');
 }
 
 async function pollJob(jobId, apiKey, maxAttempts = 12, intervalMs = 2500) {
@@ -64,9 +80,7 @@ async function pollJob(jobId, apiKey, maxAttempts = 12, intervalMs = 2500) {
     const data = await res.json();
     if (data.status === 'completed') {
       if (!data.content) throw new Error('No transcript returned — video may have no captions');
-      return typeof data.content === 'string'
-        ? data.content.trim()
-        : data.content.map(c => c.text || '').join(' ').trim();
+      return formatChunks(data.content);
     }
     if (data.status === 'failed') {
       throw new Error(data.error?.message || 'Supadata transcript job failed');
