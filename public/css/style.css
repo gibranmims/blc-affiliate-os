@@ -5025,3 +5025,56 @@ a.cl-profile-handle:hover {
   transition: opacity 0.15s;
 }
 .rs-renew-btn:hover { opacity: 0.88; }
+
+/* ============================================================
+   SCRIPT GENERATOR — MODE TABS + TEARDOWN
+   ============================================================ */
+
+.script-mode-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 20px;
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-md);
+  padding: 4px;
+}
+
+.script-mode-tab {
+  flex: 1;
+  padding: 7px 12px;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.script-mode-tab.active {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+
+.script-mode-tab:hover:not(.active) {
+  color: var(--text-primary);
+}
+
+.teardown-source-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.teardown-url-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.teardown-url-row .dp-input {
+  flex: 1;
+  font-size: 12px;
+}

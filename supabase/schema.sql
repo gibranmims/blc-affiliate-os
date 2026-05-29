@@ -172,3 +172,8 @@ ALTER TABLE roster ADD COLUMN IF NOT EXISTS serum_ship_date DATE;
 ALTER TABLE roster ADD COLUMN IF NOT EXISTS brief_sent BOOLEAN DEFAULT FALSE;
 ALTER TABLE roster ADD COLUMN IF NOT EXISTS creative_angles_sent BOOLEAN DEFAULT FALSE;
 ALTER TABLE roster ADD COLUMN IF NOT EXISTS posting_schedule_confirmed BOOLEAN DEFAULT FALSE;
+
+-- ============================================================
+-- Scripts — add mode column for write vs teardown
+-- ============================================================
+ALTER TABLE scripts ADD COLUMN IF NOT EXISTS mode TEXT;

@@ -38,7 +38,8 @@ const state = {
   contentLabTab:      'creators',
   rosterMonth:        new Date().toISOString().slice(0, 7),
   contentLabCreatorId: null,
-  rosterTab:          'paid'
+  rosterTab:          'paid',
+  scriptMode:         'write'   // 'write' | 'teardown'
 };
 
 const nbState = {
@@ -3922,19 +3923,31 @@ function renderContentLabTab() {
 }
 
 function renderGeneratorTab() {
+  const isWrite    = state.scriptMode === 'write';
+  const isTeardown = state.scriptMode === 'teardown';
+
+  const creatorOptions = state.roster.map(c =>
+    `<option value="${c.id}">${platformIcon(c.platform)} @${esc(c.handle)}${c.name ? ' · ' + esc(c.name) : ''}${c.niche ? ' · ' + esc(c.niche) : ''}</option>`
+  ).join('');
+
   return `
     <div class="generator-layout">
       <div class="generator-form-panel">
         <div class="panel">
-          <h3 class="panel-title">Script Settings</h3>
 
+          <!-- Mode tabs -->
+          <div class="script-mode-tabs">
+            <button class="script-mode-tab${isWrite ? ' active' : ''}" onclick="setScriptMode('write')">Write</button>
+            <button class="script-mode-tab${isTeardown ? ' active' : ''}" onclick="setScriptMode('teardown')">Teardown & Rewrite</button>
+          </div>
+
+          ${isWrite ? `
+          <!-- ── WRITE MODE ── -->
           <div class="form-group">
-            <label>Select Creator *</label>
+            <label>Creator *</label>
             <select id="script-creator" onchange="updatePreview()">
               <option value="">— Choose a creator —</option>
-              ${state.roster.map(c =>
-                `<option value="${c.id}">${platformIcon(c.platform)} @${esc(c.handle)}${c.niche ? ' · ' + esc(c.niche) : ''}${c.tier ? ' · ' + c.tier : ''}</option>`
-              ).join('')}
+              ${creatorOptions}
             </select>
           </div>
 
@@ -3960,19 +3973,9 @@ function renderGeneratorTab() {
           </div>
 
           <div class="form-group">
-            <label>Creator's personal experience <span style="color:var(--text-muted);font-weight:400">(1–2 sentences)</span></label>
+            <label>Creator's personal experience <span style="color:var(--text-muted);font-weight:400">(optional — 1–2 sentences)</span></label>
             <textarea id="script-experience" class="dp-textarea" rows="3"
               placeholder="e.g. I used to always wear a coverup at the beach because I had ingrowns and dark spots all along my bikini line…"></textarea>
-          </div>
-
-          <div class="form-group">
-            <label>Filming location</label>
-            <select id="script-location">
-              <option value="Beach or pool">Beach or pool</option>
-              <option value="Home" selected>Home</option>
-              <option value="Studio">Studio</option>
-              <option value="Other">Other</option>
-            </select>
           </div>
 
           <div class="form-group">
@@ -3985,10 +3988,10 @@ function renderGeneratorTab() {
           </div>
 
           <div class="form-group">
-            <label>Mention specific ingredients?</label>
+            <label>Ingredients</label>
             <select id="script-ingredients">
-              <option value="Yes, name them">Yes — name the ingredients</option>
-              <option value="Keep it simple">Keep it simple — benefits only</option>
+              <option value="Yes, name them">Name the ingredients</option>
+              <option value="Keep it simple">Benefits only — keep it simple</option>
             </select>
           </div>
 
@@ -3996,13 +3999,51 @@ function renderGeneratorTab() {
             Generate Script
           </button>
           ${state.roster.length === 0 ? `<div class="info-box" style="margin-top:16px">Add creators to your Roster first.</div>` : ''}
+
+          ` : `
+          <!-- ── TEARDOWN & REWRITE MODE ── -->
+          <div class="form-group">
+            <label>Source transcript</label>
+            <div class="teardown-source-row">
+              <textarea id="teardown-transcript" class="dp-textarea" rows="8"
+                placeholder="Paste the transcript of the winning video here…"></textarea>
+              <div class="teardown-url-row">
+                <input type="url" id="teardown-url" class="dp-input" placeholder="Or paste a TikTok URL to auto-fetch…">
+                <button class="btn btn-secondary btn-sm" id="teardown-fetch-btn" onclick="fetchTeardownTranscript()">Fetch</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Rewrite for creator *</label>
+            <select id="teardown-creator">
+              <option value="">— Choose a creator —</option>
+              ${creatorOptions}
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Script length</label>
+            <select id="teardown-length">
+              <option value="short">Short — under 30 sec</option>
+              <option value="medium" selected>Medium — 30–60 sec</option>
+              <option value="long">Long — 60–90 sec</option>
+            </select>
+          </div>
+
+          <button class="btn btn-primary btn-full" id="script-btn" onclick="teardownScript()">
+            Analyze & Rewrite
+          </button>
+          ${state.roster.length === 0 ? `<div class="info-box" style="margin-top:16px">Add creators to your Roster first.</div>` : ''}
+          `}
+
         </div>
       </div>
 
       <div class="generator-output-panel">
         <div class="panel">
           <div class="panel-header">
-            <h3 class="panel-title">Generated Script</h3>
+            <h3 class="panel-title">${isWrite ? 'Generated Script' : 'Teardown + Rewrite'}</h3>
             <div style="display:flex;gap:8px;align-items:center;">
               <span class="cl-saved-badge hidden" id="cl-saved-badge">✓ Saved to Library</span>
               <button class="btn btn-secondary btn-sm hidden" id="copy-script-btn" onclick="copyOutput('script-output')">Copy</button>
@@ -4011,7 +4052,9 @@ function renderGeneratorTab() {
           <div id="script-output" class="output-area">
             <div class="output-placeholder">
               <div class="output-icon"></div>
-              <p>Select a creator and click Generate to create a personalized video script</p>
+              <p>${isWrite
+                ? 'Select a creator and click Generate to create a personalized video script'
+                : 'Paste a transcript, pick a creator, and click Analyze & Rewrite'}</p>
             </div>
           </div>
         </div>
@@ -4463,12 +4506,17 @@ async function saveRosterBLCVideos(rosterId, videos, rerender = false) {
   }
 }
 
+function setScriptMode(mode) {
+  state.scriptMode = mode;
+  const body = document.getElementById('cl-body');
+  if (body) body.innerHTML = renderCreatorsTab(); // re-render full tab
+}
+
 async function generateScript() {
   const creatorId          = document.getElementById('script-creator').value;
   const painPoint          = document.getElementById('script-pain-point')?.value;
   const entryPoint         = document.getElementById('script-entry-point')?.value;
   const personalExperience = document.getElementById('script-experience')?.value?.trim();
-  const filmingLocation    = document.getElementById('script-location')?.value;
   const scriptLength       = document.getElementById('script-length').value;
   const mentionIngredients = document.getElementById('script-ingredients')?.value;
 
@@ -4484,12 +4532,11 @@ async function generateScript() {
   try {
     const res = await fetchAPI(`${API.generate}/script`, {
       method: 'POST',
-      body: JSON.stringify({ creatorId, painPoint, entryPoint, personalExperience, filmingLocation, scriptLength, mentionIngredients })
+      body: JSON.stringify({ creatorId, painPoint, entryPoint, personalExperience, scriptLength, mentionIngredients })
     });
     output.innerHTML = `<div class="output-content">${renderMarkdown(res.script)}</div>`;
     document.getElementById('copy-script-btn').classList.remove('hidden');
 
-    // Show saved badge + add to local state
     const badge = document.getElementById('cl-saved-badge');
     if (badge) badge.classList.remove('hidden');
     if (res.scriptId) {
@@ -4501,17 +4548,92 @@ async function generateScript() {
         product_focus:  `BBL Serum — ${painPoint || 'Ingrowns'}`,
         script_length:  { short: 'Short', medium: 'Medium', long: 'Long' }[scriptLength] || 'Medium',
         content:        res.script,
+        mode:           'write',
         created_at:     new Date().toISOString()
       });
       state.scriptsLoaded = true;
     }
     showToast('Script generated and saved!');
   } catch (err) {
-    output.innerHTML = `<div class="output-error">⚠️ ${esc(err.message)}</div>`;
+    output.innerHTML = `<div class="output-error">Error: ${esc(err.message)}</div>`;
     showToast(err.message, 'error');
   } finally {
     btn.disabled = false;
     btn.textContent = 'Generate Script';
+  }
+}
+
+async function fetchTeardownTranscript() {
+  const urlInput = document.getElementById('teardown-url');
+  const ta       = document.getElementById('teardown-transcript');
+  const btn      = document.getElementById('teardown-fetch-btn');
+  const url      = urlInput?.value?.trim();
+  if (!url) { showToast('Paste a TikTok URL first', 'error'); return; }
+
+  btn.disabled = true;
+  btn.textContent = 'Fetching...';
+  try {
+    const res = await fetchAPI('/api/transcript', {
+      method: 'POST',
+      body: JSON.stringify({ url })
+    });
+    if (ta) ta.value = res.transcript || '';
+    urlInput.value = '';
+    showToast('Transcript fetched');
+  } catch (err) {
+    showToast(err.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Fetch';
+  }
+}
+
+async function teardownScript() {
+  const sourceTranscript  = document.getElementById('teardown-transcript')?.value?.trim();
+  const targetCreatorId   = document.getElementById('teardown-creator')?.value;
+  const scriptLength      = document.getElementById('teardown-length')?.value || 'medium';
+
+  if (!sourceTranscript) { showToast('Paste a source transcript first', 'error'); return; }
+  if (!targetCreatorId)  { showToast('Select a target creator', 'error'); return; }
+
+  const btn    = document.getElementById('script-btn');
+  const output = document.getElementById('script-output');
+
+  btn.disabled = true;
+  btn.textContent = 'Analyzing...';
+  output.innerHTML = `<div class="generating-indicator"><div class="spinner"></div><p>Tearing down the script and rewriting for your creator...</p></div>`;
+
+  try {
+    const res = await fetchAPI(`${API.generate}/teardown`, {
+      method: 'POST',
+      body: JSON.stringify({ sourceTranscript, targetCreatorId, scriptLength })
+    });
+    output.innerHTML = `<div class="output-content">${renderMarkdown(res.script)}</div>`;
+    document.getElementById('copy-script-btn').classList.remove('hidden');
+
+    const badge = document.getElementById('cl-saved-badge');
+    if (badge) badge.classList.remove('hidden');
+    if (res.scriptId) {
+      const creator = state.roster.find(c => c.id === targetCreatorId);
+      state.scripts.unshift({
+        id:             res.scriptId,
+        creator_id:     targetCreatorId,
+        creator_handle: creator?.handle || '',
+        product_focus:  'BBL Serum — Teardown Rewrite',
+        script_length:  { short: 'Short', medium: 'Medium', long: 'Long' }[scriptLength] || 'Medium',
+        content:        res.script,
+        mode:           'teardown',
+        created_at:     new Date().toISOString()
+      });
+      state.scriptsLoaded = true;
+    }
+    showToast('Teardown complete — script saved!');
+  } catch (err) {
+    output.innerHTML = `<div class="output-error">Error: ${esc(err.message)}</div>`;
+    showToast(err.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Analyze & Rewrite';
   }
 }
 
