@@ -520,9 +520,12 @@ function handleOverlayClick(e) {
 function navigate(page) {
   if (page === 'outreach') state.outreachView = 'pipeline';
   state.currentPage = page;
-  document.querySelectorAll('.nav-item').forEach(el => {
+  document.querySelectorAll('.nav-item:not(.nav-cl-item)').forEach(el => {
     el.classList.toggle('active', el.dataset.page === page);
   });
+  // Clear Creative Lab active state, then re-apply if on scripts page
+  document.querySelectorAll('.nav-cl-item').forEach(el => el.classList.remove('active'));
+  if (page === 'scripts') updateScriptsNav();
   // Roster nav group — open on roster navigation, update sub-item active state
   if (page === 'roster') {
     const g = document.getElementById('nav-group-roster');
@@ -3881,6 +3884,7 @@ async function loadScripts() {
 
 function switchContentLabTab(tab) {
   state.contentLabTab = tab;
+  updateScriptsNav();
   if (tab === 'library' && !state.scriptsLoaded) {
     const body = document.getElementById('cl-body');
     if (body) body.innerHTML = `<div class="cl-loading"><div class="spinner"></div><p>Loading saved scripts...</p></div>`;
@@ -3895,11 +3899,18 @@ function renderScriptsPage() {
   const paidCreators  = state.roster.filter(r => r.affiliate_type !== 'free' || !r.affiliate_type);
   const creatorsCount = paidCreators.length;
 
+  const CL_TITLES = {
+    creators:  { title: 'Creators',         subtitle: 'Track video performance and GMV across your affiliate roster' },
+    generator: { title: 'Script Generator', subtitle: 'Write and rewrite conversion-driven scripts using BLC\'s framework' },
+    library:   { title: 'Saved Scripts',    subtitle: 'Your library of generated and saved scripts' }
+  };
+  const clTitle = CL_TITLES[state.contentLabTab] || CL_TITLES.creators;
+
   document.getElementById('page-content').innerHTML = `
     <div class="page-header">
       <div>
-        <h1 class="page-title">Content Lab</h1>
-        <p class="page-subtitle">Generate, save, and manage all your affiliate content</p>
+        <h1 class="page-title">${clTitle.title}</h1>
+        <p class="page-subtitle">${clTitle.subtitle}</p>
       </div>
     </div>
 
@@ -4509,7 +4520,13 @@ async function saveRosterBLCVideos(rosterId, videos, rerender = false) {
 function setScriptMode(mode) {
   state.scriptMode = mode;
   const body = document.getElementById('cl-body');
-  if (body) body.innerHTML = renderCreatorsTab(); // re-render full tab
+  if (body) body.innerHTML = renderGeneratorTab();
+}
+
+function updateScriptsNav() {
+  document.querySelectorAll('.nav-cl-item').forEach(el => {
+    el.classList.toggle('active', el.dataset.scriptsTab === state.contentLabTab);
+  });
 }
 
 async function generateScript() {
@@ -5310,8 +5327,8 @@ async function saveSettings() {
 // ============================================================
 
 document.addEventListener('DOMContentLoaded', async () => {
-  // Regular nav items (not the roster group trigger — handled separately)
-  document.querySelectorAll('.nav-item:not(.nav-group-trigger)').forEach(el => {
+  // Regular nav items (not the roster group trigger or Creative Lab items — handled separately)
+  document.querySelectorAll('.nav-item:not(.nav-group-trigger):not(.nav-cl-item)').forEach(el => {
     el.addEventListener('click', e => { e.preventDefault(); navigate(el.dataset.page); });
   });
   // Roster group trigger — navigate to roster (opens sub-menu automatically)
@@ -5319,12 +5336,20 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (rosterTrigger) {
     rosterTrigger.addEventListener('click', e => { e.preventDefault(); navigate('roster'); });
   }
-  // Sub-nav items — switch tab then navigate
+  // Roster sub-nav items — switch tab then navigate
   document.querySelectorAll('.nav-sub-item[data-roster-tab]').forEach(el => {
     el.addEventListener('click', e => {
       e.preventDefault();
       state.rosterTab = el.dataset.rosterTab;
       navigate('roster');
+    });
+  });
+  // Creative Lab nav items — switch tab then navigate to scripts page
+  document.querySelectorAll('.nav-cl-item').forEach(el => {
+    el.addEventListener('click', e => {
+      e.preventDefault();
+      state.contentLabTab = el.dataset.scriptsTab;
+      navigate('scripts');
     });
   });
 
