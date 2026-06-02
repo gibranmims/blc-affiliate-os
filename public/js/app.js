@@ -3933,65 +3933,57 @@ function renderContentLabTab() {
 }
 
 function renderWriteScriptTab() {
-  const creatorOptions = state.roster.map(c =>
-    `<option value="${c.id}">${esc(c.name || c.handle)} · @${esc(c.handle)}</option>`
-  ).join('');
-
   return `
     <div class="generator-layout">
       <div class="generator-form-panel">
         <div class="panel">
 
           <div class="form-group">
-            <label class="form-label-caps">Creator *</label>
-            <select id="script-creator" onchange="updatePreview()">
-              <option value="">— Choose a creator —</option>
-              ${creatorOptions}
+            <label class="form-label-caps">Tone</label>
+            <select id="script-tone">
+              <option value="Balanced">Balanced — warm, relatable, friend who found something that works</option>
+              <option value="Unfiltered">Unfiltered — raw, funny, authentic, stops the scroll with personality</option>
+              <option value="Conservative">Conservative — clean, composed, credible without being clinical</option>
             </select>
           </div>
 
-          <div id="script-preview" class="creator-preview hidden"></div>
-
           <div class="form-group">
-            <label class="form-label-caps">Hook Type</label>
+            <label class="form-label-caps">Hook Angle</label>
             <select id="script-hook-type">
-              <option value="Personal story">Personal story — open with your own before/after</option>
-              <option value="Pain point callout">Pain point callout — name their exact frustration first</option>
-              <option value="Question hook">Question hook — open with "If you [pain]..."</option>
-              <option value="Curiosity gap">Curiosity gap — tease the result, hold back the how</option>
-              <option value="Identity callout">Identity callout — "If you shave or wax down there..."</option>
+              <option value="Shame to empowerment">Shame to empowerment — names the emotional state she feels but hasn't said out loud</option>
+              <option value="Avoidance behavior">Avoidance behavior — calls out what she's NOT doing because of the problem</option>
+              <option value="Pain point direct">Pain point direct — names the physical problem immediately, no setup</option>
+              <option value="Collective empowerment">Collective empowerment — "we" language, creates a movement</option>
+              <option value="Outcome focused">Outcome focused — leads with the emotional benefit, not the problem</option>
+              <option value="Trojan horse">Trojan horse — opens with something unexpected, viewer doesn't know it's about bikini line until halfway</option>
+              <option value="Comment reply">Comment reply — pins a real user question as the hook, frames video as a direct answer</option>
             </select>
           </div>
 
           <div class="form-group">
             <label class="form-label-caps">Main Pain Point</label>
             <select id="script-pain-point">
-              <option value="Ingrown hairs">Ingrown hairs — the ones that won't stop coming back</option>
-              <option value="Dark spots and discoloration">Dark spots — marks that outlast the bump</option>
-              <option value="Irritation and razor burn">Irritation & razor burn — angry skin reaction</option>
+              <option value="Ingrowns">Ingrown hairs — trapped hair, scrubs aren't working</option>
+              <option value="Discoloration">Discoloration — dark spots that outlast the bump</option>
+              <option value="Irritation">Irritation & redness — angry skin after every session</option>
               <option value="All three">All three — full bikini line angle</option>
             </select>
           </div>
 
           <div class="form-group">
-            <label class="form-label-caps">Tone</label>
-            <select id="script-tone">
-              <option value="Vulnerable and relatable">Vulnerable & relatable — personal story, shame-to-confidence arc</option>
-              <option value="Calm and educational">Calm & educational — explain the why, be the expert friend</option>
-              <option value="Direct and confident">Direct & confident — straight talk, no sugar coating</option>
+            <label class="form-label-caps">Content Style</label>
+            <select id="script-content-style">
+              <option value="Talking head at home">Talking head at home — face to camera, direct</option>
+              <option value="Sitting at beach or pool">Beach or pool — visual hook, body-forward opening</option>
+              <option value="Car or casual">Car or casual — handheld, candid, trust through environment</option>
+              <option value="Reaction or discovery">Reaction or discovery — stitching another video, reacting first</option>
             </select>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label-caps">Creator's Personal Experience <span style="color:var(--text-muted);font-weight:400;text-transform:none;letter-spacing:0">(optional — 1–2 sentences)</span></label>
-            <textarea id="script-experience" class="dp-textarea" rows="3"
-              placeholder="e.g. I used to always wear a coverup at the beach because I had ingrowns and dark spots all along my bikini line…"></textarea>
           </div>
 
           <div class="form-group">
             <label class="form-label-caps">Script Length</label>
             <select id="script-length">
-              <option value="hook">Hook only — 3–5 sec</option>
+              <option value="hook">Hook only — 3–5 sec (ad testing)</option>
               <option value="short">Short — 15–30 sec</option>
               <option value="medium" selected>Medium — 30–60 sec</option>
               <option value="long">Long — 60–90 sec</option>
@@ -3999,17 +3991,14 @@ function renderWriteScriptTab() {
           </div>
 
           <div class="form-group">
-            <label class="form-label-caps">Ingredients</label>
-            <select id="script-ingredients">
-              <option value="Yes, name them">Name the key ingredients</option>
-              <option value="Keep it simple">Benefits only — keep it simple</option>
-            </select>
+            <label class="form-label-caps">Creator's Personal Experience <span style="color:var(--text-muted);font-weight:400;text-transform:none;letter-spacing:0">(optional — if blank, gets a placeholder they replace)</span></label>
+            <textarea id="script-experience" class="dp-textarea" rows="3"
+              placeholder="e.g. I had ingrowns that would get really bad all along my bikini line. I tried so many things and nothing worked long term."></textarea>
           </div>
 
           <button class="btn btn-primary btn-full" id="script-btn" onclick="generateScript()">
             Generate Script
           </button>
-          ${state.roster.length === 0 ? `<div class="info-box" style="margin-top:16px">Add creators to your Roster first to generate personalized scripts.</div>` : ''}
 
         </div>
       </div>
@@ -4593,15 +4582,14 @@ function updateScriptsNav() {
 }
 
 async function generateScript() {
-  const creatorId          = document.getElementById('script-creator').value;
-  const hookType           = document.getElementById('script-hook-type')?.value;
-  const painPoint          = document.getElementById('script-pain-point')?.value;
   const tone               = document.getElementById('script-tone')?.value;
+  const hookFormat         = document.getElementById('script-hook-type')?.value;
+  const painPoint          = document.getElementById('script-pain-point')?.value;
+  const contentStyle       = document.getElementById('script-content-style')?.value;
+  const scriptLength       = document.getElementById('script-length')?.value;
   const personalExperience = document.getElementById('script-experience')?.value?.trim();
-  const scriptLength       = document.getElementById('script-length').value;
-  const mentionIngredients = document.getElementById('script-ingredients')?.value;
 
-  if (!creatorId) { showToast('Please select a creator', 'error'); return; }
+  if (!tone) { showToast('Select a tone to continue', 'error'); return; }
 
   const btn    = document.getElementById('script-btn');
   const output = document.getElementById('script-output');
@@ -4613,7 +4601,7 @@ async function generateScript() {
   try {
     const res = await fetchAPI(`${API.generate}/script`, {
       method: 'POST',
-      body: JSON.stringify({ creatorId, hookType, painPoint, tone, personalExperience, scriptLength, mentionIngredients })
+      body: JSON.stringify({ tone, hookFormat, painPoint, contentStyle, personalExperience, scriptLength })
     });
     output.innerHTML = `<div class="output-content">${renderMarkdown(res.script)}</div>`;
     document.getElementById('copy-script-btn').classList.remove('hidden');
@@ -4621,13 +4609,12 @@ async function generateScript() {
     const badge = document.getElementById('cl-saved-badge');
     if (badge) badge.classList.remove('hidden');
     if (res.scriptId) {
-      const creator = state.roster.find(c => c.id === creatorId);
       state.scripts.unshift({
         id:             res.scriptId,
-        creator_id:     creatorId,
-        creator_handle: creator?.handle || '',
-        product_focus:  `BBL Serum — ${painPoint || 'Ingrowns'}`,
-        script_length:  { short: 'Short', medium: 'Medium', long: 'Long' }[scriptLength] || 'Medium',
+        creator_id:     null,
+        creator_handle: tone || 'Balanced',
+        product_focus:  `BBL Serum — ${painPoint || 'Ingrowns'} — ${hookFormat || 'Direct'}`,
+        script_length:  { hook: 'Hook only', short: 'Short', medium: 'Medium', long: 'Long' }[scriptLength] || 'Medium',
         content:        res.script,
         mode:           'write',
         created_at:     new Date().toISOString()
