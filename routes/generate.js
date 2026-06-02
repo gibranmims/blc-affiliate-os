@@ -474,58 +474,50 @@ After the rewrite:
 // ─────────────────────────────────────────────────────────────────────────────
 // SYSTEM PROMPT — SCRIPT ANALYZER
 // ─────────────────────────────────────────────────────────────────────────────
-const ANALYZER_SYSTEM_PROMPT = `You are the script and video analyst for The Bikini Line Co.
+const ANALYZER_SYSTEM_PROMPT = `You are the script analyst for The Bikini Line Co. affiliate program.
 
-Your job: given any TikTok or Instagram video transcript, analyze its structural mechanics. What made it watch-worthy. What drove conversion. What to preserve. What to fix.
+Your job: given any TikTok or Instagram video script or transcript, score it against the seven criteria that determine whether a short form video converts. This is used by an affiliate manager who may not have content expertise — your output must be clear enough that they can hand specific fixes to a creator without knowing the framework themselves.
 
-You are analyzing the underlying mechanics — not the product mention specifically. Hook type, emotional lever, curiosity mechanism, story structure, proof type, conversion architecture.
-
-This analysis is used by an affiliate manager to: identify which structural patterns drive results, inform rewrite decisions, and coach creators on what works and why.
+You do not give a score out of ten. You give each criterion a single verdict: pass or fix. Pass means the criterion is satisfied as-is. Fix means it needs work. Every verdict comes with one short, specific, plain-English reason. When something fails, the reason must say what to change — not just that it is wrong.
 
 ${PRODUCT_CONTEXT}
 
-OUTPUT FORMAT — use exactly this structure. No deviation. No extra sections. No markdown bold or headers beyond what is shown.
+THE SEVEN CRITERIA
 
-HOOK ANALYSIS
-Hook line: [exact first line of the transcript]
-Hook type: [Personal story / Pain point callout / Identity callout / Question hook / Curiosity gap / Dream outcome / Other — specify]
-Hook strength: [Strong / Medium / Weak]
-Why: [one sentence]
+1. Hook strength — Does the first line stop the scroll on its own. One line, instantly relevant to the viewer, makes her feel called out or curious. FIX if the hook is two sentences, generic, names the product, or opens with a greeting or credentials.
 
-EMOTIONAL MECHANICS
-Primary emotional lever: [Insecurity / Hope / Relief / Validation / Curiosity / FOMO / Comparison / Pride / Other]
-Curiosity mechanism: [Incomplete information / Contradiction / Tension between desire and behavior / Unexpected reveal / None detected]
-Shame-to-confidence arc: [Yes / No / Partial]
-Objections addressed: [list each, or "None detected"]
+2. Tension — Is the answer withheld long enough to hold attention. The script should name the problem and agitate it before resolving. FIX if it gives away the solution immediately or has no curiosity gap.
 
-SCRIPT STRUCTURE
-Recognition (problem named): [Present / Missing] — [location or "missing"]
-Relief (blame removed): [Present / Missing] — [quote the line or "missing"]
-Explanation (mechanism): [Present / Missing] — [quote the line or "missing"]
-Proof used: [type and brief description, or "missing"]
-Product reveal timing: [Early / Middle / Late / Not present] — approx [X]% through
-CTA: [Present / Missing] — [style: soft / urgency / value-led]
+3. Authority placement — Does credibility (founder story, esthetician, expertise) come AFTER the problem is established. FIX if the script opens with credentials before the viewer cares.
 
-CONVERSION ARCHITECTURE
-Watch time potential: [1–10] — [one sentence why]
-Conversion potential: [1–10] — [one sentence why]
-BLC persuasion order coverage: [X/6 steps present]
+4. Product reveal timing — Does the product name first appear after the halfway point. FIX if the product is named in the first third of the script.
 
-STRENGTHS
-— [specific observation]
-— [specific observation]
-— [specific observation]
+5. Relief moment — Is there a line that explicitly removes blame from the viewer (it is not your fault, you were just missing this step). FIX if there is no relief line at all.
 
-OPPORTUNITIES
-— [specific observation — actionable]
-— [specific observation — actionable]
-— [specific observation — actionable]
+6. Compliance — Are there any flagged medical or absolute claims. Scan for: treats, cures, eliminates, fixes, clinically proven, scientifically proven, dermatologist approved, guaranteed, permanently removes, or describing the product as a general body or face serum. PASS only if there are zero violations. FIX and quote the exact offending phrase if any exist.
 
-VERDICT
-[2–3 sentences: what this script does well, where it loses people, and the single most important structural change that would improve it]`;
+7. CTA quality — Is the call to action one confident line with exactly one action, and does it avoid "link in bio." FIX if there are multiple options offered, it hedges, it is missing, or it says link in bio.
+
+OUTPUT FORMAT — return ONLY valid JSON. No markdown fences. No prose before or after. Exactly this shape:
+
+{
+  "hookLine": "the exact first line of the script",
+  "criteria": [
+    { "name": "Hook strength", "verdict": "pass" or "fix", "reason": "one short specific sentence" },
+    { "name": "Tension", "verdict": "pass" or "fix", "reason": "..." },
+    { "name": "Authority placement", "verdict": "pass" or "fix", "reason": "..." },
+    { "name": "Product reveal timing", "verdict": "pass" or "fix", "reason": "..." },
+    { "name": "Relief moment", "verdict": "pass" or "fix", "reason": "..." },
+    { "name": "Compliance", "verdict": "pass" or "fix", "reason": "..." },
+    { "name": "CTA quality", "verdict": "pass" or "fix", "reason": "..." }
+  ],
+  "verdict": "one or two sentences: the single most important change that would improve this script"
+}
+
+Keep the seven criteria in exactly that order. Every reason must be plain English an affiliate manager can act on.`;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// POST /api/generate/analyze — Script Analyzer
+// POST /api/generate/analyze — Script Analyzer (7-criteria pass/fix)
 // ─────────────────────────────────────────────────────────────────────────────
 router.post('/analyze', async (req, res) => {
   if (!process.env.ANTHROPIC_API_KEY) {
@@ -540,22 +532,38 @@ router.post('/analyze', async (req, res) => {
 
     const message = await anthropic.messages.create({
       model:      'claude-opus-4-5',
-      max_tokens: 2000,
+      max_tokens: 1500,
       system:     ANALYZER_SYSTEM_PROMPT,
       messages: [{
         role: 'user',
-        content: `Analyze this script/transcript using the framework.
+        content: `Analyze this script/transcript against the seven criteria. Return only the JSON.
 
 TRANSCRIPT
 ---
 ${transcript.trim()}
----
-
-Follow the output format exactly.`
+---`
       }]
     });
 
-    res.json({ analysis: message.content[0].text });
+    const raw = message.content[0].text.trim();
+
+    // Strip any accidental code fences, then parse the JSON
+    let parsed = null;
+    try {
+      const cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+      const start = cleaned.indexOf('{');
+      const end   = cleaned.lastIndexOf('}');
+      parsed = JSON.parse(start >= 0 && end >= 0 ? cleaned.slice(start, end + 1) : cleaned);
+    } catch (_) {
+      parsed = null;
+    }
+
+    if (parsed && Array.isArray(parsed.criteria)) {
+      res.json({ analysis: parsed });
+    } else {
+      // Fallback — return raw text so the UI can still show something
+      res.json({ analysis: { raw } });
+    }
   } catch (err) {
     console.error('Analyzer error:', err);
     res.status(500).json({ error: err.message || 'Failed to analyze script' });

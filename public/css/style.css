@@ -5078,3 +5078,61 @@ a.cl-profile-handle:hover {
   flex: 1;
   font-size: 12px;
 }
+
+/* ── Script Analyzer — 7-criteria pass/fix checklist ── */
+.analysis-result { display:flex; flex-direction:column; gap:16px; }
+
+.analysis-scorebar {
+  display:flex; align-items:center; justify-content:space-between;
+  gap:12px; flex-wrap:wrap;
+  padding-bottom:14px; border-bottom:1px solid var(--border);
+}
+.analysis-score {
+  font-size:26px; font-weight:700; color:var(--yellow);
+  display:flex; align-items:baseline; gap:6px;
+}
+.analysis-score-good { color:var(--green); }
+.analysis-score-denom { font-size:13px; font-weight:500; color:var(--text-muted); }
+.analysis-hookline {
+  font-size:12.5px; color:var(--text-secondary); font-style:italic;
+  max-width:60%; text-align:right;
+}
+
+.analysis-criteria { display:flex; flex-direction:column; gap:8px; }
+
+.analysis-criterion {
+  display:flex; align-items:flex-start; gap:12px;
+  padding:12px 14px; border-radius:var(--radius-md);
+  border:1px solid var(--border);
+}
+.analysis-criterion.analysis-pass { background:var(--green-dim); border-color:rgba(74,222,128,0.25); }
+.analysis-criterion.analysis-fix  { background:var(--orange-dim); border-color:rgba(251,146,60,0.3); }
+
+.analysis-criterion-badge {
+  flex:0 0 22px; width:22px; height:22px; border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  font-size:13px; font-weight:700; margin-top:1px;
+}
+.analysis-pass .analysis-criterion-badge { background:var(--green); color:#0a2a14; }
+.analysis-fix  .analysis-criterion-badge { background:var(--orange); color:#3a1d04; }
+
+.analysis-criterion-main { flex:1; min-width:0; }
+.analysis-criterion-name { font-size:13.5px; font-weight:600; color:var(--text-primary); margin-bottom:3px; }
+.analysis-criterion-reason { font-size:12.5px; color:var(--text-secondary); line-height:1.5; }
+
+.analysis-criterion-verdict {
+  flex:0 0 auto; font-size:11px; font-weight:700; text-transform:uppercase;
+  letter-spacing:0.5px; padding:3px 9px; border-radius:6px; margin-top:1px;
+}
+.analysis-verdict-pass { background:rgba(74,222,128,0.2); color:var(--green); }
+.analysis-verdict-fix  { background:rgba(251,146,60,0.2); color:var(--orange); }
+
+.analysis-verdict-box {
+  padding:14px 16px; border-radius:var(--radius-md);
+  background:var(--bg-tertiary); border:1px solid var(--border-light);
+}
+.analysis-verdict-label {
+  font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.6px;
+  color:var(--text-muted); margin-bottom:6px;
+}
+.analysis-verdict-text { font-size:13.5px; color:var(--text-primary); line-height:1.55; }

@@ -4121,7 +4121,7 @@ function renderAnalyzerTab() {
           </div>
           <div id="analyzer-output" class="output-area">
             <div class="output-placeholder">
-              <p>Paste any script or transcript and get a full structural breakdown — hook strength, emotional mechanics, conversion architecture, what works, what to fix.</p>
+              <p>Paste any script or transcript and get a pass/fix score across the 7 things that make a video convert: hook strength, tension, authority placement, product reveal timing, relief moment, compliance, and CTA quality. Each one tells you exactly what to fix.</p>
             </div>
           </div>
         </div>
@@ -4647,7 +4647,7 @@ async function analyzeScript() {
       method: 'POST',
       body: JSON.stringify({ transcript })
     });
-    output.innerHTML = `<div class="output-content">${renderMarkdown(res.analysis)}</div>`;
+    output.innerHTML = renderAnalysis(res.analysis);
     document.getElementById('copy-analysis-btn').classList.remove('hidden');
   } catch (err) {
     showToast(err.message, 'error');
@@ -4656,6 +4656,44 @@ async function analyzeScript() {
     btn.disabled = false;
     btn.textContent = 'Analyze Script';
   }
+}
+
+function renderAnalysis(data) {
+  // Fallback — model returned unparseable text
+  if (!data || !Array.isArray(data.criteria)) {
+    return `<div class="output-content">${renderMarkdown(data?.raw || 'No analysis returned — try again.')}</div>`;
+  }
+
+  const passCount = data.criteria.filter(c => (c.verdict || '').toLowerCase() === 'pass').length;
+  const total     = data.criteria.length;
+  const allPass   = passCount === total;
+
+  const rows = data.criteria.map(c => {
+    const isPass = (c.verdict || '').toLowerCase() === 'pass';
+    return `
+      <div class="analysis-criterion analysis-${isPass ? 'pass' : 'fix'}">
+        <div class="analysis-criterion-badge">${isPass ? '✓' : '!'}</div>
+        <div class="analysis-criterion-main">
+          <div class="analysis-criterion-name">${esc(c.name)}</div>
+          <div class="analysis-criterion-reason">${esc(c.reason || '')}</div>
+        </div>
+        <div class="analysis-criterion-verdict analysis-verdict-${isPass ? 'pass' : 'fix'}">${isPass ? 'Pass' : 'Fix'}</div>
+      </div>`;
+  }).join('');
+
+  return `
+    <div class="analysis-result">
+      <div class="analysis-scorebar">
+        <div class="analysis-score ${allPass ? 'analysis-score-good' : ''}">${passCount}<span class="analysis-score-denom">/${total} passing</span></div>
+        ${data.hookLine ? `<div class="analysis-hookline">Hook: "${esc(data.hookLine)}"</div>` : ''}
+      </div>
+      <div class="analysis-criteria">${rows}</div>
+      ${data.verdict ? `
+      <div class="analysis-verdict-box">
+        <div class="analysis-verdict-label">Most important fix</div>
+        <div class="analysis-verdict-text">${esc(data.verdict)}</div>
+      </div>` : ''}
+    </div>`;
 }
 
 async function fetchAnalyzerTranscript() {
