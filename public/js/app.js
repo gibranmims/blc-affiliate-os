@@ -10,7 +10,8 @@ const API = {
   challenge:   '/api/challenge',
   support:     '/api/support',
   settings:    '/api/settings',
-  tasks:       '/api/tasks'
+  tasks:       '/api/tasks',
+  dailyTop2:   '/api/daily-top2'
 };
 
 const STATUSES = [
@@ -49,7 +50,8 @@ const state = {
   selectedChallengerId: null,
   support:            [],
   customIssueTypes:   [],
-  tasks:              []
+  tasks:              [],
+  dailyTop2:          []
 };
 
 const nbState = {
@@ -545,14 +547,15 @@ function navigate(page) {
     updateRosterSubNav();
   }
   const renderers = {
-    home:      renderHomePage,
-    outreach:  renderOutreachPage,
-    roster:    renderRosterPage,
-    scripts:   renderScriptsPage,
-    review:    renderForReviewPage,
-    finance:   renderFinancePage,
-    challenge: renderChallengePage,
-    support:   renderSupportPage
+    home:         renderHomePage,
+    'daily-top2': renderDailyTop2Page,
+    outreach:     renderOutreachPage,
+    roster:       renderRosterPage,
+    scripts:      renderScriptsPage,
+    review:       renderForReviewPage,
+    finance:      renderFinancePage,
+    challenge:    renderChallengePage,
+    support:      renderSupportPage
   };
   if (renderers[page]) renderers[page]();
 }
@@ -5802,6 +5805,28 @@ async function loadTasks() {
   state.tasks = await fetchAPI(API.tasks);
 }
 
+// ── Task helpers ────────────────────────────────────────────────
+function fmtDeadline(deadline) {
+  if (!deadline) return null;
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const d = new Date(deadline + 'T00:00:00');
+  const diff = Math.round((d - today) / 86400000);
+  if (diff < 0)  return { cls: 'deadline-overdue', text: `${Math.abs(diff)}d overdue` };
+  if (diff === 0) return { cls: 'deadline-today',   text: 'Due today' };
+  if (diff <= 3)  return { cls: 'deadline-soon',    text: `${diff}d left` };
+  return { cls: 'deadline-future', text: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) };
+}
+
+function taskTagBadge(tag) {
+  if (!tag) return '';
+  const map = {
+    revenue: { cls: 'tag-revenue', label: 'Revenue' },
+    brand:   { cls: 'tag-brand',   label: 'Brand' }
+  };
+  const c = map[tag];
+  return c ? `<span class="task-tag ${c.cls}">${c.label}</span>` : '';
+}
+
 function renderTaskList(assignee) {
   const tasks = state.tasks
     .filter(t => t.assignee === assignee && !t.archived)
@@ -5812,18 +5837,22 @@ function renderTaskList(assignee) {
   if (tasks.length === 0) {
     return `<div class="focus-empty">Nothing yet</div>`;
   }
-  return tasks.map(t => `
+  return tasks.map(t => {
+    const dl = fmtDeadline(t.deadline);
+    return `
     <div class="focus-task${t.completed ? ' focus-done' : ''}">
       <button class="focus-check${t.completed ? ' focus-checked' : ''}" onclick="toggleTask('${t.id}')">
         ${t.completed ? `<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5"><polyline points="20 6 9 17 4 12"/></svg>` : ''}
       </button>
       <span class="focus-task-title" onclick="openTaskDetail('${t.id}')">${esc(t.title)}${t.notes ? ` <span class="focus-has-notes" title="Has notes">·</span>` : ''}</span>
+      ${taskTagBadge(t.tag)}
+      ${dl ? `<span class="task-deadline ${dl.cls}">${dl.text}</span>` : ''}
       ${t.completed ? `<button class="focus-archive-btn" onclick="archiveTask('${t.id}')" title="Archive">Archive</button>` : ''}
       <button class="focus-edit-btn" onclick="openTaskDetail('${t.id}')" title="Edit">
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
       </button>
-    </div>
-  `).join('');
+    </div>`;
+  }).join('');
 }
 
 function refreshTaskBoard() {
@@ -5909,9 +5938,23 @@ function openTaskDetail(id) {
         <label class="form-label">Title</label>
         <input class="form-input" id="td-title" value="${esc(t.title)}" placeholder="Task name" maxlength="120">
       </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-group" style="margin:0">
+          <label class="form-label">Tag</label>
+          <select class="form-input" id="td-tag">
+            <option value="">No tag</option>
+            <option value="revenue" ${t.tag === 'revenue' ? 'selected' : ''}>Revenue-Generating</option>
+            <option value="brand"   ${t.tag === 'brand'   ? 'selected' : ''}>Brand-Building</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin:0">
+          <label class="form-label">Deadline</label>
+          <input type="date" class="form-input" id="td-deadline" value="${t.deadline || ''}">
+        </div>
+      </div>
       <div class="form-group">
         <label class="form-label">Notes &amp; Links</label>
-        <textarea class="form-input" id="td-notes" rows="5" placeholder="Add notes, context, or paste links here…" style="resize:vertical">${esc(t.notes || '')}</textarea>
+        <textarea class="form-input" id="td-notes" rows="4" placeholder="Add notes, context, or paste links here…" style="resize:vertical">${esc(t.notes || '')}</textarea>
       </div>
       <div style="display:flex;gap:8px;justify-content:space-between;padding-top:4px">
         <div style="display:flex;gap:8px">
@@ -5926,13 +5969,15 @@ function openTaskDetail(id) {
 }
 
 async function saveTaskDetail(id) {
-  const title = document.getElementById('td-title')?.value.trim();
-  const notes = document.getElementById('td-notes')?.value.trim();
+  const title    = document.getElementById('td-title')?.value.trim();
+  const notes    = document.getElementById('td-notes')?.value.trim();
+  const tag      = document.getElementById('td-tag')?.value || null;
+  const deadline = document.getElementById('td-deadline')?.value || null;
   if (!title) { showToast('Title is required', 'error'); return; }
   try {
     const updated = await fetchAPI(`${API.tasks}/${id}`, {
       method: 'PUT',
-      body: JSON.stringify({ title, notes: notes || null })
+      body: JSON.stringify({ title, notes: notes || null, tag, deadline })
     });
     const i = state.tasks.findIndex(t => t.id === id);
     if (i !== -1) state.tasks[i] = updated;
@@ -5945,6 +5990,125 @@ async function saveTaskDetail(id) {
 async function deleteTaskModal(id) {
   await deleteTask(id);
   closeModal();
+}
+
+// ============================================================
+// DAILY TOP 2
+// ============================================================
+
+async function loadDailyTop2() {
+  state.dailyTop2 = await fetchAPI(API.dailyTop2);
+}
+
+function refreshDailyTop2() {
+  if (state.currentPage !== 'daily-top2') return;
+  renderDailyTop2Page();
+}
+
+function renderDailyTop2Page() {
+  const items = state.dailyTop2.length === 2
+    ? state.dailyTop2
+    : [{ slot: 1, title: null, completed: false }, { slot: 2, title: null, completed: false }];
+  const allDone = items.every(i => i.completed && i.title);
+
+  document.getElementById('page-content').innerHTML = `
+    <div class="dt2-page">
+      <div class="dt2-header">
+        <div>
+          <h1 class="page-title" style="margin-bottom:6px">Daily Top 2</h1>
+          <p class="dt2-subtitle">2 things that move the brand forward today</p>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="resetDailyTop2()" style="margin-top:6px">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:5px"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg>
+          Reset for tomorrow
+        </button>
+      </div>
+
+      <div class="dt2-items">
+        ${items.map(item => `
+          <div class="dt2-card${item.completed ? ' dt2-done' : ''}" id="dt2-card-${item.slot}">
+            <button class="dt2-check${item.completed ? ' dt2-checked' : ''}" onclick="toggleDailyTop2(${item.slot})" title="${item.completed ? 'Mark incomplete' : 'Mark done'}">
+              ${item.completed ? `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>` : ''}
+            </button>
+            <div class="dt2-body">
+              <span class="dt2-num">${item.slot}</span>
+              <span class="dt2-title${!item.title ? ' dt2-placeholder' : ''}"
+                    id="dt2-title-${item.slot}"
+                    onclick="startEditDailyTop2(${item.slot})">
+                ${item.title ? esc(item.title) : `Click to set your #${item.slot} priority…`}
+              </span>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+
+      ${allDone ? `
+        <div class="dt2-celebration">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          Both done — the brand moved forward today.
+        </div>` : ''}
+    </div>
+  `;
+}
+
+async function toggleDailyTop2(slot) {
+  const item = state.dailyTop2.find(i => i.slot === slot);
+  if (!item) return;
+  try {
+    const updated = await fetchAPI(`${API.dailyTop2}/${slot}`, {
+      method: 'PUT',
+      body: JSON.stringify({ completed: !item.completed })
+    });
+    const i = state.dailyTop2.findIndex(x => x.slot === slot);
+    if (i !== -1) state.dailyTop2[i] = updated;
+    refreshDailyTop2();
+  } catch (err) { showToast(err.message, 'error'); }
+}
+
+function startEditDailyTop2(slot) {
+  const item = state.dailyTop2.find(i => i.slot === slot);
+  if (!item) return;
+  const titleEl = document.getElementById(`dt2-title-${slot}`);
+  if (!titleEl || titleEl.tagName === 'INPUT') return;
+
+  const input = document.createElement('input');
+  input.className = 'dt2-input';
+  input.value = item.title || '';
+  input.placeholder = `Set your #${slot} priority for today…`;
+  input.maxLength = 120;
+  titleEl.replaceWith(input);
+  input.focus();
+  if (input.value) input.select();
+
+  let saved = false;
+  async function save() {
+    if (saved) return; saved = true;
+    const title = input.value.trim();
+    try {
+      const updated = await fetchAPI(`${API.dailyTop2}/${slot}`, {
+        method: 'PUT',
+        body: JSON.stringify({ title: title || null })
+      });
+      const i = state.dailyTop2.findIndex(x => x.slot === slot);
+      if (i !== -1) state.dailyTop2[i] = updated;
+    } catch (err) { showToast(err.message, 'error'); }
+    refreshDailyTop2();
+  }
+
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { input.blur(); }
+    if (e.key === 'Escape') { saved = true; refreshDailyTop2(); }
+  });
+  input.addEventListener('blur', save);
+}
+
+async function resetDailyTop2() {
+  try {
+    await fetchAPI(`${API.dailyTop2}/reset`, { method: 'DELETE' });
+    state.dailyTop2 = state.dailyTop2.map(i => ({ ...i, title: null, completed: false }));
+    renderDailyTop2Page();
+    showToast('Reset for tomorrow ✓');
+  } catch (err) { showToast(err.message, 'error'); }
 }
 
 function renderHomePage() {
@@ -6128,6 +6292,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     loadSupport().catch(err => console.error('Support load failed:', err)),
     loadCustomIssueTypes().catch(() => {}),
     loadTasks().catch(() => {}),
+    loadDailyTop2().catch(() => {}),
     checkTikTokStatus().catch(() => {})
   ]);
 
