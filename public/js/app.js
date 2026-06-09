@@ -5830,8 +5830,8 @@ function renderChallengePage() {
   document.getElementById('page-content').innerHTML = `
     <div class="page-header">
       <div>
-        <h1 class="page-title">Challenge Tracker</h1>
-        <p class="page-subtitle">Win Your Money Back Challenge · ${total} total entrant${total !== 1 ? 's' : ''}</p>
+        <h1 class="page-title">Before & After Challenge</h1>
+        <p class="page-subtitle">Win Your Money Back · ${total} total entrant${total !== 1 ? 's' : ''}</p>
       </div>
       <div style="display:flex;gap:8px;align-items:center">
         <a href="/challenge/signup" target="_blank" class="btn btn-secondary btn-sm">Signup Link</a>
@@ -5908,9 +5908,10 @@ function renderChallengePage() {
               <td style="text-align:center">${checkinBadge(byWeek[6], now)}</td>
               <td style="text-align:center">${checkinBadge(byWeek[8], now)}</td>
               <td style="font-size:12.5px;color:${next && daysUntil(next.window_closes_at) < 0 ? 'var(--red)' : 'var(--text-secondary)'}">${nextLabel}</td>
-              <td onclick="event.stopPropagation()" style="white-space:nowrap">
+              <td onclick="event.stopPropagation()" style="white-space:nowrap;text-align:right">
                 ${hasStrongContent ? `<span style="font-size:11px;color:var(--yellow);margin-right:8px">★ Content</span>` : ''}
-                ${c.status === 'completed' ? `<button class="btn btn-primary btn-sm" onclick="event.stopPropagation();approveRefund('${c.id}')">Approve Refund</button>` : ''}
+                ${c.status === 'completed' ? `<button class="btn btn-primary btn-sm" style="margin-right:6px" onclick="event.stopPropagation();approveRefund('${c.id}')">Approve Refund</button>` : ''}
+                <button class="sup-action-btn sup-delete-btn" onclick="event.stopPropagation();deleteChallenger('${c.id}')" title="Delete">✕</button>
               </td>
             </tr>`;
           }).join('')}
@@ -5930,7 +5931,7 @@ async function deleteChallenger(id) {
   try {
     await fetchAPI(`${API.challenge}/challengers/${id}`, { method: 'DELETE' });
     state.challengers = state.challengers.filter(c => c.id !== id);
-    closeDrawer();
+    closeDetailPanel();
     renderChallengePage();
     showToast('Challenger deleted');
   } catch (err) { showToast(err.message, 'error'); }
