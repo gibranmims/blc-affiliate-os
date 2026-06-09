@@ -6463,19 +6463,31 @@ textarea:focus {
 .home-goal-row .home-goal-status      { color: rgba(255,255,255,0.6) !important; }
 .home-goal-row .home-goal-pct         { color: #FFFFFF !important; }
 .home-goal-row .home-goal-edit-btn {
-  background: rgba(255,255,255,0.10) !important;
-  color: rgba(255,255,255,0.75) !important;
+  background: rgba(255,255,255,0.12) !important;
+  color: rgba(255,255,255,0.85) !important;
+  border: 1px solid rgba(255,255,255,0.18) !important;
 }
 .home-goal-row .home-goal-edit-btn:hover {
-  background: rgba(255,255,255,0.18) !important;
+  background: rgba(255,255,255,0.22) !important;
   color: #fff !important;
 }
+/* Attention strip: strip the white card look inside the dark goal row */
+.home-goal-row .home-attention-inline {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  gap: 8px !important;
+  margin-bottom: 0 !important;
+}
 .home-goal-row .home-attention-inline .home-attention-item {
-  color: rgba(255,255,255,0.7) !important;
-  border-color: rgba(255,255,255,0.08) !important;
+  background: rgba(255,255,255,0.08) !important;
+  border: 1px solid rgba(255,255,255,0.12) !important;
+  border-radius: 10px !important;
+  color: rgba(255,255,255,0.8) !important;
 }
 .home-goal-row .home-attention-inline .home-attention-item:hover {
-  background: rgba(255,255,255,0.06) !important;
+  background: rgba(255,255,255,0.14) !important;
   color: #fff !important;
 }
 .home-goal-row .home-attn-arrow { color: rgba(255,255,255,0.35) !important; }
