@@ -4973,7 +4973,7 @@ function renderForReviewPage() {
     <!-- Serum Shipment Needed (step 1 — always first) -->
     <div class="review-section">
       <div class="review-section-header">
-        <span class="review-section-title">📦 Serum Shipment Needed</span>
+        <span class="review-section-title">Serum Shipment Needed</span>
         ${serum.length > 0 ? `<span class="review-section-count">${serum.length}</span>` : ''}
       </div>
       ${serum.length === 0
@@ -5028,7 +5028,7 @@ function renderForReviewPage() {
     <!-- Final Payments Due (50% remaining after all videos posted) -->
     <div class="review-section review-section-final">
       <div class="review-section-header">
-        <span class="review-section-title">💸 Final Payments Due</span>
+        <span class="review-section-title">Final Payments Due</span>
         ${finalPayments.length > 0 ? `<span class="review-section-count review-count-orange">${finalPayments.length}</span>` : ''}
       </div>
       ${finalPayments.length === 0
@@ -5061,7 +5061,7 @@ function renderForReviewPage() {
     <!-- Brief Needed -->
     <div class="review-section">
       <div class="review-section-header">
-        <span class="review-section-title">📋 Brief Needed</span>
+        <span class="review-section-title">Brief Needed</span>
         ${assets.length > 0 ? `<span class="review-section-count">${assets.length}</span>` : ''}
       </div>
       ${assets.length === 0
@@ -5093,7 +5093,7 @@ function renderForReviewPage() {
     <!-- Counter Rejected -->
     <div class="review-section review-section-rejected">
       <div class="review-section-header">
-        <span class="review-section-title">🚫 Counter Rejected — Needs Response</span>
+        <span class="review-section-title">Counter Rejected — Needs Response</span>
         ${rejected.length > 0 ? `<span class="review-section-count review-count-red">${rejected.length}</span>` : ''}
       </div>
       ${rejected.length === 0
