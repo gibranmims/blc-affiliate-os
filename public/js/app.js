@@ -8,7 +8,8 @@ const API = {
   generate:    '/api/generate',
   outreachGen: '/api/outreach-gen',
   challenge:   '/api/challenge',
-  support:     '/api/support'
+  support:     '/api/support',
+  settings:    '/api/settings'
 };
 
 const STATUSES = [
@@ -45,7 +46,8 @@ const state = {
   challengers:        [],
   challengeFilter:    'all',    // 'all' | 'active' | 'completed' | 'disqualified' | 'refund_approved'
   selectedChallengerId: null,
-  support:            []
+  support:            [],
+  customIssueTypes:   []
 };
 
 const nbState = {
@@ -5487,6 +5489,56 @@ async function loadSupport() {
   updateSupportBadge();
 }
 
+async function loadCustomIssueTypes() {
+  try {
+    const data = await fetchAPI(API.settings);
+    state.customIssueTypes = Array.isArray(data.custom_issue_types) ? data.custom_issue_types : [];
+  } catch { state.customIssueTypes = []; }
+}
+
+async function saveCustomIssueTypes() {
+  try {
+    await fetchAPI(API.settings, { method: 'PUT', body: JSON.stringify({ custom_issue_types: state.customIssueTypes }) });
+  } catch (err) { console.error('Failed to save custom issue types:', err.message); }
+}
+
+function buildIssueOptions(selectedValue = '') {
+  const fixedKeys = ['pump_issue', 'short_shipped', 'missing_item'];
+  const isCustomSelected = selectedValue && !fixedKeys.includes(selectedValue);
+  let opts = `<option value="">-- Select issue --</option>`;
+  opts += `<option value="pump_issue" ${selectedValue === 'pump_issue' ? 'selected' : ''}>Pump Issue (not pumping properly)</option>`;
+  opts += `<option value="short_shipped" ${selectedValue === 'short_shipped' ? 'selected' : ''}>Short Shipped (ordered 2, received 1)</option>`;
+  opts += `<option value="missing_item" ${selectedValue === 'missing_item' ? 'selected' : ''}>Missing Item (not in package)</option>`;
+  if (state.customIssueTypes.length > 0) {
+    opts += `<option disabled style="color:var(--text-muted);font-size:11px">──── Saved ────</option>`;
+    opts += state.customIssueTypes.map(t => {
+      const v = `custom::${t}`;
+      const sel = isCustomSelected && selectedValue === t ? 'selected' : '';
+      return `<option value="${v}" ${sel}>${esc(t)}</option>`;
+    }).join('');
+  }
+  opts += `<option value="other">Other (describe below)</option>`;
+  return opts;
+}
+
+function onSupportIssueChange(el) {
+  const otherWrap   = document.getElementById('sup-other-wrap');
+  const removeLink  = document.getElementById('sup-remove-saved');
+  if (otherWrap)  otherWrap.style.display  = el.value === 'other'        ? 'block' : 'none';
+  if (removeLink) removeLink.style.display = el.value.startsWith('custom::') ? 'block' : 'none';
+}
+
+function removeCustomIssueType() {
+  const sel = document.getElementById('sup-issue-select');
+  if (!sel || !sel.value.startsWith('custom::')) return;
+  const label = sel.value.slice(8);
+  state.customIssueTypes = state.customIssueTypes.filter(t => t !== label);
+  saveCustomIssueTypes();
+  sel.innerHTML = buildIssueOptions('');
+  onSupportIssueChange(sel);
+  showToast('Removed from saved types');
+}
+
 function updateSupportBadge() {
   const badge = document.getElementById('support-badge');
   if (!badge) return;
@@ -5594,6 +5646,42 @@ function renderSupportPage() {
     <div class="sup-table-card">${tableContent}</div>`;
 }
 
+function issueModalFields(selectedIssue = '') {
+  return `
+    <div id="sup-issue-wrap" style="margin-top:4px">
+      <label style="font-size:12px;font-weight:500;color:var(--text-secondary);display:block;margin-bottom:6px">Customer Issue</label>
+      <select name="issue_type" id="sup-issue-select" onchange="onSupportIssueChange(this)" required style="width:100%;background:var(--bg-tertiary);border:1px solid var(--border-light);border-radius:var(--radius-sm);padding:9px 13px;font-size:13px;color:var(--text-primary);font-family:inherit;outline:none;appearance:none;cursor:pointer">
+        ${buildIssueOptions(selectedIssue)}
+      </select>
+      <div id="sup-remove-saved" style="display:none;margin-top:6px">
+        <button type="button" style="font-size:11.5px;color:var(--red);background:none;border:none;cursor:pointer;padding:0" onclick="removeCustomIssueType()">× Remove this from saved types</button>
+      </div>
+      <div id="sup-other-wrap" style="display:none;margin-top:10px;padding:12px 14px;background:var(--bg-tertiary);border:1px solid var(--border-light);border-radius:var(--radius-sm)">
+        <input type="text" id="sup-other-text" placeholder="Describe the issue (e.g. Wrong color sent, Leaking bottle...)" style="width:100%;background:var(--bg-secondary);border:1px solid var(--border-light);border-radius:var(--radius-sm);padding:9px 11px;font-size:13px;color:var(--text-primary);font-family:inherit;outline:none;box-sizing:border-box">
+        <label style="display:flex;align-items:center;gap:8px;margin-top:10px;cursor:pointer;user-select:none">
+          <input type="checkbox" id="sup-save-type" style="accent-color:var(--accent);width:14px;height:14px">
+          <span style="font-size:12px;color:var(--text-secondary)">Save as a recurring issue type</span>
+        </label>
+      </div>
+    </div>`;
+}
+
+function resolveIssueTypeFromModal() {
+  const sel = document.getElementById('sup-issue-select');
+  if (!sel) return null;
+  if (sel.value === 'other') {
+    const text = (document.getElementById('sup-other-text')?.value || '').trim();
+    if (!text) return null;
+    if (document.getElementById('sup-save-type')?.checked && !state.customIssueTypes.includes(text)) {
+      state.customIssueTypes.push(text);
+      saveCustomIssueTypes();
+    }
+    return text;
+  }
+  if (sel.value.startsWith('custom::')) return sel.value.slice(8);
+  return sel.value || null;
+}
+
 function openLogIssueModal() {
   const today = new Date().toISOString().split('T')[0];
   const html = `
@@ -5619,23 +5707,17 @@ function openLogIssueModal() {
           <input type="text" name="order_id" placeholder="e.g. #12345">
         </div>
       </div>
-      <div class="form-group" style="margin-top:4px">
-        <label>Customer Issue</label>
-        <select name="issue_type" required>
-          <option value="">-- Select issue --</option>
-          <option value="pump_issue">Pump Issue (not pumping properly)</option>
-          <option value="short_shipped">Short Shipped (ordered 2, received 1)</option>
-          <option value="missing_item">Missing Item (not in package)</option>
-        </select>
-      </div>
-      <div class="form-actions">
+      ${issueModalFields()}
+      <div class="form-actions" style="margin-top:16px">
         <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
         <button type="submit" class="btn btn-primary">Log Issue</button>
       </div>
     </form>`;
   openModal('Log Issue', html, async (e) => {
     const data = Object.fromEntries(new FormData(e.target));
-    if (!data.issue_type) { showToast('Select an issue type', 'error'); return; }
+    const issueType = resolveIssueTypeFromModal();
+    if (!issueType) { showToast('Select or describe an issue type', 'error'); return; }
+    data.issue_type = issueType;
     try {
       const rec = await fetchAPI(API.support, { method: 'POST', body: JSON.stringify(data) });
       state.support.unshift(rec);
@@ -5672,12 +5754,7 @@ function openEditIssueModal(id) {
           <input type="text" name="order_id" value="${esc(issue.order_id || '')}">
         </div>
       </div>
-      <div class="form-group" style="margin-top:4px">
-        <label>Customer Issue</label>
-        <select name="issue_type" required>
-          ${ISSUE_TYPES.map(t => `<option value="${t.key}" ${issue.issue_type === t.key ? 'selected' : ''}>${t.label}</option>`).join('')}
-        </select>
-      </div>
+      ${issueModalFields(issue.issue_type)}
       <div class="form-actions" style="justify-content:space-between">
         <button type="button" class="btn btn-danger-outline" onclick="deleteSupportIssue('${id}');closeModal()">Delete</button>
         <div style="display:flex;gap:8px">
@@ -5688,6 +5765,9 @@ function openEditIssueModal(id) {
     </form>`;
   openModal('Edit Issue', html, async (e) => {
     const data = Object.fromEntries(new FormData(e.target));
+    const issueType = resolveIssueTypeFromModal();
+    if (!issueType) { showToast('Select or describe an issue type', 'error'); return; }
+    data.issue_type = issueType;
     try {
       const rec = await fetchAPI(`${API.support}/${id}`, { method: 'PUT', body: JSON.stringify(data) });
       const idx = state.support.findIndex(i => i.id === id);
@@ -5755,6 +5835,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     loadRoster().catch(err => console.error('Roster load failed:', err)),
     loadChallengers().catch(err => console.error('Challengers load failed:', err)),
     loadSupport().catch(err => console.error('Support load failed:', err)),
+    loadCustomIssueTypes().catch(() => {}),
     checkTikTokStatus().catch(() => {})
   ]);
 
