@@ -18,10 +18,10 @@ const API = {
 const STATUSES = [
   { key: 'drafted',          label: 'In Drafts',         color: 'gray'   },
   { key: 'sent',             label: 'Sent',               color: 'blue'   },
-  { key: 'replied',          label: 'Replied',            color: 'yellow' },
+  { key: 'replied',          label: 'Replied',            color: 'teal'   },  // teal = positive engagement
   { key: 'counter_review',   label: 'Ctr. For Review',   color: 'purple' },
-  { key: 'counter_approved', label: 'Ctr. Reviewed',      color: 'teal'   },
-  { key: 'counter_offered',  label: 'Countered',          color: 'orange' },
+  { key: 'counter_approved', label: 'Ctr. Reviewed',      color: 'indigo' },
+  { key: 'counter_offered',  label: 'Countered',          color: 'amber'  },  // amber = negotiation, not danger
   { key: 'counter_rejected', label: 'Creator Declined',    color: 'red'    },
   { key: 'signed',           label: 'Signed',             color: 'green'  },
   { key: 'archived',         label: 'Archived',           color: 'gray'   }
@@ -552,6 +552,7 @@ function navigate(page) {
   }
   const renderers = {
     home:         renderHomePage,
+    tasks:        renderTasksPage,
     'daily-top2': renderDailyTop2Page,
     ideas:        renderIdeasPage,
     outreach:     renderOutreachPage,
@@ -5871,6 +5872,9 @@ function refreshTaskBoard() {
   const pending = state.tasks.filter(t => t.assignee === 'for-founder' && !t.archived && !t.completed).length;
   const badge = document.querySelector('.focus-col-review .focus-col-badge');
   if (badge) { badge.textContent = pending; badge.style.display = pending > 0 ? 'inline-flex' : 'none'; }
+  // Also refresh the nav badge
+  const navBadge = document.getElementById('tasks-nav-badge');
+  if (navBadge) { navBadge.textContent = pending; navBadge.style.display = pending > 0 ? 'inline-flex' : 'none'; }
 }
 
 function startAddTask(assignee) {
@@ -6150,6 +6154,62 @@ async function resetDailyTop2(person) {
   } catch (err) { showToast(err.message, 'error'); }
 }
 
+// ============================================================
+// TEAM TASKS PAGE
+// ============================================================
+
+function renderTasksPage() {
+  const forFounderPending = state.tasks.filter(t => t.assignee === 'for-founder' && !t.archived && !t.completed).length;
+  document.getElementById('page-content').innerHTML = `
+    <div class="tasks-page">
+      <div class="tasks-page-header">
+        <div>
+          <h1 class="page-title" style="margin-bottom:6px">Team Tasks</h1>
+          <p class="dt2-subtitle">Everything the team is working on — by person</p>
+        </div>
+      </div>
+      <div class="tasks-focus-grid">
+        <div class="focus-col">
+          <div class="focus-col-head">
+            <span class="focus-avatar">G</span>
+            <span class="focus-col-name">Gibran</span>
+          </div>
+          <div class="focus-list" id="tasks-founder">${renderTaskList('founder')}</div>
+          <button class="focus-add-btn" onclick="startAddTask('founder')">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Add task
+          </button>
+        </div>
+        <div class="focus-col">
+          <div class="focus-col-head">
+            <span class="focus-avatar">L</span>
+            <span class="focus-col-name">Lu</span>
+          </div>
+          <div class="focus-list" id="tasks-lu">${renderTaskList('lu')}</div>
+          <button class="focus-add-btn" onclick="startAddTask('lu')">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Add task
+          </button>
+        </div>
+        <div class="focus-col focus-col-review">
+          <div class="focus-col-head">
+            <span class="focus-avatar focus-avatar-review">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 17H2a3 3 0 000 6h20a3 3 0 000-6z"/><path d="M5.45 9A7 7 0 0119 11"/><path d="M12 2v7"/></svg>
+            </span>
+            <span class="focus-col-name">For Founder</span>
+            <span class="focus-col-badge" style="display:${forFounderPending > 0 ? 'inline-flex' : 'none'}">${forFounderPending}</span>
+          </div>
+          <div class="focus-list" id="tasks-for-founder">${renderTaskList('for-founder')}</div>
+          <button class="focus-add-btn focus-add-btn-review" onclick="startAddTask('for-founder')">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Leave for Founder
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
 function renderHomePage() {
   const now = new Date();
   const h = now.getHours();
@@ -6178,9 +6238,6 @@ function renderHomePage() {
   // Revenue
   const rev = state.monthlyRevenue || 0;
   const revFmt = rev >= 1000 ? '$' + (rev / 1000).toFixed(1) + 'k' : rev > 0 ? '$' + rev.toLocaleString() : '—';
-
-  // For Founder queue
-  const forFounderPending = state.tasks.filter(t => t.assignee === 'for-founder' && !t.archived && !t.completed).length;
 
   document.getElementById('page-content').innerHTML = `
     <div class="home-page">
@@ -6264,91 +6321,43 @@ function renderHomePage() {
         </div>` : ''}
       </div>
 
-      <!-- Bottom: Quick Actions + Team Focus -->
-      <div class="home-bottom">
-
-        <!-- Quick Actions — 2×2 preview cards -->
-        <div class="home-bottom-left">
-          <div class="home-section-label">Quick Actions</div>
-          <div class="home-qa-grid">
-            <button class="home-qa-card" onclick="navigate('outreach')">
-              <div class="home-qa-icon">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-              </div>
-              <div class="home-qa-name">Affiliate Outreach</div>
-              <div class="home-qa-stat">${inPipeline}</div>
-              <div class="home-qa-sub">in pipeline${needsReply > 0 ? `&nbsp;· <span class="qa-alert">${needsReply} need reply</span>` : ''}</div>
-            </button>
-            <button class="home-qa-card" onclick="navigate('roster')">
-              <div class="home-qa-icon">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
-              </div>
-              <div class="home-qa-name">Affiliate Roster</div>
-              <div class="home-qa-stat">${activeAffiliates}</div>
-              <div class="home-qa-sub">active affiliates</div>
-            </button>
-            <button class="home-qa-card" onclick="navigate('support');setTimeout(openLogIssueModal,150)">
-              <div class="home-qa-icon">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
-              </div>
-              <div class="home-qa-name">Log Support Issue</div>
-              <div class="home-qa-stat">${supportThisMonth}</div>
-              <div class="home-qa-sub">issues this month</div>
-            </button>
-            <button class="home-qa-card" onclick="navigate('challenge')">
-              <div class="home-qa-icon">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-              </div>
-              <div class="home-qa-name">Before &amp; Afters</div>
-              <div class="home-qa-stat">${challengers}</div>
-              <div class="home-qa-sub">challengers enrolled</div>
-            </button>
-          </div>
+      <!-- Quick Actions — 4-across live stat cards -->
+      <div class="home-qa-section">
+        <div class="home-section-label">Quick Actions</div>
+        <div class="home-qa-grid home-qa-grid-4">
+          <button class="home-qa-card" onclick="navigate('outreach')">
+            <div class="home-qa-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+            </div>
+            <div class="home-qa-name">Affiliate Outreach</div>
+            <div class="home-qa-stat">${inPipeline}</div>
+            <div class="home-qa-sub">in pipeline${needsReply > 0 ? `&nbsp;· <span class="qa-alert">${needsReply} need reply</span>` : ''}</div>
+          </button>
+          <button class="home-qa-card" onclick="navigate('roster')">
+            <div class="home-qa-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+            </div>
+            <div class="home-qa-name">Affiliate Roster</div>
+            <div class="home-qa-stat">${activeAffiliates}</div>
+            <div class="home-qa-sub">active affiliates</div>
+          </button>
+          <button class="home-qa-card" onclick="navigate('support');setTimeout(openLogIssueModal,150)">
+            <div class="home-qa-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+            </div>
+            <div class="home-qa-name">Log Support Issue</div>
+            <div class="home-qa-stat">${supportThisMonth}</div>
+            <div class="home-qa-sub">issues this month</div>
+          </button>
+          <button class="home-qa-card" onclick="navigate('challenge')">
+            <div class="home-qa-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+            </div>
+            <div class="home-qa-name">Before &amp; Afters</div>
+            <div class="home-qa-stat">${challengers}</div>
+            <div class="home-qa-sub">challengers enrolled</div>
+          </button>
         </div>
-
-        <!-- Team Focus (3 columns) -->
-        <div class="home-bottom-right">
-          <div class="home-section-label">Team Focus</div>
-          <div class="home-focus">
-            <div class="focus-col">
-              <div class="focus-col-head">
-                <span class="focus-avatar">G</span>
-                <span class="focus-col-name">Founder</span>
-              </div>
-              <div class="focus-list" id="tasks-founder">${renderTaskList('founder')}</div>
-              <button class="focus-add-btn" onclick="startAddTask('founder')">
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                Add task
-              </button>
-            </div>
-            <div class="focus-col">
-              <div class="focus-col-head">
-                <span class="focus-avatar">L</span>
-                <span class="focus-col-name">Lu</span>
-              </div>
-              <div class="focus-list" id="tasks-lu">${renderTaskList('lu')}</div>
-              <button class="focus-add-btn" onclick="startAddTask('lu')">
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                Add task
-              </button>
-            </div>
-            <div class="focus-col focus-col-review">
-              <div class="focus-col-head">
-                <span class="focus-avatar focus-avatar-review">
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 17H2a3 3 0 000 6h20a3 3 0 000-6z"/><path d="M5.45 9A7 7 0 0119 11"/><path d="M12 2v7"/></svg>
-                </span>
-                <span class="focus-col-name">For Founder</span>
-                <span class="focus-col-badge" style="display:${forFounderPending > 0 ? 'inline-flex' : 'none'}">${forFounderPending}</span>
-              </div>
-              <div class="focus-list" id="tasks-for-founder">${renderTaskList('for-founder')}</div>
-              <button class="focus-add-btn focus-add-btn-review" onclick="startAddTask('for-founder')">
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                Leave for Founder
-              </button>
-            </div>
-          </div>
-        </div>
-
       </div>
 
     </div>

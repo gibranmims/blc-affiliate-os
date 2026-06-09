@@ -638,13 +638,17 @@ body {
   text-transform: capitalize;
 }
 
-.badge-green  { background: var(--green-dim);  color: var(--green); }
-.badge-yellow { background: var(--yellow-dim); color: var(--yellow); }
-.badge-orange { background: var(--orange-dim); color: var(--orange); }
-.badge-red    { background: var(--red-dim);    color: var(--red); }
-.badge-blue   { background: var(--blue-dim);   color: var(--blue); }
-.badge-purple { background: var(--purple-dim); color: var(--purple); }
-.badge-gray   { background: var(--bg-elevated); color: var(--text-muted); }
+.badge-green  { background: var(--green-dim);          color: var(--green); }
+.badge-yellow { background: var(--yellow-dim);         color: var(--yellow); }
+.badge-orange { background: var(--orange-dim);         color: var(--orange); }
+.badge-red    { background: var(--red-dim);            color: var(--red); }
+.badge-blue   { background: var(--blue-dim);           color: var(--blue); }
+.badge-purple { background: var(--purple-dim);         color: var(--purple); }
+.badge-gray   { background: var(--bg-elevated);        color: var(--text-muted); }
+/* New semantic colors */
+.badge-teal   { background: rgba(20,184,166,0.15);    color: #0d9488; }   /* replied — positive engagement */
+.badge-amber  { background: rgba(245,158,11,0.15);    color: #B45309; }   /* countered — negotiation */
+.badge-indigo { background: rgba(99,102,241,0.13);    color: #4338CA; }   /* ctr. reviewed */
 
 .inline-status-select {
   -webkit-appearance: none;
@@ -2500,10 +2504,10 @@ body {
 .filter-tabs .filter-tab-counter_approved.active { color: #14b8a6; background: rgba(20,184,166,0.1); }
 .filter-tabs .filter-tab-counter_approved.active .filter-count { background: rgba(20,184,166,0.2); color: #14b8a6; }
 
-.filter-tabs .filter-tab-counter_offered        { color: rgba(251,146,60,0.75); }
-.filter-tabs .filter-tab-counter_offered .filter-count { color: rgba(251,146,60,0.75); }
-.filter-tabs .filter-tab-counter_offered.active { color: var(--orange); background: var(--orange-dim); }
-.filter-tabs .filter-tab-counter_offered.active .filter-count { background: rgba(251,146,60,0.2); color: var(--orange); }
+.filter-tabs .filter-tab-counter_offered        { color: rgba(245,158,11,0.85); }
+.filter-tabs .filter-tab-counter_offered .filter-count { color: rgba(245,158,11,0.85); }
+.filter-tabs .filter-tab-counter_offered.active { color: #B45309; background: rgba(245,158,11,0.12); }
+.filter-tabs .filter-tab-counter_offered.active .filter-count { background: rgba(245,158,11,0.2); color: #B45309; }
 
 .filter-tabs .filter-tab-counter_rejected        { color: rgba(248,113,113,0.75); }
 .filter-tabs .filter-tab-counter_rejected .filter-count { color: rgba(248,113,113,0.75); }
@@ -6408,8 +6412,8 @@ textarea:focus {
   font-weight: 700 !important;
 }
 .inline-status-select.status-key-replied {
-  background: rgba(202,138,4,0.18) !important;
-  color: #92400E !important;
+  background: rgba(20,184,166,0.18) !important;  /* teal — they replied = positive! */
+  color: #0F766E !important;
   font-weight: 700 !important;
 }
 .inline-status-select.status-key-counter_review {
@@ -6423,8 +6427,8 @@ textarea:focus {
   font-weight: 700 !important;
 }
 .inline-status-select.status-key-counter_offered {
-  background: rgba(234,88,12,0.14) !important;
-  color: #C2410C !important;
+  background: rgba(245,158,11,0.16) !important;  /* amber — negotiation, not danger */
+  color: #B45309 !important;
   font-weight: 700 !important;
 }
 .inline-status-select.status-key-counter_rejected {
@@ -6433,18 +6437,18 @@ textarea:focus {
   font-weight: 700 !important;
 }
 .inline-status-select.status-key-signed {
-  background: var(--green) !important;
+  background-color: var(--green) !important;
+  /* White arrow for dark bg — no-repeat so it doesn't tile */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 5'%3E%3Cpath fill='rgba(255,255,255,0.8)' d='M0 0l4 5 4-5z'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 10px center !important;
+  background-size: 8px 5px !important;
   color: #fff !important;
   font-weight: 700 !important;
 }
 .inline-status-select.status-key-archived {
   background: var(--bg-elevated) !important;
   color: var(--text-muted) !important;
-}
-
-/* Fix dropdown arrow to white on dark (signed) bg */
-.inline-status-select.status-key-signed {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 5'%3E%3Cpath fill='rgba(255,255,255,0.7)' d='M0 0l4 5 4-5z'/%3E%3C/svg%3E") !important;
 }
 
 /* ── Goal row — dark hero card ──────────────────────────── */
@@ -6528,3 +6532,35 @@ textarea:focus {
   flex-shrink: 0;
 }
 .dt2-reset-btn:hover { background: var(--surface-hover); color: var(--text-primary); }
+
+/* ── Team Tasks standalone page ─────────────────────────── */
+.tasks-page {
+  max-width: 1200px;
+}
+.tasks-page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 28px;
+}
+.tasks-focus-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+.tasks-focus-grid .focus-col {
+  /* Give columns more breathing room than on home */
+  min-height: 300px;
+}
+.tasks-focus-grid .focus-list {
+  max-height: none;   /* no cap — let tasks breathe */
+  min-height: 80px;
+}
+
+/* ── Home QA grid: 4-across when team focus is gone ─────── */
+.home-qa-section {
+  margin-top: 8px;
+}
+.home-qa-grid-4 {
+  grid-template-columns: repeat(4, 1fr) !important;
+}
