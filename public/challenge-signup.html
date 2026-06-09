@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Win Your Money Back — BBL Serum Challenge</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body { margin: 0; background: #0a0a0a; color: #FFF6EB; font-family: 'Inter', sans-serif; min-height: 100vh; padding: 40px 20px 80px; }
+    .container { max-width: 520px; margin: 0 auto; }
+    .brand { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: #665e52; margin-bottom: 32px; }
+    .hero-tag { display: inline-block; padding: 4px 12px; background: rgba(255,246,235,.08); border: 1px solid rgba(255,246,235,.12); border-radius: 20px; font-size: 11.5px; font-weight: 500; color: #a89880; margin-bottom: 16px; }
+    h1 { margin: 0 0 12px; font-size: 28px; font-weight: 700; line-height: 1.2; }
+    h1 span { color: #FFF6EB; }
+    .sub { font-size: 14.5px; color: #a89880; line-height: 1.65; margin: 0 0 28px; }
+    .how-it-works { background: #111; border: 1px solid #2a2a2a; border-radius: 12px; padding: 20px 22px; margin-bottom: 28px; }
+    .how-it-works-title { font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: #665e52; margin-bottom: 14px; }
+    .step { display: flex; gap: 14px; align-items: flex-start; margin-bottom: 12px; }
+    .step:last-child { margin-bottom: 0; }
+    .step-num { flex-shrink: 0; width: 22px; height: 22px; background: rgba(255,246,235,.08); border-radius: 50%; font-size: 11px; font-weight: 600; display: flex; align-items: center; justify-content: center; color: #a89880; margin-top: 1px; }
+    .step-text { font-size: 13px; color: #a89880; line-height: 1.5; }
+    .step-text strong { color: #FFF6EB; }
+    .card { background: #111111; border: 1px solid #2a2a2a; border-radius: 14px; padding: 28px; }
+    .form-title { font-size: 16px; font-weight: 600; margin: 0 0 20px; }
+    .form-group { margin-bottom: 16px; }
+    label { display: block; font-size: 12px; font-weight: 500; color: #a89880; margin-bottom: 6px; }
+    input[type="text"], input[type="email"] {
+      width: 100%; background: #171717; border: 1px solid #333; border-radius: 8px;
+      padding: 11px 13px; font-size: 14px; color: #FFF6EB; font-family: inherit; outline: none;
+    }
+    input:focus { border-color: #FFF6EB; box-shadow: 0 0 0 3px rgba(255,246,235,.08); }
+    .photo-drop { background: #171717; border: 1.5px dashed #333; border-radius: 10px; padding: 28px 20px; text-align: center; cursor: pointer; transition: border-color .2s, background .2s; position: relative; }
+    .photo-drop:hover, .photo-drop.drag-over { border-color: #a89880; background: #1a1a1a; }
+    .photo-drop input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+    .photo-drop-icon { font-size: 24px; margin-bottom: 8px; }
+    .photo-drop-text { font-size: 13px; color: #a89880; }
+    .photo-drop-text strong { color: #FFF6EB; }
+    .photo-drop-hint { font-size: 11px; color: #665e52; margin-top: 4px; }
+    .photo-preview { display: none; margin-top: 10px; }
+    .photo-preview img { max-width: 100%; max-height: 180px; border-radius: 8px; object-fit: cover; }
+    .photo-preview-label { font-size: 11.5px; color: #4ade80; margin-bottom: 6px; }
+    .btn { width: 100%; margin-top: 8px; padding: 13px; background: #FFF6EB; color: #0a0a0a; border: none; border-radius: 8px; font-size: 14.5px; font-weight: 600; font-family: inherit; cursor: pointer; transition: background .15s; }
+    .btn:hover:not(:disabled) { background: #fff; }
+    .btn:disabled { opacity: .6; cursor: not-allowed; }
+    .error { display: none; margin-top: 12px; padding: 10px 13px; background: rgba(248,113,113,.1); border: 1px solid rgba(248,113,113,.25); border-radius: 8px; font-size: 13px; color: #f87171; }
+    .error.show { display: block; }
+    .success-screen { display: none; text-align: center; padding: 20px 0; }
+    .success-screen.show { display: block; }
+    .success-icon { font-size: 40px; margin-bottom: 16px; }
+    .success-screen h2 { font-size: 22px; font-weight: 700; margin: 0 0 12px; }
+    .success-screen p { font-size: 14px; color: #a89880; line-height: 1.65; margin: 0; }
+    .spinner { display: none; width: 18px; height: 18px; border: 2px solid rgba(10,10,10,.3); border-top-color: #0a0a0a; border-radius: 50%; animation: spin .6s linear infinite; margin: 0 auto; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="brand">The Bikini Line Co.</div>
+
+    <div class="hero-tag">$39.99 Full Refund Challenge</div>
+    <h1>Win Your <span>Money Back</span> Challenge</h1>
+    <p class="sub">Buy one bottle of BBL Serum, use it every night for 8 weeks, submit 4 check-in photos — and we'll refund your full $39.99. No catches.</p>
+
+    <div class="how-it-works">
+      <div class="how-it-works-title">How it works</div>
+      <div class="step"><div class="step-num">1</div><div class="step-text"><strong>Sign up below</strong> with your order number and a before photo.</div></div>
+      <div class="step"><div class="step-num">2</div><div class="step-text"><strong>Use your BBL Serum every night.</strong> Consistency is the whole game.</div></div>
+      <div class="step"><div class="step-num">3</div><div class="step-text"><strong>Check in every 2 weeks</strong> — you'll get a unique link by email at weeks 2, 4, 6, and 8.</div></div>
+      <div class="step"><div class="step-num">4</div><div class="step-text"><strong>Complete all 4 check-ins</strong> and we'll process your full $39.99 refund.</div></div>
+    </div>
+
+    <div class="card" id="form-card">
+      <p class="form-title">Enter the challenge</p>
+
+      <div id="signup-form-wrap">
+        <form id="signup-form" enctype="multipart/form-data">
+          <div class="form-group">
+            <label for="name">Your name</label>
+            <input type="text" id="name" name="name" placeholder="Jane Smith" required>
+          </div>
+          <div class="form-group">
+            <label for="email">Email address</label>
+            <input type="email" id="email" name="email" placeholder="jane@example.com" required>
+          </div>
+          <div class="form-group">
+            <label for="order_number">Order number</label>
+            <input type="text" id="order_number" name="order_number" placeholder="e.g. 1234" required>
+          </div>
+          <div class="form-group">
+            <label>Before photo (Week 0)</label>
+            <div class="photo-drop" id="photo-drop">
+              <input type="file" id="photo" name="photo" accept=".jpg,.jpeg,.png,.webp,.heic" required>
+              <div class="photo-drop-icon">+</div>
+              <div class="photo-drop-text"><strong>Tap to upload your before photo</strong></div>
+              <div class="photo-drop-hint">JPG, PNG, WEBP or HEIC · Max 10 MB</div>
+            </div>
+            <div class="photo-preview" id="photo-preview">
+              <div class="photo-preview-label">Photo selected ✓</div>
+              <img id="preview-img" src="" alt="Before photo preview">
+            </div>
+          </div>
+
+          <div class="error" id="error-msg"></div>
+          <button type="submit" class="btn" id="submit-btn">
+            <span id="btn-text">Join the Challenge</span>
+            <div class="spinner" id="btn-spinner"></div>
+          </button>
+        </form>
+      </div>
+
+      <div class="success-screen" id="success-screen">
+        <div class="success-icon">✓</div>
+        <h2>You're in!</h2>
+        <p>We've saved your entry. Your first check-in link will arrive by email in 2 weeks. Keep using your BBL Serum every night — consistency is what gets results.</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Photo preview
+    const photoInput = document.getElementById('photo');
+    const preview = document.getElementById('photo-preview');
+    const previewImg = document.getElementById('preview-img');
+    const photoDrop = document.getElementById('photo-drop');
+
+    photoInput.addEventListener('change', () => {
+      const file = photoInput.files[0];
+      if (file) {
+        previewImg.src = URL.createObjectURL(file);
+        preview.style.display = 'block';
+        photoDrop.style.display = 'none';
+      }
+    });
+
+    photoDrop.addEventListener('dragover', e => { e.preventDefault(); photoDrop.classList.add('drag-over'); });
+    photoDrop.addEventListener('dragleave', () => photoDrop.classList.remove('drag-over'));
+    photoDrop.addEventListener('drop', e => {
+      e.preventDefault();
+      photoDrop.classList.remove('drag-over');
+      if (e.dataTransfer.files[0]) {
+        const dt = new DataTransfer();
+        dt.items.add(e.dataTransfer.files[0]);
+        photoInput.files = dt.files;
+        photoInput.dispatchEvent(new Event('change'));
+      }
+    });
+
+    // Form submit
+    document.getElementById('signup-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('submit-btn');
+      const btnText = document.getElementById('btn-text');
+      const spinner = document.getElementById('btn-spinner');
+      const errEl = document.getElementById('error-msg');
+
+      errEl.classList.remove('show');
+      btn.disabled = true;
+      btnText.style.display = 'none';
+      spinner.style.display = 'block';
+
+      try {
+        const form = document.getElementById('signup-form');
+        const data = new FormData(form);
+        const res = await fetch('/api/challenge/signup', { method: 'POST', body: data });
+        const json = await res.json();
+        if (res.ok) {
+          document.getElementById('signup-form-wrap').style.display = 'none';
+          document.getElementById('success-screen').classList.add('show');
+        } else {
+          errEl.textContent = json.error || 'Something went wrong. Please try again.';
+          errEl.classList.add('show');
+          btn.disabled = false;
+          btnText.style.display = '';
+          spinner.style.display = 'none';
+        }
+      } catch {
+        errEl.textContent = 'Network error. Please check your connection and try again.';
+        errEl.classList.add('show');
+        btn.disabled = false;
+        btnText.style.display = '';
+        spinner.style.display = 'none';
+      }
+    });
+  </script>
+</body>
+</html>

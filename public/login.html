@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BLC OS — Sign In</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body { margin: 0; background: #0a0a0a; color: #FFF6EB; font-family: 'Inter', sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+    .card { background: #111111; border: 1px solid #2a2a2a; border-radius: 14px; padding: 40px 36px; width: 100%; max-width: 380px; }
+    .logo { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: #665e52; margin-bottom: 28px; }
+    h1 { margin: 0 0 6px; font-size: 20px; font-weight: 600; }
+    .sub { font-size: 13px; color: #a89880; margin: 0 0 28px; }
+    label { display: block; font-size: 12px; font-weight: 500; color: #a89880; margin-bottom: 6px; }
+    input[type="password"] { width: 100%; background: #171717; border: 1px solid #333; border-radius: 8px; padding: 11px 13px; font-size: 14px; color: #FFF6EB; font-family: inherit; outline: none; }
+    input[type="password"]:focus { border-color: #FFF6EB; box-shadow: 0 0 0 3px rgba(255,246,235,.08); }
+    .btn { width: 100%; margin-top: 16px; padding: 12px; background: #FFF6EB; color: #0a0a0a; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; font-family: inherit; cursor: pointer; }
+    .btn:hover { background: #fff; }
+    .error { display: none; margin-top: 12px; padding: 10px 13px; background: rgba(248,113,113,.1); border: 1px solid rgba(248,113,113,.25); border-radius: 8px; font-size: 13px; color: #f87171; }
+    .error.show { display: block; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">The Bikini Line Co.</div>
+    <h1>Sign in to BLC OS</h1>
+    <p class="sub">Internal team access only.</p>
+    <form id="login-form">
+      <label for="password">Password</label>
+      <input type="password" id="password" name="password" placeholder="Enter team password" autofocus>
+      <button type="submit" class="btn">Sign In</button>
+      <div class="error" id="error-msg">Incorrect password. Try again.</div>
+    </form>
+  </div>
+  <script>
+    document.getElementById('login-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const password = document.getElementById('password').value;
+      const errEl = document.getElementById('error-msg');
+      errEl.classList.remove('show');
+      try {
+        const res = await fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password })
+        });
+        if (res.ok) {
+          const params = new URLSearchParams(window.location.search);
+          window.location.href = params.get('redirect') || '/';
+        } else {
+          errEl.classList.add('show');
+        }
+      } catch {
+        errEl.classList.add('show');
+      }
+    });
+  </script>
+</body>
+</html>
