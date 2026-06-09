@@ -6003,32 +6003,93 @@ textarea:focus {
   font-weight: 700;
   flex-shrink: 0;
   white-space: nowrap;
-  padding: 2px 7px;
+  padding: 2px 8px;
   border-radius: 20px;
   letter-spacing: 0.01em;
 }
-/* Red: overdue or due today */
+/* Red: overdue, due today, or 1 day left */
 .deadline-overdue {
-  background: rgba(220,38,38,0.12);
-  color: #B91C1C;
-  border: 1px solid rgba(220,38,38,0.22);
+  background: rgba(220,38,38,0.16);
+  color: var(--red);
+  border: 1px solid rgba(220,38,38,0.3);
 }
 .deadline-today {
-  background: rgba(220,38,38,0.12);
-  color: #B91C1C;
-  border: 1px solid rgba(220,38,38,0.22);
+  background: rgba(220,38,38,0.16);
+  color: var(--red);
+  border: 1px solid rgba(220,38,38,0.3);
 }
-/* Amber: 1–5 days */
+/* Amber/yellow: 2–5 days */
 .deadline-soon {
-  background: rgba(245,158,11,0.12);
-  color: #B45309;
-  border: 1px solid rgba(245,158,11,0.22);
+  background: rgba(234,179,8,0.16);
+  color: #A16207;
+  border: 1px solid rgba(234,179,8,0.35);
 }
-/* Green: 5+ days */
+/* Green: 6+ days */
 .deadline-future {
-  background: rgba(22,163,74,0.10);
-  color: #15803D;
-  border: 1px solid rgba(22,163,74,0.20);
+  background: rgba(22,163,74,0.14);
+  color: var(--green);
+  border: 1px solid rgba(22,163,74,0.28);
+}
+
+/* ── Home urgent section ──────────────────────────────────── */
+.home-urgent-section {
+  margin-bottom: 24px;
+}
+
+.home-section-label-urgent {
+  color: var(--red) !important;
+}
+
+.home-urgent-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.home-urgent-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: rgba(220,38,38,0.04);
+  border: 1px solid rgba(220,38,38,0.14);
+  border-left: 3px solid var(--red);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+}
+
+.home-urgent-item:hover {
+  background: rgba(220,38,38,0.08);
+  border-color: rgba(220,38,38,0.25);
+}
+
+.home-urgent-avatar {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(220,38,38,0.12);
+  color: var(--red);
+  font-size: 10px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  letter-spacing: 0;
+}
+
+/* Per-person avatar tint */
+.ua-gibran  { background: rgba(79,70,229,0.12);  color: var(--accent); }
+.ua-lu      { background: rgba(20,184,166,0.12);  color: #0d9488; }
+.ua-founder { background: rgba(124,58,237,0.12);  color: var(--purple); }
+
+.home-urgent-title {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+  line-height: 1.3;
 }
 
 /* ── Daily Top 2 page ─────────────────────────────────────── */

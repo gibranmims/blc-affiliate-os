@@ -5852,10 +5852,10 @@ function fmtDeadline(deadline) {
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const d = new Date(deadline + 'T00:00:00');
   const diff = Math.round((d - today) / 86400000);
-  if (diff < 0)   return { cls: 'deadline-overdue', text: `${Math.abs(diff)}d overdue` };
-  if (diff === 0) return { cls: 'deadline-today',   text: 'Due today' };
-  if (diff <= 5)  return { cls: 'deadline-soon',    text: `${diff}d left` };
-  return           { cls: 'deadline-future',         text: `${diff}d left` };
+  if (diff < 0)   return { cls: 'deadline-overdue', text: `${Math.abs(diff)}d overdue`, urgent: true };
+  if (diff <= 1)  return { cls: 'deadline-today',   text: diff === 0 ? 'Due today' : '1d left', urgent: true };
+  if (diff <= 5)  return { cls: 'deadline-soon',    text: `${diff}d left`, urgent: false };
+  return           { cls: 'deadline-future',         text: `${diff}d left`, urgent: false };
 }
 
 function taskTagBadge(tag) {
@@ -6271,6 +6271,11 @@ function renderHomePage() {
   const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   const supportThisMonth = state.support.filter(i => (i.issue_date || '').startsWith(thisMonth)).length;
 
+  // Urgent tasks — overdue or due today/tomorrow
+  const urgentTasks = state.tasks
+    .filter(t => !t.completed && !t.archived && t.deadline && deadlineSortKey(t.deadline) <= 1)
+    .sort((a, b) => deadlineSortKey(a.deadline) - deadlineSortKey(b.deadline));
+
   // Goal progress ring
   const goal = state.monthlyGoal || 0;
   const goalPct = goal > 0 ? Math.min(activeAffiliates / goal, 1) : 0;
@@ -6349,6 +6354,24 @@ function renderHomePage() {
             </div>` : ''}
         </div>` : ''}
       </div>
+
+      ${urgentTasks.length > 0 ? `
+      <!-- Urgent tasks -->
+      <div class="home-urgent-section">
+        <div class="home-section-label home-section-label-urgent">Urgent</div>
+        <div class="home-urgent-list">
+          ${urgentTasks.map(t => {
+            const dl = fmtDeadline(t.deadline);
+            const aMap = { gibran: { lbl: 'G', cls: 'ua-gibran' }, lu: { lbl: 'L', cls: 'ua-lu' }, 'for-founder': { lbl: 'F', cls: 'ua-founder' } };
+            const av = aMap[t.assignee] || { lbl: '?', cls: '' };
+            return `<div class="home-urgent-item" onclick="navigate('tasks')">
+              <span class="home-urgent-avatar ${av.cls}">${av.lbl}</span>
+              <span class="home-urgent-title">${esc(t.title)}</span>
+              ${dl ? `<span class="task-deadline ${dl.cls}">${dl.text}</span>` : ''}
+            </div>`;
+          }).join('')}
+        </div>
+      </div>` : ''}
 
       <!-- Quick Actions — 4-across, each card shows unique data -->
       <div class="home-qa-section">
