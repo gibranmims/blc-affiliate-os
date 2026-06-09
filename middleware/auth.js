@@ -20,6 +20,8 @@ function isPublic(path) {
 function requireAuth(req, res, next) {
   // If ADMIN_PASSWORD is not configured, run open (dev mode / unset deployment)
   if (!process.env.ADMIN_PASSWORD) return next();
+  // Challenge subdomain is fully public — bypass auth entirely
+  if (req.hostname === 'challenge.thebikiniline.co') return next();
   if (isPublic(req.path)) return next();
   if (req.session && req.session.authed) return next();
   // API calls get 401, browser navigation gets redirect to login
