@@ -316,11 +316,36 @@ body {
 }
 
 .sidebar-footer {
-  padding: 14px 18px;
+  padding: 12px 14px 14px;
   border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.sidebar-footer-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
+}
+.sidebar-collapse-bar {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  padding: 7px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+.sidebar-collapse-bar:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  border-color: var(--text-muted);
 }
 
 .sidebar-footer-text {
@@ -5968,17 +5993,39 @@ textarea:focus {
 .tag-revenue { background: rgba(22, 163, 74, 0.1);  color: var(--green); }
 .tag-brand   { background: rgba(37, 99, 235, 0.1);   color: var(--blue);  }
 
-/* ── Task deadline badges ─────────────────────────────────── */
+/* ── Task deadline badges — colored pills ─────────────────── */
 .task-deadline {
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 700;
   flex-shrink: 0;
   white-space: nowrap;
+  padding: 2px 7px;
+  border-radius: 20px;
+  letter-spacing: 0.01em;
 }
-.deadline-overdue { color: var(--red);        }
-.deadline-today   { color: var(--yellow);     }
-.deadline-soon    { color: var(--yellow);     }
-.deadline-future  { color: var(--text-muted); }
+/* Red: overdue or due today */
+.deadline-overdue {
+  background: rgba(220,38,38,0.12);
+  color: #B91C1C;
+  border: 1px solid rgba(220,38,38,0.22);
+}
+.deadline-today {
+  background: rgba(220,38,38,0.12);
+  color: #B91C1C;
+  border: 1px solid rgba(220,38,38,0.22);
+}
+/* Amber: 1–5 days */
+.deadline-soon {
+  background: rgba(245,158,11,0.12);
+  color: #B45309;
+  border: 1px solid rgba(245,158,11,0.22);
+}
+/* Green: 5+ days */
+.deadline-future {
+  background: rgba(22,163,74,0.10);
+  color: #15803D;
+  border: 1px solid rgba(22,163,74,0.20);
+}
 
 /* ── Daily Top 2 page ─────────────────────────────────────── */
 .dt2-page {
@@ -6546,7 +6593,7 @@ textarea:focus {
 
 /* ── Team Tasks standalone page ─────────────────────────── */
 .tasks-page {
-  max-width: 1200px;
+  width: 100%;   /* fill full available width */
 }
 .tasks-page-header {
   display: flex;

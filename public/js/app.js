@@ -5852,10 +5852,10 @@ function fmtDeadline(deadline) {
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const d = new Date(deadline + 'T00:00:00');
   const diff = Math.round((d - today) / 86400000);
-  if (diff < 0)  return { cls: 'deadline-overdue', text: `${Math.abs(diff)}d overdue` };
+  if (diff < 0)   return { cls: 'deadline-overdue', text: `${Math.abs(diff)}d overdue` };
   if (diff === 0) return { cls: 'deadline-today',   text: 'Due today' };
-  if (diff <= 3)  return { cls: 'deadline-soon',    text: `${diff}d left` };
-  return { cls: 'deadline-future', text: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) };
+  if (diff <= 5)  return { cls: 'deadline-soon',    text: `${diff}d left` };
+  return           { cls: 'deadline-future',         text: `${diff}d left` };
 }
 
 function taskTagBadge(tag) {
@@ -5868,12 +5868,20 @@ function taskTagBadge(tag) {
   return c ? `<span class="task-tag ${c.cls}">${c.label}</span>` : '';
 }
 
+function deadlineSortKey(deadline) {
+  if (!deadline) return Infinity; // no deadline → bottom
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  return Math.round((new Date(deadline + 'T00:00:00') - today) / 86400000);
+}
+
 function renderTaskList(assignee) {
   const tasks = state.tasks
     .filter(t => t.assignee === assignee && !t.archived)
     .sort((a, b) => {
+      // completed always last
       if (a.completed !== b.completed) return a.completed ? 1 : -1;
-      return new Date(a.created_at) - new Date(b.created_at);
+      // sort by urgency: overdue first, then soonest, then no-deadline
+      return deadlineSortKey(a.deadline) - deadlineSortKey(b.deadline);
     });
   if (tasks.length === 0) {
     return `<div class="focus-empty">Nothing yet</div>`;
