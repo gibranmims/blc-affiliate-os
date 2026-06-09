@@ -693,11 +693,11 @@ body {
 }
 .inline-status-select.status-key-drafted        { background-color: var(--bg-elevated); color: var(--text-muted); }
 .inline-status-select.status-key-sent           { background-color: var(--blue-dim);    color: var(--blue); }
-.inline-status-select.status-key-replied        { background-color: var(--yellow-dim);  color: var(--yellow); }
-.inline-status-select.status-key-evaluating     { background-color: var(--purple-dim);  color: var(--purple); }
-.inline-status-select.status-key-counter_review    { background-color: var(--purple-dim);  color: var(--purple); }
-.inline-status-select.status-key-counter_approved  { background-color: rgba(20,184,166,0.12); color: #14b8a6; }
-.inline-status-select.status-key-counter_offered   { background-color: var(--orange-dim);  color: var(--orange); }
+.inline-status-select.status-key-replied        { background-color: rgba(20,184,166,0.18); color: #0F766E; }
+.inline-status-select.status-key-evaluating     { background-color: var(--purple-dim);    color: var(--purple); }
+.inline-status-select.status-key-counter_review    { background-color: var(--purple-dim);    color: var(--purple); }
+.inline-status-select.status-key-counter_approved  { background-color: rgba(79,70,229,0.12); color: #4338CA; }
+.inline-status-select.status-key-counter_offered   { background-color: rgba(245,158,11,0.16); color: #B45309; }
 .inline-status-select.status-key-signed         { background-color: var(--green-dim);   color: var(--green); }
 .inline-status-select.status-key-archived       { background-color: var(--bg-elevated); color: var(--text-muted); }
 .inline-status-select.status-key-ghosted        { background-color: var(--bg-elevated); color: var(--text-muted); }
@@ -1629,6 +1629,7 @@ body {
 }
 
 .new-batch-title {
+  font-family: var(--font-heading);
   font-size: 20px;
   font-weight: 700;
   color: var(--text-primary);
@@ -2575,7 +2576,7 @@ body {
 }
 .dp-counter-btn-generate:hover:not(:disabled) {
   background: var(--green);
-  color: #0d1117;
+  color: var(--text-primary);
 }
 .dp-counter-btn-draft {
   flex: 1;
@@ -2614,7 +2615,7 @@ body {
 }
 .dp-counter-btn-approve:hover:not(:disabled) {
   background: var(--green);
-  color: #0d1117;
+  color: var(--text-primary);
 }
 .dp-counter-btn-approve:disabled { opacity: 0.5; cursor: not-allowed; }
 
@@ -2695,8 +2696,8 @@ body {
   margin-bottom: 0;
 }
 .dp-proposal-card-founder {
-  border-color: rgba(139,92,246,0.25) !important;
-  background: rgba(139,92,246,0.03);
+  border-color: rgba(124,58,237,0.25) !important;
+  background: var(--purple-dim);
 }
 .dp-proposal-card-header {
   display: flex;
@@ -2724,13 +2725,13 @@ body {
   font-size: 14px;
   font-weight: 600;
   border-radius: 8px;
-  border: 1.5px solid rgba(139,92,246,0.6);
-  background: rgba(139,92,246,0.1);
-  color: #a78bfa;
+  border: 1.5px solid rgba(124,58,237,0.45);
+  background: var(--purple-dim);
+  color: var(--purple);
   cursor: pointer;
   transition: background 0.15s;
 }
-.dp-adjust-rate-btn:hover:not(:disabled) { background: rgba(139,92,246,0.2); }
+.dp-adjust-rate-btn:hover:not(:disabled) { background: rgba(124,58,237,0.15); }
 .dp-adjust-rate-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
 /* Counter Approved card (shown to Lu in counter_approved status) */
@@ -2806,7 +2807,7 @@ body {
   border-radius: 8px;
   border: none;
   background: var(--green);
-  color: #0d1117;
+  color: var(--text-primary);
   cursor: pointer;
   transition: opacity 0.15s;
   letter-spacing: 0.01em;
@@ -2818,8 +2819,8 @@ body {
 .dp-founder-counter {
   margin-top: 14px;
   padding: 14px;
-  background: rgba(139,92,246,0.05);
-  border: 1.5px solid rgba(139,92,246,0.2);
+  background: var(--purple-dim);
+  border: 1.5px solid rgba(124,58,237,0.2);
   border-radius: 8px;
 }
 .dp-founder-counter-header {
@@ -3043,7 +3044,7 @@ body {
 #nb-generate-btn:not(:disabled) {
   background: var(--green);
   border-color: var(--green);
-  color: #0a1a0e;
+  color: var(--text-primary);
 }
 
 #nb-generate-btn:not(:disabled):hover {
@@ -3081,6 +3082,7 @@ body {
 }
 
 .nb-success-title {
+  font-family: var(--font-heading);
   font-size: 18px;
   font-weight: 700;
   color: var(--green);
@@ -3154,6 +3156,7 @@ body {
 }
 
 .draft-modal-title {
+  font-family: var(--font-heading);
   font-size: 20px;
   font-weight: 700;
   color: var(--text-primary);
@@ -3285,7 +3288,7 @@ body {
   outline: none;
   box-sizing: border-box;
 }
-.tbl-inline-input:focus { border-color: var(--blue); }
+.tbl-inline-input:focus { border-color: var(--accent); }
 
 /* Deal cell inline edit — two inputs side by side */
 .tbl-deal-edit { display: flex; align-items: center; gap: 5px; }
@@ -3315,12 +3318,12 @@ body {
 }
 .dp-save-btn:hover {
   background: var(--green);
-  color: #0d1117;
+  color: var(--text-primary);
   border-color: var(--green);
 }
 .dp-save-btn.dp-save-btn-done {
   background: var(--green);
-  color: #0d1117;
+  color: var(--text-primary);
   border-color: var(--green);
 }
 
@@ -3400,9 +3403,9 @@ body {
 }
 .rs-dictate-btn:hover { border-color: var(--accent); color: var(--accent); }
 .rs-dictate-btn.recording {
-  background: rgba(239,68,68,0.1);
-  border-color: #ef4444;
-  color: #ef4444;
+  background: var(--red-dim);
+  border-color: var(--red);
+  color: var(--red);
   animation: dictate-pulse 1.4s ease-in-out infinite;
 }
 
@@ -3512,8 +3515,8 @@ body {
 /* Danger outline button */
 .btn-danger-outline {
   background: transparent;
-  border: 1px solid rgba(239,68,68,0.4);
-  color: #ef4444;
+  border: 1px solid rgba(220,38,38,0.4);
+  color: var(--red);
   padding: 8px 16px;
   border-radius: var(--radius-sm);
   font-size: 14px;
@@ -3522,8 +3525,8 @@ body {
   transition: all 0.15s;
 }
 .btn-danger-outline:hover {
-  background: rgba(239,68,68,0.08);
-  border-color: #ef4444;
+  background: var(--red-dim);
+  border-color: var(--red);
 }
 
 /* ============================================================
@@ -3613,7 +3616,7 @@ body {
 .script-card {
   background: var(--bg-secondary);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-md);
   margin-bottom: 8px;
   overflow: hidden;
   transition: border-color 0.12s;
@@ -3702,7 +3705,7 @@ body {
 .blc-creator-section {
   background: var(--bg-secondary);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-md);
   overflow: hidden;
 }
 
@@ -4390,7 +4393,7 @@ body {
 .payment-mark-btn {
   background: var(--yellow);
   border: none;
-  color: #000;
+  color: var(--text-primary);
   font-size: 13.5px;
   font-weight: 700;
   font-family: var(--font);
@@ -4648,9 +4651,9 @@ body {
 }
 
 .cl-creator-card {
-  background: var(--bg-card);
+  background: var(--bg-secondary);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-md);
   padding: 16px;
   cursor: pointer;
   transition: border-color 0.15s, transform 0.1s;
@@ -4660,7 +4663,7 @@ body {
   position: relative;
 }
 .cl-creator-card:hover {
-  border-color: var(--blue);
+  border-color: var(--accent);
   transform: translateY(-1px);
 }
 
@@ -4904,9 +4907,9 @@ a.cl-profile-handle:hover {
 }
 
 .cl-video-card {
-  background: var(--bg-card);
+  background: var(--bg-secondary);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-md);
   overflow: hidden;
   transition: border-color 0.15s, transform 0.1s;
 }
@@ -5671,15 +5674,16 @@ a.cl-profile-handle:hover {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: border-color 0.12s, background 0.12s;
-  color: #0a0a0a;
+  transition: border-color 0.12s, background 0.12s, color 0.12s;
+  color: transparent;
 }
 
-.focus-check:hover { border-color: var(--accent); }
+.focus-check:hover { border-color: var(--accent); color: var(--accent); }
 
 .focus-check.focus-checked {
   background: var(--green);
   border-color: var(--green);
+  color: #fff;
 }
 
 .focus-task-title {
@@ -5806,14 +5810,14 @@ a.cl-profile-handle:hover {
 }
 
 .filter-tab.active {
-  background: var(--text-primary) !important;
-  color: #FFFFFF !important;
+  background: var(--text-primary);
+  color: #FFFFFF;
   box-shadow: var(--shadow-xs);
 }
 
 .filter-tab.active .filter-count {
-  background: rgba(255,255,255,0.2) !important;
-  color: #FFFFFF !important;
+  background: rgba(255,255,255,0.2);
+  color: #FFFFFF;
 }
 
 /* ── Status pills ─────────────────────────────────────────── */
@@ -6468,8 +6472,8 @@ textarea:focus {
   font-weight: 700 !important;
 }
 .inline-status-select.status-key-counter_approved {
-  background: rgba(20,184,166,0.15) !important;
-  color: #0F766E !important;
+  background: rgba(79,70,229,0.12) !important;   /* indigo — matches badge-indigo */
+  color: #4338CA !important;
   font-weight: 700 !important;
 }
 .inline-status-select.status-key-counter_offered {
