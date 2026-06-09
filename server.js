@@ -37,6 +37,15 @@ app.set('trust proxy', 1);
 app.use(cors());
 app.use(express.json());
 
+// ── Challenge subdomain — redirect everything to signup ───────────
+app.use((req, res, next) => {
+  if (req.hostname === 'challenge.thebikiniline.co') {
+    if (req.path === '/challenge/signup' || req.path.startsWith('/challenge/checkin') || req.path.startsWith('/api/')) return next();
+    return res.redirect(301, '/challenge/signup');
+  }
+  next();
+});
+
 // ── Auth (before static so / redirects to login when password is set) ───
 app.use(requireAuth);
 app.use(express.static(path.join(__dirname, 'public')));
@@ -61,14 +70,6 @@ app.post('/api/logout', (req, res) => {
 });
 
 // ── Public challenge pages (no auth) ─────────────────────────────
-// Root redirect for challenge subdomain
-app.get('/', (req, res, next) => {
-  if (req.hostname === 'challenge.thebikiniline.co') {
-    return res.redirect(301, '/challenge/signup');
-  }
-  next();
-});
-
 app.get('/challenge/signup', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'challenge-signup.html'));
 });
