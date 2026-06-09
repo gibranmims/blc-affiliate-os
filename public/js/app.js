@@ -55,7 +55,8 @@ const state = {
   dailyTop2:          [],
   ideas:              [],
   monthlyGoal:        0,
-  monthlyRevenue:     0
+  monthlyRevenue:     0,
+  bfTab:              'overview'
 };
 
 const nbState = {
@@ -594,9 +595,10 @@ function navigate(page) {
     roster:       renderRosterPage,
     scripts:      renderScriptsPage,
     review:       renderForReviewPage,
-    finance:      renderFinancePage,
-    challenge:    renderChallengePage,
-    support:      renderSupportPage
+    finance:         renderFinancePage,
+    'brand-finance': renderBrandFinancePage,
+    challenge:       renderChallengePage,
+    support:         renderSupportPage
   };
   if (renderers[page]) renderers[page]();
 }
@@ -7083,4 +7085,975 @@ async function toggleCheckinFlag(checkinId, challengerId) {
     }
     if (state.currentPage === 'challenge') renderChallengePage();
   } catch (err) { showToast(err.message, 'error'); }
+}
+
+// ============================================================
+// BRAND FINANCE TRACKER  (bf_ namespace, localStorage-backed)
+// ============================================================
+
+// ── Constants ────────────────────────────────────────────────
+const BF_K = {
+  LOG:     'blc_weekly_log',
+  POS:     'blc_pos',
+  ACCOUNTS:'blc_accounts',
+  PRICING: 'blc_pricing_notes',
+  APIKEY:  'blc_apikey'
+};
+
+// ── Scan session state ────────────────────────────────────────
+let bf_scanContext = '', bf_scanData = null, bf_scanCallback = null;
+
+// ── Charts registry ──────────────────────────────────────────
+const bf_charts = {};
+function bf_destroyChart(id) {
+  if (bf_charts[id]) { bf_charts[id].destroy(); delete bf_charts[id]; }
+}
+
+// ── Utilities ────────────────────────────────────────────────
+function bf_uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
+
+function bf_$$(v, dec) {
+  dec = (dec === undefined) ? 2 : dec;
+  if (v === null || v === undefined || isNaN(v)) return '$—';
+  return '$' + Number(v).toLocaleString('en-US', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+}
+
+function bf_fmtDate(d) {
+  if (!d) return '—';
+  const dt = new Date(d + 'T00:00:00');
+  if (isNaN(dt.getTime())) return d;
+  return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function bf_fmtDateS(d) {
+  if (!d) return '—';
+  const dt = new Date(d + 'T00:00:00');
+  if (isNaN(dt.getTime())) return d;
+  return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+function bf_today() { return new Date().toISOString().split('T')[0]; }
+
+function bf_addDays(s, n) {
+  const d = new Date(s + 'T00:00:00');
+  d.setDate(d.getDate() + n);
+  return d.toISOString().split('T')[0];
+}
+
+function bf_daysFrom(s) {
+  if (!s) return null;
+  const t = new Date(); t.setHours(0, 0, 0, 0);
+  return Math.round((new Date(s + 'T00:00:00') - t) / 86400000);
+}
+
+function bf_N(v) { return Number(v || 0).toLocaleString('en-US'); }
+function bf_pct(v) { return v.toFixed(1) + '%'; }
+
+// ── Data ─────────────────────────────────────────────────────
+function bf_load(k)    { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } }
+function bf_save(k, v) { localStorage.setItem(k, JSON.stringify(v)); }
+function bf_getLog()    { return bf_load(BF_K.LOG)      || []; }
+function bf_getPOs()    { return bf_load(BF_K.POS)      || []; }
+function bf_getAccs()   { return bf_load(BF_K.ACCOUNTS) || {}; }
+function bf_getPNotes() { return bf_load(BF_K.PRICING)  || {}; }
+function bf_getApiKey() { return localStorage.getItem(BF_K.APIKEY) || ''; }
+
+function bf_seed() {
+  if (!bf_load(BF_K.PRICING)) {
+    bf_save(BF_K.PRICING, { '29.99': '', '34.99': '', '36.99': '' });
+  }
+}
+
+// ── Metrics ──────────────────────────────────────────────────
+function bf_latestLog() {
+  const l = bf_getLog();
+  if (!l.length) return null;
+  return [...l].sort((a, b) => b.week_ending.localeCompare(a.week_ending))[0];
+}
+function bf_sortedLog() {
+  return [...bf_getLog()].sort((a, b) => a.week_ending.localeCompare(b.week_ending));
+}
+function bf_last4() {
+  return [...bf_getLog()].sort((a, b) => b.week_ending.localeCompare(a.week_ending)).slice(0, 4);
+}
+function bf_wkU(w) { return (w.tiktok_orders || 0) + (w.amazon_orders || 0) + (w.website_orders || 0); }
+function bf_wkR(w) { return (w.tiktok_revenue || 0) + (w.amazon_revenue || 0) + (w.website_revenue || 0); }
+function bf_wkS(w) { return (w.tiktok_ad_spend || 0) + (w.amazon_ad_spend || 0) + (w.website_ad_spend || 0) + (w.google_spend || 0) + (w.meta_spend || 0); }
+
+function bf_avgDailyU() {
+  const w = bf_last4();
+  if (!w.length) return 0;
+  return w.reduce((s, x) => s + bf_wkU(x), 0) / (w.length * 7);
+}
+function bf_runway() {
+  const l = bf_latestLog(); if (!l) return null;
+  const v = bf_avgDailyU(); if (!v) return null;
+  return Math.round((l.inventory_units || 0) / v);
+}
+function bf_runwayPill(d) {
+  if (d > 45) return ['bf-pill-green',  '✅ You\'re good'];
+  if (d > 15) return ['bf-pill-yellow', '⚠️ Getting low'];
+  return             ['bf-pill-red',    '🚨 Order more now!'];
+}
+function bf_runwayColor(d) {
+  if (d > 45) return 'var(--green)';
+  if (d > 15) return 'var(--yellow)';
+  return 'var(--red)';
+}
+function bf_netPos() {
+  const a = bf_getAccs(), pos = bf_getPOs();
+  const liquid   = (a.feel_like_sunday?.balance || 0) + (a.mims_media?.balance || 0) + (a.personal_checking?.balance || 0);
+  const incoming = (a.tiktok_hold?.balance || 0) + (a.amazon_available?.balance || 0) + (a.amazon_deferred?.balance || 0);
+  const amex     = a.amex?.balance || 0;
+  const cutoff   = new Date(); cutoff.setDate(cutoff.getDate() + 30);
+  const posDue   = pos.filter(p => p.due_date && new Date(p.due_date + 'T00:00:00') <= cutoff && p.status !== 'paid')
+                      .reduce((s, p) => s + Math.max(0, (p.total_cost || 0) - (p.paid_to_date || 0)), 0);
+  return { liquid, incoming, amex, posDue, net: liquid + incoming - amex - posDue };
+}
+
+// ── Status badges ────────────────────────────────────────────
+function bf_statusBadge(s) {
+  const m = {
+    before_shipment:   ['bf-badge-gray',   '⏳ Before Shipment'],
+    before_production: ['bf-badge-gray',   '⏳ Before Production'],
+    on_order:          ['bf-badge-blue',   '📬 On Order'],
+    on_delivery:       ['bf-badge-yellow', '🚢 On Delivery'],
+    paid:              ['bf-badge-green',  '✅ Paid']
+  };
+  const [cls, label] = m[s] || ['bf-badge-gray', s || 'Unknown'];
+  return `<span class="bf-badge ${cls}">${label}</span>`;
+}
+function bf_statusOpts(sel) {
+  return [
+    ['before_shipment',   'Before Shipment'],
+    ['before_production', 'Before Production'],
+    ['on_order',          'On Order'],
+    ['on_delivery',       'On Delivery'],
+    ['paid',              'Paid']
+  ].map(([v, l]) => `<option value="${v}"${v === sel ? ' selected' : ''}>${l}</option>`).join('');
+}
+
+// ── API Key UI ────────────────────────────────────────────────
+function bf_updateKeyUI() {
+  const has = !!bf_getApiKey();
+  const dot = document.getElementById('bf-key-dot');
+  const lbl = document.getElementById('bf-key-label');
+  if (dot) dot.className = 'bf-key-dot' + (has ? ' ok' : '');
+  if (lbl) lbl.textContent = has ? 'API Key ✓ (click to change)' : 'Set API Key for Screenshots';
+}
+
+function bf_showApiKeyModal() {
+  const cur = bf_getApiKey();
+  openModal('🔑 Claude API Key', `
+    <p style="font-size:13px;color:var(--text-secondary);margin-bottom:18px;line-height:1.6">
+      The screenshot scanner uses <strong>Claude AI</strong> to read your screenshots and extract the numbers automatically.<br><br>
+      Get a free API key from <strong>anthropic.com → Console → API Keys</strong>.<br>
+      Your key is saved only on this device.
+    </p>
+    <div class="dp-form-group" style="margin-bottom:18px">
+      <label class="form-label">Anthropic API Key</label>
+      <input type="password" id="bf-api-key-input" class="dp-input" placeholder="sk-ant-api03-..." value="${esc(cur)}" autocomplete="off">
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-primary" onclick="bf_saveApiKeyFromModal()">Save Key</button>
+      ${cur ? `<button class="btn btn-danger-outline" onclick="bf_clearApiKey()">Remove Key</button>` : ''}
+      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+    </div>
+  `);
+}
+
+function bf_saveApiKeyFromModal() {
+  const v = document.getElementById('bf-api-key-input')?.value.trim();
+  if (!v) { showToast('Please enter a key', 'error'); return; }
+  localStorage.setItem(BF_K.APIKEY, v);
+  closeModal();
+  bf_updateKeyUI();
+  showToast('API key saved — screenshot scanning is ready!');
+}
+
+function bf_clearApiKey() {
+  if (!confirm('Remove the API key? Screenshot scanning will stop working.')) return;
+  localStorage.removeItem(BF_K.APIKEY);
+  closeModal();
+  bf_updateKeyUI();
+  showToast('API key removed');
+}
+
+// ── AI Screenshot Scanner ─────────────────────────────────────
+function bf_fileToB64(file) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = e => res(e.target.result.split(',')[1]);
+    r.onerror = rej;
+    r.readAsDataURL(file);
+  });
+}
+function bf_getMime(file) {
+  if (file.type === 'image/png')  return 'image/png';
+  if (file.type === 'image/webp') return 'image/webp';
+  if (file.type === 'image/gif')  return 'image/gif';
+  return 'image/jpeg';
+}
+async function bf_callClaude(b64, mime, prompt) {
+  const key = bf_getApiKey();
+  if (!key) throw new Error('NO_KEY');
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'x-api-key': key,
+      'anthropic-version': '2023-06-01',
+      'content-type': 'application/json',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-5',
+      max_tokens: 1024,
+      messages: [{ role: 'user', content: [
+        { type: 'image', source: { type: 'base64', media_type: mime, data: b64 } },
+        { type: 'text', text: prompt }
+      ] }]
+    })
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error?.message || `API error ${res.status}`);
+  }
+  const data = await res.json();
+  const text = data.content[0].text;
+  const match = text.match(/\{[\s\S]*\}/);
+  if (!match) throw new Error('Could not parse response — try a clearer screenshot');
+  return JSON.parse(match[0]);
+}
+
+const BF_PROMPTS = {
+  weekly: `You are reading an e-commerce sales dashboard screenshot. Extract all visible sales data.
+Return ONLY a JSON object with exactly these fields (use 0 for anything not visible, no dollar signs or commas):
+{"tiktok_orders":0,"tiktok_revenue":0,"tiktok_ad_spend":0,"amazon_orders":0,"amazon_revenue":0,"amazon_ad_spend":0,"website_orders":0,"website_revenue":0,"website_ad_spend":0,"google_spend":0,"meta_spend":0,"inventory_units":0}
+Return ONLY the JSON, no explanation.`,
+  accounts: `You are reading a financial screenshot (bank, Stripe, TikTok Shop, Amazon Seller Central, etc). Extract any dollar balances visible.
+Return ONLY a JSON object (use null for anything NOT visible, numbers only, no $ signs or commas):
+{"feel_like_sunday":null,"mims_media":null,"personal_checking":null,"investment":null,"amex_balance":null,"tiktok_hold":null,"tiktok_next_payout":null,"amazon_available":null,"amazon_deferred":null}
+Return ONLY the JSON, no explanation.`,
+  po: `You are reading an invoice, PO, or payment confirmation screenshot. Extract key details.
+Return ONLY a JSON object (numbers only, no $ or commas, dates as YYYY-MM-DD or empty string):
+{"vendor":"","description":"","total_cost":0,"paid_to_date":0,"due_date":"","notes":""}
+Return ONLY the JSON, no explanation.`
+};
+
+const BF_EXTRACT_LABELS = {
+  weekly:   { tiktok_orders: 'TikTok Orders', tiktok_revenue: 'TikTok Revenue', tiktok_ad_spend: 'TikTok Ad Spend', amazon_orders: 'Amazon Orders', amazon_revenue: 'Amazon Revenue', amazon_ad_spend: 'Amazon Ad Spend', website_orders: 'Website Orders', website_revenue: 'Website Revenue', google_spend: 'Google Ads', meta_spend: 'Meta Ads', inventory_units: 'Units In Stock' },
+  accounts: { feel_like_sunday: 'Feel Like Sunday LLC', mims_media: 'Mims Media', personal_checking: 'Personal Checking', investment: 'Investment', amex_balance: 'Amex Balance', tiktok_hold: 'TikTok On Hold', tiktok_next_payout: 'Next Payout', amazon_available: 'Amazon Available', amazon_deferred: 'Amazon Deferred' },
+  po:       { vendor: 'Vendor', description: 'Description', total_cost: 'Total Cost', paid_to_date: 'Paid So Far', due_date: 'Due Date', notes: 'Notes' }
+};
+
+function bf_showScanModal(context, callback) {
+  if (!bf_getApiKey()) { bf_showApiKeyModal(); return; }
+  bf_scanContext = context;
+  bf_scanData = null;
+  bf_scanCallback = callback;
+  openModal('📸 Scan Screenshot', `
+    <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px">Drop any screenshot — Claude will read the numbers automatically.</p>
+    <input type="file" id="bf-scan-file" accept="image/*" style="display:none" onchange="bf_handleScanFile(event)">
+    <div class="bf-drop-zone" id="bf-scan-dz" onclick="bf_triggerScanFile()" ondragover="bf_dzDragOver(event)" ondragleave="bf_dzDragLeave()" ondrop="bf_dzDrop(event)">
+      <div id="bf-scan-dz-inner">
+        <div style="font-size:28px;margin-bottom:8px">📸</div>
+        <div style="font-size:14px;font-weight:600;color:var(--text-primary);margin-bottom:4px">Drop your screenshot here</div>
+        <div style="font-size:12px;color:var(--text-muted)">or click to choose a file · PNG, JPG, WEBP</div>
+      </div>
+    </div>
+    <div id="bf-scan-extracted" style="display:none"></div>
+    <div id="bf-scan-actions" style="display:none;margin-top:14px;gap:8px">
+      <button class="btn btn-primary" onclick="bf_applyScanData()">✓ Use This Data</button>
+      <button class="btn btn-secondary" onclick="bf_resetScan()">Try Different Screenshot</button>
+      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+    </div>
+  `);
+}
+
+function bf_triggerScanFile() { document.getElementById('bf-scan-file')?.click(); }
+function bf_dzDragOver(e) { e.preventDefault(); document.getElementById('bf-scan-dz')?.classList.add('drag-over'); }
+function bf_dzDragLeave() { document.getElementById('bf-scan-dz')?.classList.remove('drag-over'); }
+function bf_dzDrop(e) { e.preventDefault(); bf_dzDragLeave(); const f = e.dataTransfer.files[0]; if (f) bf_processScanFile(f); }
+function bf_handleScanFile(e) { const f = e.target.files[0]; if (f) bf_processScanFile(f); }
+
+async function bf_processScanFile(file) {
+  const dz        = document.getElementById('bf-scan-dz');
+  const inner     = document.getElementById('bf-scan-dz-inner');
+  const extracted = document.getElementById('bf-scan-extracted');
+  const actions   = document.getElementById('bf-scan-actions');
+  if (!dz || !inner) return;
+  dz.className = 'bf-drop-zone loading';
+  inner.innerHTML = `<div class="spinner"></div><div style="font-size:14px;font-weight:600;color:var(--accent);margin-top:8px">Claude is reading your screenshot…</div><div style="font-size:12px;color:var(--text-muted);margin-top:4px">Usually takes 5–10 seconds</div>`;
+  try {
+    const b64  = await bf_fileToB64(file);
+    const mime = bf_getMime(file);
+    const data = await bf_callClaude(b64, mime, BF_PROMPTS[bf_scanContext]);
+    bf_scanData = data;
+    const imgUrl = URL.createObjectURL(file);
+    inner.innerHTML = `<img src="${imgUrl}" style="max-height:120px;max-width:100%;border-radius:8px;object-fit:contain">`;
+    dz.className = 'bf-drop-zone done';
+    const labels = BF_EXTRACT_LABELS[bf_scanContext] || {};
+    const rows = Object.entries(data).filter(([k, v]) => v !== null && v !== 0 && v !== '').map(([k, v]) => {
+      const label = labels[k] || k;
+      let display = v;
+      if (typeof v === 'number' && ['revenue','cost','spend','balance','hold','available','deferred','total_cost','paid_to_date','feel_like_sunday','mims_media','personal_checking','investment','amex_balance'].some(x => k.includes(x) || k === x)) display = bf_$$(v);
+      return `<div class="bf-extracted-row"><span class="bf-extracted-key">${label}</span><span class="bf-extracted-val">${esc(String(display))}</span></div>`;
+    });
+    if (extracted) {
+      extracted.innerHTML = rows.length
+        ? `<div class="bf-extracted-preview"><div class="bf-extracted-title">✅ Found This Data</div>${rows.join('')}</div>`
+        : `<div style="padding:14px;text-align:center;color:var(--yellow);font-size:13px">⚠️ Couldn't find any data. Try a different screenshot.</div>`;
+      extracted.style.display = 'block';
+      if (rows.length && actions) actions.style.display = 'flex';
+    }
+  } catch (err) {
+    if (dz) dz.className = 'bf-drop-zone error-state';
+    if (inner) inner.innerHTML = `<div style="font-size:24px;margin-bottom:8px">❌</div><div style="font-size:14px;font-weight:600;color:var(--red)">${err.message === 'NO_KEY' ? 'No API key set — click the key icon above' : 'Scan failed: ' + esc(err.message)}</div>`;
+    if (extracted) { extracted.innerHTML = `<div style="text-align:center;margin-top:12px"><button class="btn btn-secondary" onclick="bf_resetScan()">Try Again</button></div>`; extracted.style.display = 'block'; }
+  }
+}
+
+function bf_resetScan() {
+  bf_scanData = null;
+  const dz = document.getElementById('bf-scan-dz');
+  const inner = document.getElementById('bf-scan-dz-inner');
+  const extracted = document.getElementById('bf-scan-extracted');
+  const actions = document.getElementById('bf-scan-actions');
+  if (dz) dz.className = 'bf-drop-zone';
+  if (inner) inner.innerHTML = `<div style="font-size:28px;margin-bottom:8px">📸</div><div style="font-size:14px;font-weight:600;color:var(--text-primary);margin-bottom:4px">Drop your screenshot here</div><div style="font-size:12px;color:var(--text-muted)">or click to choose a file · PNG, JPG, WEBP</div>`;
+  if (extracted) extracted.style.display = 'none';
+  if (actions) actions.style.display = 'none';
+}
+function bf_applyScanData() {
+  if (!bf_scanData || !bf_scanCallback) return;
+  closeModal();
+  bf_scanCallback(bf_scanData);
+  bf_scanData = null;
+}
+
+// ── Scan callbacks ────────────────────────────────────────────
+function bf_applyWeeklyScan(data) {
+  const setVal = (name, val) => { const el = document.querySelector(`#bf-content [name="${name}"]`); if (el && val) el.value = val; };
+  setVal('tiktok_orders',   data.tiktok_orders   || '');
+  setVal('tiktok_revenue',  data.tiktok_revenue  || '');
+  setVal('tiktok_ad_spend', data.tiktok_ad_spend || '');
+  setVal('amazon_orders',   data.amazon_orders   || '');
+  setVal('amazon_revenue',  data.amazon_revenue  || '');
+  setVal('amazon_ad_spend', data.amazon_ad_spend || '');
+  setVal('website_orders',  data.website_orders  || '');
+  setVal('website_revenue', data.website_revenue || '');
+  setVal('google_spend',    data.google_spend    || '');
+  setVal('meta_spend',      data.meta_spend      || '');
+  setVal('inventory_units', data.inventory_units || '');
+  showToast('Form filled from screenshot — review and save');
+}
+function bf_applyAccountsScan(data) {
+  const a = bf_getAccs(), t = bf_today();
+  if (data.feel_like_sunday != null)  a.feel_like_sunday  = { ...a.feel_like_sunday,  balance: data.feel_like_sunday,  updated: t };
+  if (data.mims_media != null)        a.mims_media        = { ...a.mims_media,        balance: data.mims_media,        updated: t };
+  if (data.personal_checking != null) a.personal_checking = { ...a.personal_checking, balance: data.personal_checking, updated: t };
+  if (data.investment != null)        a.investment        = { ...a.investment,        balance: data.investment,        updated: t };
+  if (data.amex_balance != null)      a.amex              = { ...a.amex,              balance: data.amex_balance,      updated: t };
+  if (data.tiktok_hold != null)       a.tiktok_hold       = { ...a.tiktok_hold,       balance: data.tiktok_hold, next_payout: data.tiktok_next_payout || a.tiktok_hold?.next_payout || '', updated: t };
+  if (data.amazon_available != null)  a.amazon_available  = { ...a.amazon_available,  balance: data.amazon_available,  updated: t };
+  if (data.amazon_deferred != null)   a.amazon_deferred   = { ...a.amazon_deferred,   balance: data.amazon_deferred,   updated: t };
+  bf_save(BF_K.ACCOUNTS, a);
+  if (state.bfTab === 'accounts') bf_renderAccounts();
+  showToast('Account balances updated from screenshot ✓');
+}
+function bf_applyPOScan(data) {
+  const setVal = (name, val) => { const el = document.querySelector(`#modal-body [name="${name}"]`); if (el && val != null && val !== '') el.value = val; };
+  setVal('vendor', data.vendor); setVal('description', data.description);
+  setVal('total_cost', data.total_cost); setVal('paid_to_date', data.paid_to_date);
+  setVal('due_date', data.due_date); setVal('notes', data.notes);
+  showToast('PO form filled — review and save ✓');
+}
+
+// ── Main page ─────────────────────────────────────────────────
+function renderBrandFinancePage(tab) {
+  state.bfTab = tab || state.bfTab || 'overview';
+  bf_seed();
+  Object.keys(bf_charts).forEach(bf_destroyChart);
+
+  const tabs = [
+    { id: 'overview',  label: '📊 Overview' },
+    { id: 'weekly',    label: '📅 Weekly Log' },
+    { id: 'inventory', label: '📦 Inventory' },
+    { id: 'pricing',   label: '💲 Pricing Lab' },
+    { id: 'accounts',  label: '💰 Accounts' }
+  ];
+
+  document.getElementById('page-content').innerHTML = `
+    <div class="page-header" style="margin-bottom:0;align-items:flex-start">
+      <div>
+        <h1 class="page-title">BLC Tracker</h1>
+        <p class="page-subtitle">Internal brand financials — stock, revenue &amp; cash</p>
+      </div>
+      <div class="bf-key-area" onclick="bf_showApiKeyModal()">
+        <div class="bf-key-dot" id="bf-key-dot"></div>
+        <span id="bf-key-label">Set API Key</span>
+      </div>
+    </div>
+
+    <div class="bf-tabs">
+      ${tabs.map(t => `<button class="bf-tab${state.bfTab === t.id ? ' active' : ''}" onclick="renderBrandFinancePage('${t.id}')">${t.label}</button>`).join('')}
+    </div>
+
+    <div id="bf-content"></div>
+  `;
+
+  bf_updateKeyUI();
+
+  const subRenderers = { overview: bf_renderOverview, weekly: bf_renderWeeklyLog, inventory: bf_renderInventory, pricing: bf_renderPricing, accounts: bf_renderAccounts };
+  if (subRenderers[state.bfTab]) subRenderers[state.bfTab]();
+}
+
+// ── Overview tab ──────────────────────────────────────────────
+function bf_renderOverview() {
+  const latest   = bf_latestLog();
+  const rwy      = bf_runway();
+  const vel      = bf_avgDailyU();
+  const acc      = bf_getAccs();
+  const pos      = bf_getPOs();
+  const wRev     = latest ? bf_wkR(latest) : 0;
+  const cashPos  = (acc.feel_like_sunday?.balance || 0) - (acc.amex?.balance || 0);
+  const rwyCol   = rwy !== null ? bf_runwayColor(rwy) : 'var(--text-muted)';
+  const rwyFill  = rwy !== null ? Math.min(100, (rwy / 90) * 100) : 0;
+  const [pillCls, pillLbl] = rwy !== null ? bf_runwayPill(rwy) : ['bf-pill-gray', 'No data'];
+  const outPOs   = pos.filter(p => (p.total_cost || 0) - (p.paid_to_date || 0) > 0 && p.status !== 'paid');
+  let selloutStr = '—';
+  if (rwy !== null) { const sd = new Date(); sd.setDate(sd.getDate() + rwy); selloutStr = sd.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); }
+
+  document.getElementById('bf-content').innerHTML = `
+    <div class="bf-stat-grid">
+      <div class="bf-stat-card" style="border-color:${rwy !== null && rwy <= 15 ? 'var(--red)' : rwy !== null && rwy <= 45 ? 'var(--yellow)' : 'var(--border)'}">
+        <div class="bf-stat-label">📦 Days of Stock Left</div>
+        <div class="bf-stat-value" style="color:${rwyCol}">${rwy !== null ? rwy : '—'}</div>
+        <div class="bf-runway-bar"><div class="bf-runway-fill" style="width:${rwyFill}%;background:${rwyCol}"></div></div>
+        <span class="bf-pill ${pillCls}" style="margin-top:4px;display:inline-block">${pillLbl}</span>
+      </div>
+      <div class="bf-stat-card">
+        <div class="bf-stat-label">📈 Selling Per Day</div>
+        <div class="bf-stat-value">${vel.toFixed(1)}</div>
+        <div class="bf-stat-sub">avg units/day · ~${bf_N(Math.round(vel * 7))} this week</div>
+      </div>
+      <div class="bf-stat-card">
+        <div class="bf-stat-label">💵 This Week's Revenue</div>
+        <div class="bf-stat-value bf-mono">${bf_$$(wRev, 0)}</div>
+        <div class="bf-stat-sub">Week ending ${bf_fmtDate(latest?.week_ending)}</div>
+      </div>
+      <div class="bf-stat-card">
+        <div class="bf-stat-label">🏦 Cash After Amex</div>
+        <div class="bf-stat-value bf-mono" style="color:${cashPos < 0 ? 'var(--red)' : 'var(--green)'}">${bf_$$(cashPos, 0)}</div>
+        <div class="bf-stat-sub">FLS Checking minus Amex</div>
+      </div>
+    </div>
+
+    <div class="bf-g2">
+      <div class="bf-card" style="margin-bottom:0">
+        <div class="bf-section-title">Sales by Channel — Last 12 Weeks</div>
+        <div class="bf-chart-wrap"><canvas id="bf-ch-vel"></canvas></div>
+      </div>
+      <div class="bf-card" style="margin-bottom:0">
+        <div class="bf-section-title">Channel Mix This Week</div>
+        <div class="bf-chart-wrap"><canvas id="bf-ch-mix"></canvas></div>
+      </div>
+    </div>
+
+    <div class="bf-card" style="margin-top:16px">
+      <div class="bf-section-title">Outstanding Vendor Payments</div>
+      ${outPOs.length ? `
+        <div class="bf-table-wrap" style="margin-top:12px">
+          <table class="bf-table">
+            <thead><tr><th>Vendor</th><th>What For</th><th>Amount Due</th><th>Due Date</th><th>Status</th></tr></thead>
+            <tbody>${outPOs.map(p => `<tr>
+              <td>${esc(p.vendor)}</td><td class="ell">${esc(p.description)}</td>
+              <td class="mono">${bf_$$((p.total_cost || 0) - (p.paid_to_date || 0))}</td>
+              <td class="mono">${bf_fmtDate(p.due_date)}</td>
+              <td>${bf_statusBadge(p.status)}</td>
+            </tr>`).join('')}</tbody>
+          </table>
+        </div>
+      ` : `
+        <div class="bf-empty" style="margin-top:12px">
+          <div class="bf-empty-icon">✅</div>
+          <div class="bf-empty-title">All caught up!</div>
+          <div class="bf-empty-sub">No outstanding payments to vendors</div>
+        </div>
+      `}
+    </div>
+  `;
+  setTimeout(() => { bf_buildVelChart(); bf_buildMixChart(); }, 0);
+}
+
+// ── Charts ────────────────────────────────────────────────────
+const BF_GRID = 'rgba(0,0,0,0.04)';
+const BF_TICK = { color: '#aaa', font: { family: 'Inter', size: 10 } };
+const BF_TIP  = { backgroundColor: '#fff', titleColor: '#666', bodyColor: '#111', borderColor: '#e8e8ec', borderWidth: 1, padding: 10, cornerRadius: 6 };
+
+function bf_buildVelChart() {
+  bf_destroyChart('vel');
+  const data = bf_sortedLog().slice(-12);
+  const ctx  = document.getElementById('bf-ch-vel');
+  if (!ctx || !data.length || typeof Chart === 'undefined') return;
+  bf_charts['vel'] = new Chart(ctx, {
+    type: 'line',
+    data: { labels: data.map(w => bf_fmtDateS(w.week_ending)), datasets: [
+      { label: 'TikTok Shop', data: data.map(w => w.tiktok_orders  || 0), borderColor: '#16A34A', backgroundColor: 'rgba(22,163,74,0.06)',  tension: .35, fill: true, pointRadius: 3, pointBackgroundColor: '#16A34A' },
+      { label: 'Amazon',      data: data.map(w => w.amazon_orders  || 0), borderColor: '#2563EB', backgroundColor: 'rgba(37,99,235,0.06)',   tension: .35, fill: true, pointRadius: 3, pointBackgroundColor: '#2563EB' },
+      { label: 'Website',     data: data.map(w => w.website_orders || 0), borderColor: '#CA8A04', backgroundColor: 'rgba(202,138,4,0.06)',   tension: .35, fill: true, pointRadius: 3, pointBackgroundColor: '#CA8A04' }
+    ] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#888', font: { family: 'Inter', size: 11 }, boxWidth: 10, padding: 12, usePointStyle: true } }, tooltip: BF_TIP }, scales: { x: { grid: { color: BF_GRID }, ticks: BF_TICK }, y: { grid: { color: BF_GRID }, ticks: BF_TICK, beginAtZero: true } } }
+  });
+}
+function bf_buildMixChart() {
+  bf_destroyChart('mix');
+  const l = bf_latestLog();
+  const ctx = document.getElementById('bf-ch-mix');
+  if (!ctx || !l || typeof Chart === 'undefined') return;
+  const tt = l.tiktok_orders || 0, az = l.amazon_orders || 0, ws = l.website_orders || 0, total = tt + az + ws;
+  bf_charts['mix'] = new Chart(ctx, {
+    type: 'doughnut',
+    data: { labels: ['TikTok Shop', 'Amazon', 'Website'], datasets: [{ data: [tt, az, ws], backgroundColor: ['#16A34A', '#2563EB', '#CA8A04'], borderColor: '#fff', borderWidth: 3 }] },
+    options: { responsive: true, maintainAspectRatio: false, cutout: '62%', plugins: { legend: { position: 'bottom', labels: { color: '#888', font: { family: 'Inter', size: 11 }, boxWidth: 10, padding: 10, usePointStyle: true } }, tooltip: { ...BF_TIP, callbacks: { label: c => `${c.label}: ${total ? bf_pct(c.raw / total * 100) : '0%'} (${bf_N(c.raw)})` } } } }
+  });
+}
+function bf_buildPriceChart(rows) {
+  bf_destroyChart('price');
+  const ctx = document.getElementById('bf-ch-price');
+  if (!ctx || typeof Chart === 'undefined') return;
+  const labels = rows.map(([pp]) => '$' + pp);
+  const vals   = rows.map(([, weeks]) => (weeks.reduce((s, w) => s + bf_wkU(w), 0) / (weeks.length * 7)).toFixed(2));
+  bf_charts['price'] = new Chart(ctx, {
+    type: 'bar',
+    data: { labels, datasets: [{ label: 'Avg Units/Day', data: vals, backgroundColor: ['rgba(22,163,74,0.5)', 'rgba(22,163,74,0.75)', 'rgba(22,163,74,0.35)'], borderColor: 'var(--green)', borderWidth: 1, borderRadius: 6 }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: BF_TIP }, scales: { x: { grid: { color: BF_GRID }, ticks: BF_TICK }, y: { grid: { color: BF_GRID }, ticks: BF_TICK, beginAtZero: true } } }
+  });
+}
+
+// ── Weekly Log tab ────────────────────────────────────────────
+function bf_renderWeeklyLog() {
+  const log = [...bf_getLog()].sort((a, b) => b.week_ending.localeCompare(a.week_ending));
+  document.getElementById('bf-content').innerHTML = `
+    <div class="bf-scan-banner">
+      <div class="bf-scan-text"><strong>Got a screenshot?</strong> Drop it and Claude will fill in the form automatically.</div>
+      <button class="btn btn-secondary" onclick="bf_showScanModal('weekly', bf_applyWeeklyScan)">📸 Scan Screenshot</button>
+    </div>
+
+    <div class="bf-card">
+      <div class="bf-section-title">Add This Week's Numbers</div>
+      <form id="bf-log-form" onsubmit="bf_saveLog(event)" style="margin-top:14px">
+        <div class="bf-form-row cols-2">
+          <div class="bf-form-group"><label class="bf-form-label">Week Ending Date</label><input type="date" name="week_ending" class="dp-input" value="${bf_today()}" required></div>
+          <div class="bf-form-group"><label class="bf-form-label">Price You're Selling At</label>
+            <select name="price_point" class="dp-input"><option value="29.99">$29.99</option><option value="34.99" selected>$34.99</option><option value="36.99">$36.99</option><option value="custom">Custom</option></select>
+          </div>
+        </div>
+        <div class="bf-form-section">TikTok Shop</div>
+        <div class="bf-form-row cols-3">
+          <div class="bf-form-group"><label class="bf-form-label">Orders</label><input type="number" name="tiktok_orders" class="dp-input" placeholder="0" min="0" step="1"></div>
+          <div class="bf-form-group"><label class="bf-form-label">Revenue ($)</label><input type="number" name="tiktok_revenue" class="dp-input" placeholder="0.00" min="0" step="0.01"></div>
+          <div class="bf-form-group"><label class="bf-form-label">Ad Spend ($)</label><input type="number" name="tiktok_ad_spend" class="dp-input" placeholder="0.00" min="0" step="0.01"></div>
+        </div>
+        <div class="bf-form-section">Amazon</div>
+        <div class="bf-form-row cols-3">
+          <div class="bf-form-group"><label class="bf-form-label">Orders</label><input type="number" name="amazon_orders" class="dp-input" placeholder="0" min="0" step="1"></div>
+          <div class="bf-form-group"><label class="bf-form-label">Revenue ($)</label><input type="number" name="amazon_revenue" class="dp-input" placeholder="0.00" min="0" step="0.01"></div>
+          <div class="bf-form-group"><label class="bf-form-label">Ad Spend ($)</label><input type="number" name="amazon_ad_spend" class="dp-input" placeholder="0.00" min="0" step="0.01"></div>
+        </div>
+        <div class="bf-form-section">Website</div>
+        <div class="bf-form-row cols-3">
+          <div class="bf-form-group"><label class="bf-form-label">Orders</label><input type="number" name="website_orders" class="dp-input" placeholder="0" min="0" step="1"></div>
+          <div class="bf-form-group"><label class="bf-form-label">Revenue ($)</label><input type="number" name="website_revenue" class="dp-input" placeholder="0.00" min="0" step="0.01"></div>
+          <div class="bf-form-group"><label class="bf-form-label">Ad Spend ($)</label><input type="number" name="website_ad_spend" class="dp-input" placeholder="0.00" min="0" step="0.01"></div>
+        </div>
+        <div class="bf-form-section">Other Ad Spend &amp; Stock</div>
+        <div class="bf-form-row cols-3">
+          <div class="bf-form-group"><label class="bf-form-label">Google Ads ($)</label><input type="number" name="google_spend" class="dp-input" placeholder="0.00" min="0" step="0.01"></div>
+          <div class="bf-form-group"><label class="bf-form-label">Meta / Instagram Ads ($)</label><input type="number" name="meta_spend" class="dp-input" placeholder="0.00" min="0" step="0.01"></div>
+          <div class="bf-form-group"><label class="bf-form-label">Units In Stock Right Now</label><input type="number" name="inventory_units" class="dp-input" placeholder="0" min="0" step="1"></div>
+        </div>
+        <div class="bf-form-section">Notes (optional)</div>
+        <div class="bf-form-group" style="margin-bottom:14px"><textarea name="notes" class="dp-input" rows="2" placeholder="Anything notable this week?"></textarea></div>
+        <div style="display:flex;gap:8px">
+          <button type="submit" class="btn btn-primary">✓ Save This Week</button>
+          <button type="reset" class="btn btn-secondary">Reset</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="bf-card">
+      <div class="bf-section-title">History — ${log.length} Week${log.length !== 1 ? 's' : ''} Logged</div>
+      ${log.length ? `
+        <div class="bf-table-wrap" style="margin-top:12px">
+          <table class="bf-table">
+            <thead><tr><th>Week</th><th>TikTok</th><th>Amazon</th><th>Web</th><th>Total</th><th>Revenue</th><th>Ad Spend</th><th>ROAS</th><th>Price</th><th>Stock</th><th>Notes</th><th></th></tr></thead>
+            <tbody>${log.map(w => {
+              const u = bf_wkU(w), r = bf_wkR(w), s = bf_wkS(w), roas = s > 0 ? (r / s).toFixed(2) + 'x' : '—';
+              return `<tr>
+                <td class="mono">${bf_fmtDateS(w.week_ending)}</td>
+                <td class="mono">${bf_N(w.tiktok_orders || 0)}</td><td class="mono">${bf_N(w.amazon_orders || 0)}</td><td class="mono">${bf_N(w.website_orders || 0)}</td>
+                <td class="mono c-green" style="font-weight:600">${bf_N(u)}</td>
+                <td class="mono">${bf_$$(r, 0)}</td><td class="mono c-yellow">${bf_$$(s, 0)}</td>
+                <td class="mono">${roas}</td><td class="mono">$${esc(w.price_point)}</td><td class="mono">${bf_N(w.inventory_units || 0)}</td>
+                <td class="ell c-muted" style="max-width:160px;font-size:12px">${esc(w.notes) || '—'}</td>
+                <td><button class="btn btn-secondary" style="padding:3px 8px;font-size:11px" onclick="bf_deleteLog('${w.id}')">Delete</button></td>
+              </tr>`;
+            }).join('')}</tbody>
+          </table>
+        </div>
+      ` : `<div class="bf-empty" style="margin-top:12px"><div class="bf-empty-icon">📅</div><div class="bf-empty-title">No entries yet</div><div class="bf-empty-sub">Add your first week above</div></div>`}
+    </div>
+  `;
+}
+
+function bf_saveLog(e) {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const entry = { id: bf_uid(), week_ending: fd.get('week_ending'),
+    tiktok_orders: +fd.get('tiktok_orders') || 0,  tiktok_revenue: +fd.get('tiktok_revenue') || 0,   tiktok_ad_spend: +fd.get('tiktok_ad_spend') || 0,
+    amazon_orders: +fd.get('amazon_orders') || 0,  amazon_revenue: +fd.get('amazon_revenue') || 0,   amazon_ad_spend: +fd.get('amazon_ad_spend') || 0,
+    website_orders: +fd.get('website_orders') || 0, website_revenue: +fd.get('website_revenue') || 0, website_ad_spend: +fd.get('website_ad_spend') || 0,
+    google_spend: +fd.get('google_spend') || 0, meta_spend: +fd.get('meta_spend') || 0, inventory_units: +fd.get('inventory_units') || 0,
+    price_point: fd.get('price_point'), notes: fd.get('notes') };
+  const log = bf_getLog(); log.push(entry); bf_save(BF_K.LOG, log);
+  showToast('Week saved! ✓'); bf_renderWeeklyLog();
+  e.target.reset();
+  const wd = document.querySelector('#bf-content [name="week_ending"]'); if (wd) wd.value = bf_today();
+}
+function bf_deleteLog(id) {
+  if (!confirm('Delete this weekly entry?')) return;
+  bf_save(BF_K.LOG, bf_getLog().filter(w => w.id !== id));
+  showToast('Entry deleted'); bf_renderWeeklyLog();
+}
+
+// ── Inventory & POs tab ───────────────────────────────────────
+function bf_renderInventory() {
+  const latest    = bf_latestLog();
+  const rwy       = bf_runway();
+  const vel       = bf_avgDailyU();
+  const pos       = bf_getPOs();
+  const rwyCol    = rwy !== null ? bf_runwayColor(rwy) : 'var(--text-muted)';
+  const [pillCls, pillLbl] = rwy !== null ? bf_runwayPill(rwy) : ['bf-pill-gray', 'No data'];
+  const totalPO   = pos.reduce((s, p) => s + (p.total_cost || 0), 0);
+  const totalPaid = pos.reduce((s, p) => s + (p.paid_to_date || 0), 0);
+  let selloutStr = '—', selloutDate = null;
+  if (rwy !== null) { selloutDate = bf_addDays(bf_today(), rwy); selloutStr = bf_fmtDate(selloutDate); }
+
+  document.getElementById('bf-content').innerHTML = `
+    <div class="bf-stat-grid" style="grid-template-columns:repeat(4,1fr)">
+      <div class="bf-stat-card"><div class="bf-stat-label">📦 Stock On Hand</div><div class="bf-stat-value">${bf_N(latest?.inventory_units || 0)}</div><div class="bf-stat-sub">units right now</div></div>
+      <div class="bf-stat-card"><div class="bf-stat-label">📈 Selling Per Day</div><div class="bf-stat-value">${vel.toFixed(1)}</div><div class="bf-stat-sub">avg over last 4 weeks</div></div>
+      <div class="bf-stat-card" style="border-color:${rwy !== null && rwy <= 15 ? 'var(--red)' : rwy !== null && rwy <= 45 ? 'var(--yellow)' : 'var(--border)'}">
+        <div class="bf-stat-label">⏳ Days Until Sold Out</div>
+        <div class="bf-stat-value" style="color:${rwyCol}">${rwy !== null ? rwy : '—'}</div>
+        <span class="bf-pill ${pillCls}" style="margin-top:6px;display:inline-block;font-size:11px">${pillLbl}</span>
+      </div>
+      <div class="bf-stat-card"><div class="bf-stat-label">📅 Estimated Sellout</div><div class="bf-stat-value" style="font-size:16px;line-height:1.3">${selloutStr}</div><div class="bf-stat-sub">at current pace</div></div>
+    </div>
+
+    ${bf_buildTimeline(rwy, selloutDate)}
+
+    <div class="bf-card">
+      <div class="bf-section-hdr">
+        <div class="bf-section-title">Purchase Orders</div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-secondary" onclick="bf_showScanModal('po', data => { bf_showPOModal(); setTimeout(() => bf_applyPOScan(data), 100); })">📸 Scan Invoice</button>
+          <button class="btn btn-primary" onclick="bf_showPOModal()">+ Add PO</button>
+        </div>
+      </div>
+      <div class="bf-table-wrap">
+        <table class="bf-table">
+          <thead><tr><th>Vendor</th><th>What For</th><th>Total</th><th>Paid</th><th>Still Owe</th><th>Due Date</th><th>Status</th><th></th></tr></thead>
+          <tbody>${pos.length ? pos.map(p => {
+            const bal = (p.total_cost || 0) - (p.paid_to_date || 0);
+            return `<tr>
+              <td>${esc(p.vendor)}</td><td class="ell">${esc(p.description)}</td>
+              <td class="mono">${bf_$$(p.total_cost)}</td><td class="mono">${bf_$$(p.paid_to_date)}</td>
+              <td class="mono${bal > 0 ? ' c-yellow' : ''}"${bal > 0 ? ' style="font-weight:600"' : ''}>${bf_$$(bal)}</td>
+              <td class="mono">${bf_fmtDate(p.due_date)}</td><td>${bf_statusBadge(p.status)}</td>
+              <td style="white-space:nowrap;display:flex;gap:4px">
+                <button class="btn btn-secondary" style="padding:3px 8px;font-size:11px" onclick="bf_showPOModal('${p.id}')">Edit</button>
+                <button class="btn btn-danger-outline" style="padding:3px 8px;font-size:11px" onclick="bf_deletePO('${p.id}')">Del</button>
+              </td>
+            </tr>`;
+          }).join('') : `<tr><td colspan="8" style="text-align:center;padding:28px;color:var(--text-muted)">No purchase orders yet</td></tr>`}
+          </tbody>
+        </table>
+      </div>
+      <div class="bf-table-footer">
+        <div><div class="bf-footer-item-label">Total PO Value</div><div class="bf-footer-item-val">${bf_$$(totalPO)}</div></div>
+        <div><div class="bf-footer-item-label">Total Paid</div><div class="bf-footer-item-val" style="color:var(--green)">${bf_$$(totalPaid)}</div></div>
+        <div><div class="bf-footer-item-label">Still Owe</div><div class="bf-footer-item-val" style="color:var(--yellow)">${bf_$$(totalPO - totalPaid)}</div></div>
+      </div>
+    </div>
+  `;
+}
+
+function bf_buildTimeline(rwy, selloutDate) {
+  if (rwy === null || !selloutDate) return '';
+  const dTotal  = Math.max(rwy + 60, 120);
+  const sPct    = Math.min(95, (rwy / dTotal) * 100);
+  const aPct    = Math.min(98, ((rwy + 50) / dTotal) * 100);
+  const warn    = sPct > aPct || aPct > 95;
+  const arrDate = bf_addDays(selloutDate, 50);
+  const rCol    = bf_runwayColor(rwy);
+  return `
+  <div class="bf-timeline-wrap">
+    <div class="bf-timeline-label">Restock Timeline</div>
+    <div class="bf-timeline-sub">China shipping takes ~50 days — order before you sell out!</div>
+    <div class="bf-t-track">
+      ${warn ? `<div class="bf-warn-zone" style="left:${sPct}%;right:${100 - Math.min(98, aPct)}%"></div>` : ''}
+      <div class="bf-t-fill" style="width:${sPct}%;background:${rCol}"></div>
+      ${[[0, 'Today', bf_today(), 'var(--text-primary)'], [sPct, 'Sell Out', selloutDate, rCol], [aPct, 'Est. Arrival', arrDate, 'var(--blue)']].map(([p, l, d, c]) =>
+        `<div class="bf-t-marker" style="left:${p}%"><div class="bf-t-dot" style="background:${c}"></div><div class="bf-t-label" style="color:${c}">${l}</div><div class="bf-t-date">${bf_fmtDateS(d)}</div></div>`
+      ).join('')}
+    </div>
+    ${warn ? `<div style="font-size:13px;color:var(--red);font-weight:600;margin-top:8px">⚠️ Your stock runs out before your next order arrives — place a reorder now!</div>`
+           : `<div style="font-size:12px;color:var(--text-muted);margin-top:8px">✅ You have time — estimated arrival is before sellout.</div>`}
+  </div>`;
+}
+
+function bf_showPOModal(id) {
+  const po = id ? bf_getPOs().find(p => p.id === id) : null;
+  openModal(po ? 'Edit Purchase Order' : 'Add Purchase Order', `
+    <form onsubmit="bf_savePO(event,'${id || ''}')">
+      <div class="bf-form-row cols-2" style="margin-bottom:12px">
+        <div class="bf-form-group"><label class="bf-form-label">Vendor Name</label><input type="text" name="vendor" class="dp-input" value="${esc(po?.vendor || '')}" required></div>
+        <div class="bf-form-group"><label class="bf-form-label">Status</label><select name="status" class="dp-input">${bf_statusOpts(po?.status || 'before_shipment')}</select></div>
+      </div>
+      <div class="bf-form-group" style="margin-bottom:12px"><label class="bf-form-label">What Is This Order?</label><input type="text" name="description" class="dp-input" value="${esc(po?.description || '')}" required></div>
+      <div class="bf-form-row cols-2" style="margin-bottom:12px">
+        <div class="bf-form-group"><label class="bf-form-label">Total Cost ($)</label><input type="number" name="total_cost" class="dp-input" value="${po?.total_cost || ''}" step="0.01" min="0" required></div>
+        <div class="bf-form-group"><label class="bf-form-label">Already Paid ($)</label><input type="number" name="paid_to_date" class="dp-input" value="${po?.paid_to_date || 0}" step="0.01" min="0"></div>
+      </div>
+      <div class="bf-form-row cols-2" style="margin-bottom:12px">
+        <div class="bf-form-group"><label class="bf-form-label">Due Date</label><input type="date" name="due_date" class="dp-input" value="${po?.due_date || ''}"></div>
+        <div class="bf-form-group"><label class="bf-form-label">2nd Payment Date</label><input type="date" name="payment_date_2" class="dp-input" value="${po?.payment_date_2 || ''}"></div>
+      </div>
+      <div class="bf-form-group" style="margin-bottom:16px"><label class="bf-form-label">Notes</label><textarea name="notes" class="dp-input" rows="2">${esc(po?.notes || '')}</textarea></div>
+      <div style="display:flex;gap:8px">
+        <button type="submit" class="btn btn-primary">Save PO</button>
+        <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+      </div>
+    </form>
+  `);
+}
+function bf_savePO(e, id) {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const entry = { id: id || bf_uid(), vendor: fd.get('vendor'), description: fd.get('description'),
+    total_cost: +fd.get('total_cost') || 0, paid_to_date: +fd.get('paid_to_date') || 0,
+    due_date: fd.get('due_date'), payment_date_2: fd.get('payment_date_2'), status: fd.get('status'), notes: fd.get('notes') };
+  let pos = bf_getPOs();
+  if (id) pos = pos.map(p => p.id === id ? entry : p); else pos.push(entry);
+  bf_save(BF_K.POS, pos); closeModal(); showToast('PO saved ✓'); bf_renderInventory();
+}
+function bf_deletePO(id) {
+  if (!confirm('Delete this PO?')) return;
+  bf_save(BF_K.POS, bf_getPOs().filter(p => p.id !== id)); showToast('PO deleted'); bf_renderInventory();
+}
+
+// ── Pricing Lab tab ───────────────────────────────────────────
+function bf_renderPricing() {
+  const log    = bf_getLog();
+  const notes  = bf_getPNotes();
+  const groups = {};
+  log.forEach(w => { const pp = w.price_point || '?'; if (!groups[pp]) groups[pp] = []; groups[pp].push(w); });
+  const rows = Object.entries(groups).sort((a, b) => parseFloat(a[0] || 0) - parseFloat(b[0] || 0));
+
+  document.getElementById('bf-content').innerHTML = `
+    <div class="bf-g3-1">
+      <div class="bf-card" style="margin-bottom:0">
+        <div class="bf-section-title">Which Price Sells Best?</div>
+        ${rows.length ? `
+          <div class="bf-table-wrap" style="margin-top:12px">
+            <table class="bf-table">
+              <thead><tr><th>Price</th><th>Weeks Tested</th><th>Avg Sales/Day</th><th>Avg Rev/Day</th><th>Total Units</th><th>Total Revenue</th></tr></thead>
+              <tbody>${rows.map(([pp, weeks]) => {
+                const tU = weeks.reduce((s, w) => s + bf_wkU(w), 0), tR = weeks.reduce((s, w) => s + bf_wkR(w), 0), days = weeks.length * 7;
+                return `<tr>
+                  <td class="mono c-green" style="font-size:16px;font-weight:700">$${esc(pp)}</td>
+                  <td class="mono">${weeks.length}</td>
+                  <td class="mono" style="font-weight:600">${(tU / days).toFixed(1)}</td>
+                  <td class="mono">${bf_$$(tR / days)}</td>
+                  <td class="mono">${bf_N(tU)}</td>
+                  <td class="mono">${bf_$$(tR, 0)}</td>
+                </tr>`;
+              }).join('')}</tbody>
+            </table>
+          </div>
+          <div class="bf-chart-wrap" style="height:180px;margin-top:16px"><canvas id="bf-ch-price"></canvas></div>
+        ` : `<div class="bf-empty" style="margin-top:12px"><div class="bf-empty-icon">💲</div><div class="bf-empty-title">No data yet</div><div class="bf-empty-sub">Add weekly log entries to see price analysis</div></div>`}
+      </div>
+      <div class="bf-card" style="margin-bottom:0">
+        <div class="bf-section-title">Notes Per Price</div>
+        <p style="font-size:12px;color:var(--text-muted);margin:8px 0 16px">Auto-saves when you click away</p>
+        ${['29.99', '34.99', '36.99'].map(pp => `
+          <div style="margin-bottom:20px">
+            <div style="font-family:var(--font-heading);font-size:18px;font-weight:700;color:var(--green);margin-bottom:6px">$${pp}</div>
+            <textarea class="dp-input" rows="3" onblur="bf_savePricingNote('${pp}', this.value)" placeholder="How did this price feel?">${esc(notes[pp] || '')}</textarea>
+          </div>`).join('')}
+      </div>
+    </div>
+  `;
+  if (rows.length) setTimeout(() => bf_buildPriceChart(rows), 0);
+}
+function bf_savePricingNote(pp, val) { const n = bf_getPNotes(); n[pp] = val; bf_save(BF_K.PRICING, n); }
+
+// ── Accounts tab ──────────────────────────────────────────────
+function bf_renderAccounts() {
+  const a        = bf_getAccs();
+  const net      = bf_netPos();
+  const pos      = bf_getPOs();
+  const cutoff   = new Date(); cutoff.setDate(cutoff.getDate() + 30);
+  const upcoming = pos.filter(p => p.due_date && new Date(p.due_date + 'T00:00:00') <= cutoff && p.status !== 'paid');
+  const netCol   = net.net >= 0 ? 'var(--green)' : 'var(--red)';
+  const [pillCls, pillLbl] = net.net >= 0 ? ['bf-pill-green', '✅ Positive'] : ['bf-pill-red', '⚠️ In the Red'];
+
+  document.getElementById('bf-content').innerHTML = `
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:16px">
+      <button class="btn btn-secondary" onclick="bf_showScanModal('accounts', bf_applyAccountsScan)">📸 Scan Screenshot</button>
+      <button class="btn btn-primary" onclick="bf_showAccsModal()">Update Balances</button>
+    </div>
+
+    <div class="bf-g2" style="align-items:start">
+      <div class="bf-card" style="margin-bottom:0;border-color:${netCol}">
+        <div class="bf-section-title" style="margin-bottom:12px">How It All Adds Up</div>
+        <div class="bf-calc-row"><span style="color:var(--text-secondary)">💵 Cash in Business Accounts</span><span class="bf-calc-val">${bf_$$(net.liquid)}</span></div>
+        <div class="bf-calc-row"><span style="color:var(--green)">📥 + Money Coming In</span><span class="bf-calc-val" style="color:var(--green)">+ ${bf_$$(net.incoming)}</span></div>
+        <div class="bf-calc-row"><span style="color:var(--red)">💳 − Amex Balance Owed</span><span class="bf-calc-val" style="color:var(--red)">− ${bf_$$(net.amex)}</span></div>
+        <div class="bf-calc-row" style="border-bottom:none"><span style="color:var(--yellow)">📦 − Vendor Bills (30 days)</span><span class="bf-calc-val" style="color:var(--yellow)">− ${bf_$$(net.posDue)}</span></div>
+        <div style="height:1px;background:var(--border);margin:8px 0"></div>
+        <div class="bf-calc-total"><span>= Your Real Position</span><span class="bf-calc-total-val" style="color:${netCol}">${bf_$$(net.net)}</span></div>
+      </div>
+      <div class="bf-card" style="margin-bottom:0;border-color:${netCol};text-align:center">
+        <div class="bf-net-hero">
+          <div class="bf-net-hero-label">Your Real Position</div>
+          <div class="bf-net-hero-val" style="color:${netCol}">${bf_$$(net.net, 0)}</div>
+          <span class="bf-pill ${pillCls}" style="display:inline-block;margin-top:12px">${pillLbl}</span>
+          <div style="font-size:12px;color:var(--text-muted);margin-top:8px">After Amex + vendor bills due soon</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="bf-section-label-row">Business &amp; Personal Cash</div>
+    <div class="bf-acct-grid">
+      ${bf_aCard('Feel Like Sunday LLC', 'Primary Business Account', a.feel_like_sunday)}
+      ${bf_aCard('Mims Media Collective', 'Secondary Business', a.mims_media)}
+      ${bf_aCard('Personal Checking', 'Personal Account', a.personal_checking)}
+      ${bf_aCard('Investment Account', 'Stocks / Portfolio', a.investment)}
+    </div>
+
+    <div class="bf-section-label-row">Credit Cards</div>
+    <div class="bf-acct-grid" style="margin-bottom:20px">
+      <div class="bf-acct-card" style="border-color:var(--red)">
+        <div class="bf-acct-name">American Express Business Gold</div>
+        <div class="bf-acct-sub">Balance you owe</div>
+        <div class="bf-acct-bal" style="color:var(--red)">${bf_$$(a.amex?.balance)}</div>
+        <div class="bf-acct-upd">Last payment: ${bf_$$(a.amex?.last_payment || 0)} on ${bf_fmtDate(a.amex?.last_payment_date) || '—'}</div>
+        <div class="bf-acct-upd">Updated ${bf_fmtDate(a.amex?.updated) || '—'}</div>
+      </div>
+    </div>
+
+    <div class="bf-section-label-row">Money Coming In (Pending)</div>
+    <div class="bf-acct-grid" style="margin-bottom:20px">
+      <div class="bf-acct-card" style="border-color:var(--green)">
+        <div class="bf-acct-name">TikTok Shop — On Hold</div>
+        <div class="bf-acct-sub">Waiting to release</div>
+        <div class="bf-acct-bal" style="color:var(--green)">${bf_$$(a.tiktok_hold?.balance)}</div>
+        <div class="bf-acct-upd">Next payout: ${bf_fmtDate(a.tiktok_hold?.next_payout) || 'Unknown'}</div>
+        <div class="bf-acct-upd">Updated ${bf_fmtDate(a.tiktok_hold?.updated) || '—'}</div>
+      </div>
+      <div class="bf-acct-card" style="border-color:var(--blue)">
+        <div class="bf-acct-name">Amazon — Available</div>
+        <div class="bf-acct-sub">Ready to transfer to bank</div>
+        <div class="bf-acct-bal" style="color:var(--blue)">${bf_$$(a.amazon_available?.balance)}</div>
+        <div class="bf-acct-upd">Updated ${bf_fmtDate(a.amazon_available?.updated) || '—'}</div>
+      </div>
+      <div class="bf-acct-card" style="border-color:var(--blue)">
+        <div class="bf-acct-name">Amazon — Deferred</div>
+        <div class="bf-acct-sub">In transit, not yet available</div>
+        <div class="bf-acct-bal" style="color:var(--blue)">${bf_$$(a.amazon_deferred?.balance)}</div>
+        <div class="bf-acct-upd">Updated ${bf_fmtDate(a.amazon_deferred?.updated) || '—'}</div>
+      </div>
+    </div>
+
+    ${upcoming.length ? `
+      <div class="bf-section-label-row" style="color:var(--yellow)">⚠️ Vendor Payments Due in 30 Days</div>
+      <div class="bf-card">
+        <div class="bf-table-wrap">
+          <table class="bf-table">
+            <thead><tr><th>Vendor</th><th>What For</th><th>Amount Due</th><th>Due Date</th><th>Days Left</th><th>Status</th></tr></thead>
+            <tbody>${upcoming.map(p => {
+              const d = bf_daysFrom(p.due_date);
+              return `<tr>
+                <td>${esc(p.vendor)}</td><td class="ell">${esc(p.description)}</td>
+                <td class="mono c-yellow" style="font-weight:600">${bf_$$((p.total_cost || 0) - (p.paid_to_date || 0))}</td>
+                <td class="mono">${bf_fmtDate(p.due_date)}</td>
+                <td class="mono${d !== null && d < 7 ? ' c-red' : d !== null && d < 14 ? ' c-yellow' : ''}" style="font-weight:600">${d !== null ? (d < 0 ? '⚠️ Overdue' : d + ' days') : '—'}</td>
+                <td>${bf_statusBadge(p.status)}</td>
+              </tr>`;
+            }).join('')}</tbody>
+          </table>
+        </div>
+      </div>
+    ` : ''}
+  `;
+}
+
+function bf_aCard(name, sub, data) {
+  return `<div class="bf-acct-card"><div class="bf-acct-name">${name}</div><div class="bf-acct-sub">${sub}</div><div class="bf-acct-bal">${bf_$$(data?.balance)}</div><div class="bf-acct-upd">Updated ${bf_fmtDate(data?.updated) || '—'}</div></div>`;
+}
+
+function bf_showAccsModal() {
+  const a = bf_getAccs();
+  openModal('Update Account Balances', `
+    <form onsubmit="bf_saveAccs(event)">
+      <div class="bf-form-section">Business &amp; Personal Cash</div>
+      <div class="bf-form-row cols-2" style="margin-bottom:12px">
+        <div class="bf-form-group"><label class="bf-form-label">Feel Like Sunday LLC ($)</label><input type="number" name="feel_like_sunday" class="dp-input" value="${a.feel_like_sunday?.balance || 0}" step="0.01"></div>
+        <div class="bf-form-group"><label class="bf-form-label">Mims Media Collective ($)</label><input type="number" name="mims_media" class="dp-input" value="${a.mims_media?.balance || 0}" step="0.01"></div>
+      </div>
+      <div class="bf-form-row cols-2" style="margin-bottom:12px">
+        <div class="bf-form-group"><label class="bf-form-label">Personal Checking ($)</label><input type="number" name="personal_checking" class="dp-input" value="${a.personal_checking?.balance || 0}" step="0.01"></div>
+        <div class="bf-form-group"><label class="bf-form-label">Investment Account ($)</label><input type="number" name="investment" class="dp-input" value="${a.investment?.balance || 0}" step="0.01"></div>
+      </div>
+      <div class="bf-form-section">American Express</div>
+      <div class="bf-form-row cols-3" style="margin-bottom:12px">
+        <div class="bf-form-group"><label class="bf-form-label">Amex Balance ($)</label><input type="number" name="amex_balance" class="dp-input" value="${a.amex?.balance || 0}" step="0.01"></div>
+        <div class="bf-form-group"><label class="bf-form-label">Last Payment ($)</label><input type="number" name="amex_last_payment" class="dp-input" value="${a.amex?.last_payment || 0}" step="0.01"></div>
+        <div class="bf-form-group"><label class="bf-form-label">Last Payment Date</label><input type="date" name="amex_last_payment_date" class="dp-input" value="${a.amex?.last_payment_date || ''}"></div>
+      </div>
+      <div class="bf-form-section">TikTok Shop</div>
+      <div class="bf-form-row cols-2" style="margin-bottom:12px">
+        <div class="bf-form-group"><label class="bf-form-label">On Hold Balance ($)</label><input type="number" name="tiktok_hold" class="dp-input" value="${a.tiktok_hold?.balance || 0}" step="0.01"></div>
+        <div class="bf-form-group"><label class="bf-form-label">Next Payout Date</label><input type="date" name="tiktok_next_payout" class="dp-input" value="${a.tiktok_hold?.next_payout || ''}"></div>
+      </div>
+      <div class="bf-form-section">Amazon</div>
+      <div class="bf-form-row cols-2" style="margin-bottom:12px">
+        <div class="bf-form-group"><label class="bf-form-label">Available Balance ($)</label><input type="number" name="amazon_available" class="dp-input" value="${a.amazon_available?.balance || 0}" step="0.01"></div>
+        <div class="bf-form-group"><label class="bf-form-label">Deferred Balance ($)</label><input type="number" name="amazon_deferred" class="dp-input" value="${a.amazon_deferred?.balance || 0}" step="0.01"></div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button type="submit" class="btn btn-primary">Save Everything</button>
+        <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+      </div>
+    </form>
+  `);
+}
+function bf_saveAccs(e) {
+  e.preventDefault();
+  const fd = new FormData(e.target), t = bf_today();
+  bf_save(BF_K.ACCOUNTS, {
+    feel_like_sunday:  { balance: +fd.get('feel_like_sunday')   || 0, updated: t },
+    mims_media:        { balance: +fd.get('mims_media')         || 0, updated: t },
+    personal_checking: { balance: +fd.get('personal_checking')  || 0, updated: t },
+    investment:        { balance: +fd.get('investment')         || 0, updated: t },
+    amex:              { balance: +fd.get('amex_balance')       || 0, last_payment: +fd.get('amex_last_payment') || 0, last_payment_date: fd.get('amex_last_payment_date'), updated: t },
+    tiktok_hold:       { balance: +fd.get('tiktok_hold')        || 0, next_payout: fd.get('tiktok_next_payout'), updated: t },
+    amazon_available:  { balance: +fd.get('amazon_available')   || 0, updated: t },
+    amazon_deferred:   { balance: +fd.get('amazon_deferred')    || 0, updated: t }
+  });
+  closeModal(); showToast('Accounts updated ✓'); bf_renderAccounts();
 }
