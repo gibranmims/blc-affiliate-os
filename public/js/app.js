@@ -5830,7 +5830,7 @@ function renderChallengePage() {
   document.getElementById('page-content').innerHTML = `
     <div class="page-header">
       <div>
-        <h1 class="page-title">Before & After Challenge</h1>
+        <h1 class="page-title">Before & Afters</h1>
         <p class="page-subtitle">Win Your Money Back · ${total} total entrant${total !== 1 ? 's' : ''}</p>
       </div>
       <div style="display:flex;gap:8px;align-items:center">
