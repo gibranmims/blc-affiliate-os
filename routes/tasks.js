@@ -44,6 +44,8 @@ router.put('/:id', async (req, res) => {
     const updates = {};
     if (req.body.title     !== undefined) updates.title     = req.body.title.trim();
     if (req.body.completed !== undefined) updates.completed = req.body.completed;
+    if (req.body.notes     !== undefined) updates.notes     = req.body.notes;
+    if (req.body.archived  !== undefined) updates.archived  = req.body.archived;
     const { data, error } = await supabase()
       .from('tasks')
       .update(updates)

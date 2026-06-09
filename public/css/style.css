@@ -5582,22 +5582,52 @@ a.cl-profile-handle:hover {
   color: var(--text-secondary);
   line-height: 1.4;
   word-break: break-word;
+  cursor: pointer;
 }
 
-.focus-del {
+.focus-task-title:hover { color: var(--text-primary); }
+
+.focus-has-notes {
+  color: var(--accent);
+  font-size: 16px;
+  line-height: 1;
+  vertical-align: middle;
+  margin-left: 1px;
+}
+
+.focus-archive-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 10.5px;
+  font-weight: 500;
+  color: transparent;
+  padding: 2px 5px;
+  border-radius: 4px;
+  font-family: var(--font);
+  transition: background 0.1s, color 0.1s;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.focus-task:hover .focus-archive-btn { color: var(--text-muted); }
+.focus-archive-btn:hover { background: var(--bg-tertiary); color: var(--text-secondary) !important; }
+
+.focus-edit-btn {
   background: none;
   border: none;
   cursor: pointer;
   color: transparent;
-  font-size: 14px;
-  line-height: 1;
-  padding: 0 2px;
-  transition: color 0.1s;
+  padding: 3px 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  transition: background 0.1s, color 0.1s;
   flex-shrink: 0;
 }
 
-.focus-task:hover .focus-del { color: var(--text-muted); }
-.focus-del:hover { color: var(--red) !important; }
+.focus-task:hover .focus-edit-btn { color: var(--text-muted); }
+.focus-edit-btn:hover { background: var(--bg-tertiary); color: var(--text-secondary) !important; }
 
 /* Inline add row */
 .focus-add-row { border-bottom: none !important; }

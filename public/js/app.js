@@ -5804,7 +5804,7 @@ async function loadTasks() {
 
 function renderTaskList(assignee) {
   const tasks = state.tasks
-    .filter(t => t.assignee === assignee)
+    .filter(t => t.assignee === assignee && !t.archived)
     .sort((a, b) => {
       if (a.completed !== b.completed) return a.completed ? 1 : -1;
       return new Date(a.created_at) - new Date(b.created_at);
@@ -5817,8 +5817,11 @@ function renderTaskList(assignee) {
       <button class="focus-check${t.completed ? ' focus-checked' : ''}" onclick="toggleTask('${t.id}')">
         ${t.completed ? `<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5"><polyline points="20 6 9 17 4 12"/></svg>` : ''}
       </button>
-      <span class="focus-task-title">${esc(t.title)}</span>
-      <button class="focus-del" onclick="deleteTask('${t.id}')" title="Remove">×</button>
+      <span class="focus-task-title" onclick="openTaskDetail('${t.id}')">${esc(t.title)}${t.notes ? ` <span class="focus-has-notes" title="Has notes">·</span>` : ''}</span>
+      ${t.completed ? `<button class="focus-archive-btn" onclick="archiveTask('${t.id}')" title="Archive">Archive</button>` : ''}
+      <button class="focus-edit-btn" onclick="openTaskDetail('${t.id}')" title="Edit">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+      </button>
     </div>
   `).join('');
 }
@@ -5882,6 +5885,66 @@ async function deleteTask(id) {
     state.tasks = state.tasks.filter(t => t.id !== id);
     refreshTaskBoard();
   } catch (err) { showToast(err.message, 'error'); }
+}
+
+async function archiveTask(id) {
+  try {
+    await fetchAPI(`${API.tasks}/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ archived: true })
+    });
+    state.tasks = state.tasks.filter(t => t.id !== id);
+    closeModal();
+    refreshTaskBoard();
+    showToast('Task archived');
+  } catch (err) { showToast(err.message, 'error'); }
+}
+
+function openTaskDetail(id) {
+  const t = state.tasks.find(t => t.id === id);
+  if (!t) return;
+  openModal('Task', `
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div class="form-group">
+        <label class="form-label">Title</label>
+        <input class="form-input" id="td-title" value="${esc(t.title)}" placeholder="Task name" maxlength="120">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Notes &amp; Links</label>
+        <textarea class="form-input" id="td-notes" rows="5" placeholder="Add notes, context, or paste links here…" style="resize:vertical">${esc(t.notes || '')}</textarea>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:space-between;padding-top:4px">
+        <div style="display:flex;gap:8px">
+          ${t.completed ? `<button class="btn btn-secondary btn-sm" onclick="archiveTask('${id}')">Archive</button>` : ''}
+          <button class="btn btn-danger btn-sm" onclick="deleteTaskModal('${id}')">Delete</button>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="saveTaskDetail('${id}')">Save</button>
+      </div>
+    </div>
+  `);
+  setTimeout(() => document.getElementById('td-title')?.focus(), 60);
+}
+
+async function saveTaskDetail(id) {
+  const title = document.getElementById('td-title')?.value.trim();
+  const notes = document.getElementById('td-notes')?.value.trim();
+  if (!title) { showToast('Title is required', 'error'); return; }
+  try {
+    const updated = await fetchAPI(`${API.tasks}/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ title, notes: notes || null })
+    });
+    const i = state.tasks.findIndex(t => t.id === id);
+    if (i !== -1) state.tasks[i] = updated;
+    closeModal();
+    refreshTaskBoard();
+    showToast('Saved');
+  } catch (err) { showToast(err.message, 'error'); }
+}
+
+async function deleteTaskModal(id) {
+  await deleteTask(id);
+  closeModal();
 }
 
 function renderHomePage() {
