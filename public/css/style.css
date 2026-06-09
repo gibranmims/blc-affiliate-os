@@ -6049,7 +6049,7 @@ textarea:focus {
 .home-urgent-item {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   padding: 10px 14px;
   background: rgba(220,38,38,0.04);
   border: 1px solid rgba(220,38,38,0.14);
@@ -6083,6 +6083,21 @@ textarea:focus {
 .ua-gibran  { background: rgba(79,70,229,0.12);  color: var(--accent); }
 .ua-lu      { background: rgba(20,184,166,0.12);  color: #0d9488; }
 .ua-founder { background: rgba(124,58,237,0.12);  color: var(--purple); }
+
+.home-urgent-who {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  min-width: 90px;
+}
+
+.home-urgent-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
 
 .home-urgent-title {
   flex: 1;

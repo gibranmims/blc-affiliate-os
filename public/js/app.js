@@ -5844,6 +5844,17 @@ async function deleteSupportIssue(id) {
 
 async function loadTasks() {
   state.tasks = await fetchAPI(API.tasks);
+  updateTasksUrgentBadge();
+}
+
+function updateTasksUrgentBadge() {
+  const urgentCount = state.tasks.filter(t =>
+    !t.completed && !t.archived && t.deadline && deadlineSortKey(t.deadline) <= 1
+  ).length;
+  const badge = document.getElementById('tasks-nav-badge');
+  if (!badge) return;
+  badge.textContent   = urgentCount;
+  badge.style.display = urgentCount > 0 ? 'inline-flex' : 'none';
 }
 
 // ── Task helpers ────────────────────────────────────────────────
@@ -5911,13 +5922,12 @@ function refreshTaskBoard() {
   if (fEl) fEl.innerHTML = renderTaskList('founder');
   if (lEl) lEl.innerHTML = renderTaskList('lu');
   if (gEl) gEl.innerHTML = renderTaskList('for-founder');
-  // Update "For Founder" badge count
+  // Update "For Founder" column badge count
   const pending = state.tasks.filter(t => t.assignee === 'for-founder' && !t.archived && !t.completed).length;
   const badge = document.querySelector('.focus-col-review .focus-col-badge');
   if (badge) { badge.textContent = pending; badge.style.display = pending > 0 ? 'inline-flex' : 'none'; }
-  // Also refresh the nav badge
-  const navBadge = document.getElementById('tasks-nav-badge');
-  if (navBadge) { navBadge.textContent = pending; navBadge.style.display = pending > 0 ? 'inline-flex' : 'none'; }
+  // Nav badge = urgent tasks (overdue or ≤1d), not just for-founder
+  updateTasksUrgentBadge();
 }
 
 function startAddTask(assignee) {
@@ -6362,10 +6372,17 @@ function renderHomePage() {
         <div class="home-urgent-list">
           ${urgentTasks.map(t => {
             const dl = fmtDeadline(t.deadline);
-            const aMap = { gibran: { lbl: 'G', cls: 'ua-gibran' }, lu: { lbl: 'L', cls: 'ua-lu' }, 'for-founder': { lbl: 'F', cls: 'ua-founder' } };
-            const av = aMap[t.assignee] || { lbl: '?', cls: '' };
+            const aMap = {
+              founder:      { lbl: 'G', name: 'Gibran',     cls: 'ua-gibran'  },
+              lu:           { lbl: 'L', name: 'Lu',         cls: 'ua-lu'      },
+              'for-founder':{ lbl: 'F', name: 'For Review', cls: 'ua-founder' }
+            };
+            const av = aMap[t.assignee] || { lbl: '?', name: 'Unknown', cls: '' };
             return `<div class="home-urgent-item" onclick="navigate('tasks')">
-              <span class="home-urgent-avatar ${av.cls}">${av.lbl}</span>
+              <div class="home-urgent-who">
+                <span class="home-urgent-avatar ${av.cls}">${av.lbl}</span>
+                <span class="home-urgent-name">${av.name}</span>
+              </div>
               <span class="home-urgent-title">${esc(t.title)}</span>
               ${dl ? `<span class="task-deadline ${dl.cls}">${dl.text}</span>` : ''}
             </div>`;
