@@ -6,7 +6,9 @@ const API = {
   outreach:    '/api/outreach',
   roster:      '/api/roster',
   generate:    '/api/generate',
-  outreachGen: '/api/outreach-gen'
+  outreachGen: '/api/outreach-gen',
+  challenge:   '/api/challenge',
+  support:     '/api/support'
 };
 
 const STATUSES = [
@@ -39,7 +41,12 @@ const state = {
   rosterMonth:        new Date().toISOString().slice(0, 7),
   contentLabCreatorId: null,
   rosterTab:          'paid',
-  scriptMode:         'write'   // 'write' | 'teardown'
+  scriptMode:         'write',  // 'write' | 'teardown'
+  challengers:        [],
+  challengeFilter:    'all',    // 'all' | 'active' | 'completed' | 'disqualified' | 'refund_approved'
+  selectedChallengerId: null,
+  support:            [],
+  supportFilter:      'open'    // 'open' | 'all' | 'resolved'
 };
 
 const nbState = {
@@ -533,11 +540,13 @@ function navigate(page) {
     updateRosterSubNav();
   }
   const renderers = {
-    outreach: renderOutreachPage,
-    roster:   renderRosterPage,
-    scripts:  renderScriptsPage,
-    review:   renderForReviewPage,
-    finance:  renderFinancePage
+    outreach:  renderOutreachPage,
+    roster:    renderRosterPage,
+    scripts:   renderScriptsPage,
+    review:    renderForReviewPage,
+    finance:   renderFinancePage,
+    challenge: renderChallengePage,
+    support:   renderSupportPage
   };
   if (renderers[page]) renderers[page]();
 }
@@ -5463,6 +5472,291 @@ async function saveSettings() {
 }
 
 // ============================================================
+// CUSTOMER SUPPORT TRACKER
+// ============================================================
+
+const ISSUE_TYPES = [
+  { key: 'pump_issue',    label: 'Pump Issue',    color: 'orange' },
+  { key: 'short_shipped', label: 'Short Shipped', color: 'yellow' },
+  { key: 'missing_item',  label: 'Missing Item',  color: 'red'    }
+];
+
+const SUPPORT_STATUSES = [
+  { key: 'open',        label: 'Open',        color: 'red'    },
+  { key: 'in_progress', label: 'In Progress', color: 'yellow' },
+  { key: 'resolved',    label: 'Resolved',    color: 'green'  }
+];
+
+async function loadSupport() {
+  state.support = await fetchAPI(API.support);
+  updateSupportBadge();
+}
+
+function updateSupportBadge() {
+  const badge = document.getElementById('support-badge');
+  if (!badge) return;
+  const openCount = state.support.filter(i => i.status !== 'resolved').length;
+  badge.textContent = openCount;
+  badge.style.display = openCount > 0 ? 'inline-flex' : 'none';
+}
+
+function setSupportFilter(f) {
+  state.supportFilter = f;
+  renderSupportPage();
+}
+
+function renderSupportPage() {
+  const all = state.support;
+  const filtered = state.supportFilter === 'all'
+    ? all
+    : state.supportFilter === 'resolved'
+    ? all.filter(i => i.status === 'resolved')
+    : all.filter(i => i.status !== 'resolved');
+
+  // Stats by issue type (open only)
+  const typeCounts = {};
+  ISSUE_TYPES.forEach(t => {
+    typeCounts[t.key] = all.filter(i => i.issue_type === t.key && i.status !== 'resolved').length;
+  });
+  const totalOpen     = all.filter(i => i.status !== 'resolved').length;
+  const totalResolved = all.filter(i => i.status === 'resolved').length;
+
+  const statCards = ISSUE_TYPES.map(t => `
+    <div class="sup-stat sup-stat-${t.color}">
+      <div class="sup-stat-count">${typeCounts[t.key]}</div>
+      <div class="sup-stat-label">${t.label}</div>
+      <div class="sup-stat-sub">open</div>
+    </div>`).join('') + `
+    <div class="sup-stat sup-stat-green">
+      <div class="sup-stat-count">${totalResolved}</div>
+      <div class="sup-stat-label">Resolved</div>
+      <div class="sup-stat-sub">total</div>
+    </div>`;
+
+  const filterLabels = [
+    { key: 'open',     label: `Open (${totalOpen})` },
+    { key: 'all',      label: 'All' },
+    { key: 'resolved', label: `Resolved (${totalResolved})` }
+  ];
+  const filterPills = filterLabels.map(f =>
+    `<button class="sup-filter-pill ${state.supportFilter === f.key ? 'active' : ''}"
+      onclick="setSupportFilter('${f.key}')">${f.label}</button>`
+  ).join('');
+
+  let tableBody = '';
+  if (filtered.length === 0) {
+    tableBody = `<tr><td colspan="7" class="sup-empty">
+      ${state.supportFilter === 'open' ? 'No open issues — all clear.' : 'No issues found.'}
+    </td></tr>`;
+  } else {
+    tableBody = filtered.map(issue => {
+      const typeObj   = ISSUE_TYPES.find(t => t.key === issue.issue_type) || { label: issue.issue_type, color: 'gray' };
+      const statusObj = SUPPORT_STATUSES.find(s => s.key === issue.status) || { label: issue.status, color: 'gray' };
+      const dateStr   = issue.created_at ? new Date(issue.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
+      return `<tr class="sup-row" onclick="openEditIssueModal('${issue.id}')">
+        <td class="sup-td sup-td-date">${dateStr}</td>
+        <td class="sup-td"><span class="sup-type-pill sup-type-${typeObj.color}">${typeObj.label}</span></td>
+        <td class="sup-td">${esc(issue.customer_name || '—')}</td>
+        <td class="sup-td sup-td-order">${esc(issue.order_id || '—')}</td>
+        <td class="sup-td sup-td-platform">${esc(issue.platform || '—')}</td>
+        <td class="sup-td">
+          <span class="sup-status-pill sup-status-${statusObj.color}">${statusObj.label}</span>
+        </td>
+        <td class="sup-td sup-td-notes">${esc(issue.notes || '')}</td>
+        <td class="sup-td sup-td-actions" onclick="event.stopPropagation()">
+          ${issue.status !== 'resolved'
+            ? `<button class="sup-action-btn sup-resolve-btn" onclick="quickResolveIssue('${issue.id}')" title="Mark resolved">✓</button>`
+            : `<span class="sup-resolved-check" title="Resolved">✓</span>`
+          }
+          <button class="sup-action-btn sup-delete-btn" onclick="deleteSupportIssue('${issue.id}')" title="Delete">✕</button>
+        </td>
+      </tr>`;
+    }).join('');
+  }
+
+  document.getElementById('page-content').innerHTML = `
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Customer Support</h1>
+        <p class="page-subtitle">Track and resolve customer issues</p>
+      </div>
+      <button class="btn btn-primary" onclick="openLogIssueModal()">+ Log Issue</button>
+    </div>
+
+    <div class="sup-stats-row">${statCards}</div>
+
+    <div class="sup-table-card">
+      <div class="sup-table-header">
+        <div class="sup-filters">${filterPills}</div>
+        <span class="sup-count-label">${filtered.length} issue${filtered.length !== 1 ? 's' : ''}</span>
+      </div>
+      <div class="sup-table-wrap">
+        <table class="sup-table">
+          <thead>
+            <tr>
+              <th class="sup-th">Date</th>
+              <th class="sup-th">Issue Type</th>
+              <th class="sup-th">Customer</th>
+              <th class="sup-th">Order ID</th>
+              <th class="sup-th">Platform</th>
+              <th class="sup-th">Status</th>
+              <th class="sup-th">Notes</th>
+              <th class="sup-th"></th>
+            </tr>
+          </thead>
+          <tbody>${tableBody}</tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+function openLogIssueModal() {
+  const html = `
+    <form id="modal-form">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Issue Type</label>
+          <select name="issue_type" required>
+            <option value="">-- Select --</option>
+            <option value="pump_issue">Pump Issue (not pumping properly)</option>
+            <option value="short_shipped">Short Shipped (ordered 2, got 1)</option>
+            <option value="missing_item">Missing Item</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Status</label>
+          <select name="status">
+            <option value="open">Open</option>
+            <option value="in_progress">In Progress</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Customer Name</label>
+          <input type="text" name="customer_name" placeholder="e.g. Jane D.">
+        </div>
+        <div class="form-group">
+          <label>Order ID</label>
+          <input type="text" name="order_id" placeholder="e.g. #12345">
+        </div>
+        <div class="form-group">
+          <label>Platform</label>
+          <select name="platform">
+            <option value="TikTok Shop">TikTok Shop</option>
+            <option value="Shopify">Shopify</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group" style="margin-top:12px">
+        <label>Notes</label>
+        <textarea name="notes" rows="3" placeholder="Details about the issue..." style="resize:vertical;min-height:72px"></textarea>
+      </div>
+      <div class="form-actions">
+        <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+        <button type="submit" class="btn btn-primary">Log Issue</button>
+      </div>
+    </form>`;
+  openModal('Log Support Issue', html, async (e) => {
+    const data = Object.fromEntries(new FormData(e.target));
+    if (!data.issue_type) { showToast('Select an issue type', 'error'); return; }
+    try {
+      const rec = await fetchAPI(API.support, { method: 'POST', body: JSON.stringify(data) });
+      state.support.unshift(rec);
+      updateSupportBadge();
+      closeModal();
+      renderSupportPage();
+      showToast('Issue logged ✓');
+    } catch (err) { showToast(err.message, 'error'); }
+  });
+}
+
+function openEditIssueModal(id) {
+  const issue = state.support.find(i => i.id === id);
+  if (!issue) return;
+  const typeObj   = ISSUE_TYPES.find(t => t.key === issue.issue_type) || { label: issue.issue_type };
+  const html = `
+    <form id="modal-form">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Issue Type</label>
+          <select name="issue_type" required>
+            ${ISSUE_TYPES.map(t => `<option value="${t.key}" ${issue.issue_type === t.key ? 'selected' : ''}>${t.label}</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Status</label>
+          <select name="status">
+            ${SUPPORT_STATUSES.map(s => `<option value="${s.key}" ${issue.status === s.key ? 'selected' : ''}>${s.label}</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Customer Name</label>
+          <input type="text" name="customer_name" value="${esc(issue.customer_name || '')}">
+        </div>
+        <div class="form-group">
+          <label>Order ID</label>
+          <input type="text" name="order_id" value="${esc(issue.order_id || '')}">
+        </div>
+        <div class="form-group">
+          <label>Platform</label>
+          <select name="platform">
+            ${['TikTok Shop', 'Shopify', 'Other'].map(p => `<option ${(issue.platform || 'TikTok Shop') === p ? 'selected' : ''}>${p}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <div class="form-group" style="margin-top:12px">
+        <label>Notes</label>
+        <textarea name="notes" rows="3" style="resize:vertical;min-height:72px">${esc(issue.notes || '')}</textarea>
+      </div>
+      <div class="form-actions" style="justify-content:space-between">
+        <button type="button" class="btn btn-danger-outline" onclick="deleteSupportIssue('${id}');closeModal()">Delete</button>
+        <div style="display:flex;gap:8px">
+          <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save</button>
+        </div>
+      </div>
+    </form>`;
+  openModal(`${typeObj.label} — Edit Issue`, html, async (e) => {
+    const data = Object.fromEntries(new FormData(e.target));
+    if (data.status === 'resolved') data.resolved_at = new Date().toISOString();
+    try {
+      const rec = await fetchAPI(`${API.support}/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+      const idx = state.support.findIndex(i => i.id === id);
+      if (idx !== -1) state.support[idx] = rec;
+      updateSupportBadge();
+      closeModal();
+      renderSupportPage();
+      showToast('Issue updated ✓');
+    } catch (err) { showToast(err.message, 'error'); }
+  });
+}
+
+async function quickResolveIssue(id) {
+  try {
+    const rec = await fetchAPI(`${API.support}/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ status: 'resolved', resolved_at: new Date().toISOString() })
+    });
+    const idx = state.support.findIndex(i => i.id === id);
+    if (idx !== -1) state.support[idx] = rec;
+    updateSupportBadge();
+    renderSupportPage();
+    showToast('Marked resolved ✓');
+  } catch (err) { showToast(err.message, 'error'); }
+}
+
+async function deleteSupportIssue(id) {
+  if (!confirm('Delete this issue? This cannot be undone.')) return;
+  try {
+    await fetchAPI(`${API.support}/${id}`, { method: 'DELETE' });
+    state.support = state.support.filter(i => i.id !== id);
+    updateSupportBadge();
+    if (state.currentPage === 'support') renderSupportPage();
+    showToast('Issue deleted');
+  } catch (err) { showToast(err.message, 'error'); }
+}
+
+// ============================================================
 // INIT
 // ============================================================
 
@@ -5504,6 +5798,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   await loadOutreach().catch(err => console.error('Outreach load failed:', err));
   await Promise.all([
     loadRoster().catch(err => console.error('Roster load failed:', err)),
+    loadChallengers().catch(err => console.error('Challengers load failed:', err)),
+    loadSupport().catch(err => console.error('Support load failed:', err)),
     checkTikTokStatus().catch(() => {})
   ]);
 
@@ -5516,3 +5812,376 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   navigate(startPage);
 });
+
+// ============================================================
+// BBL CHALLENGE TRACKER
+// ============================================================
+
+async function loadChallengers() {
+  state.challengers = await fetchAPI(`${API.challenge}/challengers`);
+}
+
+function challengeStatusColor(status) {
+  const map = { active: 'blue', completed: 'green', disqualified: 'red', refund_approved: 'purple' };
+  return map[status] || 'gray';
+}
+
+function challengeStatusLabel(status) {
+  const map = { active: 'Active', completed: 'Completed', disqualified: 'Disqualified', refund_approved: 'Refund Approved' };
+  return map[status] || status;
+}
+
+// Returns the next check-in due info for a challenger
+function nextCheckin(checkins) {
+  if (!checkins) return null;
+  const pending = checkins
+    .filter(c => !c.submitted_at)
+    .sort((a, b) => new Date(a.window_closes_at) - new Date(b.window_closes_at));
+  return pending[0] || null;
+}
+
+function daysUntil(dateStr) {
+  const diff = new Date(dateStr) - new Date();
+  return Math.ceil(diff / (1000 * 60 * 60 * 24));
+}
+
+function checkinBadge(checkin, now) {
+  if (!checkin) return `<span class="badge badge-gray" style="font-size:10px">—</span>`;
+  if (checkin.submitted_at) return `<span class="badge badge-green" style="font-size:10px">✓</span>`;
+  const opens = new Date(checkin.window_opens_at);
+  const closes = checkin.grace_closes_at ? new Date(checkin.grace_closes_at) : new Date(checkin.window_closes_at);
+  if (now > closes) return `<span class="badge badge-red" style="font-size:10px">Missed</span>`;
+  if (now >= opens) return `<span class="badge badge-yellow" style="font-size:10px">Due</span>`;
+  return `<span class="badge badge-gray" style="font-size:10px">Upcoming</span>`;
+}
+
+function renderChallengePage() {
+  const now = new Date();
+  const filtered = state.challengeFilter === 'all'
+    ? state.challengers
+    : state.challengers.filter(c => c.status === state.challengeFilter);
+
+  const total    = state.challengers.length;
+  const active   = state.challengers.filter(c => c.status === 'active').length;
+  const completed = state.challengers.filter(c => c.status === 'completed').length;
+  const eligible  = state.challengers.filter(c => c.status === 'refund_approved').length;
+
+  const filterBtns = ['all', 'active', 'completed', 'disqualified', 'refund_approved'].map(f => {
+    const labels = { all: 'All', active: 'Active', completed: 'Completed', disqualified: 'Disqualified', refund_approved: 'Refund Approved' };
+    const active_ = f === state.challengeFilter;
+    return `<button class="btn btn-sm ${active_ ? 'btn-primary' : 'btn-secondary'}" onclick="setChallengeFilter('${f}')">${labels[f]}</button>`;
+  }).join('');
+
+  document.getElementById('page-content').innerHTML = `
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Challenge Tracker</h1>
+        <p class="page-subtitle">Win Your Money Back Challenge · ${total} total entrant${total !== 1 ? 's' : ''}</p>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <a href="/challenge/signup" target="_blank" class="btn btn-secondary btn-sm">Signup Link</a>
+        <button class="btn btn-secondary btn-sm" onclick="loadChallengers().then(renderChallengePage)">Refresh</button>
+      </div>
+    </div>
+
+    <div class="stat-cards" style="margin-bottom:20px">
+      <div class="stat-card">
+        <div class="stat-value">${total}</div>
+        <div class="stat-label">Total Entrants</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value blue">${active}</div>
+        <div class="stat-label">Active</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value green">${completed}</div>
+        <div class="stat-label">Completed</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value accent">${eligible}</div>
+        <div class="stat-label">Refund Approved</div>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+      ${filterBtns}
+    </div>
+
+    <div class="table-container">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Customer</th>
+            <th>Order #</th>
+            <th>Signup</th>
+            <th>Status</th>
+            <th style="text-align:center">W2</th>
+            <th style="text-align:center">W4</th>
+            <th style="text-align:center">W6</th>
+            <th style="text-align:center">W8</th>
+            <th>Next Due</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          ${filtered.length === 0 ? `
+            <tr><td colspan="10" style="text-align:center;padding:48px;color:var(--text-muted)">
+              ${state.challengeFilter === 'all' ? 'No challengers yet. Share the signup link to get started.' : 'No challengers in this filter.'}
+            </td></tr>
+          ` : filtered.map(c => {
+            const checkins = c.challenge_checkins || [];
+            const byWeek = { 2: null, 4: null, 6: null, 8: null };
+            checkins.forEach(ci => { byWeek[ci.week_number] = ci; });
+            const next = nextCheckin(checkins);
+            const nextLabel = next
+              ? (() => { const d = daysUntil(next.window_closes_at); return d > 0 ? `W${next.week_number} · in ${d}d` : `W${next.week_number} · overdue`; })()
+              : (c.status === 'completed' ? 'Done' : '—');
+            const hasStrongContent = checkins.some(ci => ci.is_strong_content);
+            return `
+            <tr class="clickable-row" onclick="openChallengerDetail('${c.id}')">
+              <td>
+                <div style="display:flex;flex-direction:column;gap:2px">
+                  <span style="font-weight:600">${esc(c.name)}</span>
+                  <span style="font-size:11.5px;color:var(--text-muted)">${esc(c.email)}</span>
+                </div>
+              </td>
+              <td style="color:var(--text-secondary);font-size:13px">${esc(c.order_number)}</td>
+              <td style="color:var(--text-secondary);font-size:13px">${fmtDateShort(c.signup_date)}</td>
+              <td><span class="badge badge-${challengeStatusColor(c.status)}">${challengeStatusLabel(c.status)}</span></td>
+              <td style="text-align:center">${checkinBadge(byWeek[2], now)}</td>
+              <td style="text-align:center">${checkinBadge(byWeek[4], now)}</td>
+              <td style="text-align:center">${checkinBadge(byWeek[6], now)}</td>
+              <td style="text-align:center">${checkinBadge(byWeek[8], now)}</td>
+              <td style="font-size:12.5px;color:${next && daysUntil(next.window_closes_at) < 0 ? 'var(--red)' : 'var(--text-secondary)'}">${nextLabel}</td>
+              <td onclick="event.stopPropagation()" style="white-space:nowrap">
+                ${hasStrongContent ? `<span style="font-size:11px;color:var(--yellow);margin-right:8px">★ Content</span>` : ''}
+                ${c.status === 'completed' ? `<button class="btn btn-primary btn-sm" onclick="event.stopPropagation();approveRefund('${c.id}')">Approve Refund</button>` : ''}
+              </td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function setChallengeFilter(filter) {
+  state.challengeFilter = filter;
+  renderChallengePage();
+}
+
+async function approveRefund(challengerId) {
+  if (!confirm('Mark refund as approved? This will notify the team to process the refund in Shopify.')) return;
+  try {
+    const updated = await fetchAPI(`${API.challenge}/challengers/${challengerId}/approve-refund`, { method: 'POST' });
+    const i = state.challengers.findIndex(c => c.id === challengerId);
+    if (i !== -1) state.challengers[i] = { ...state.challengers[i], ...updated };
+    renderChallengePage();
+    showToast('Refund approved — team notified ✓');
+  } catch (err) { showToast(err.message, 'error'); }
+}
+
+// ── Challenger Detail Drawer ─────────────────────────────────────
+
+async function openChallengerDetail(id) {
+  state.selectedChallengerId = id;
+  const challenger = state.challengers.find(c => c.id === id);
+  if (!challenger) return;
+
+  const panel = document.getElementById('detail-panel');
+  const title = document.getElementById('detail-drawer-title');
+  const body  = document.getElementById('detail-drawer-body');
+
+  title.textContent = challenger.name;
+  body.innerHTML = `<div style="padding:20px;color:var(--text-muted);font-size:13px">Loading photos...</div>`;
+  panel.style.display = 'flex';
+
+  // Render skeleton first, then load photos
+  body.innerHTML = renderChallengerDetailBody(challenger, {});
+  await loadChallengerPhotos(challenger);
+}
+
+function renderChallengerDetailBody(challenger, photos) {
+  const checkins = challenger.challenge_checkins || [];
+  const byWeek = { 0: { photo_url: challenger.week0_photo_url, week0: true }, 2: null, 4: null, 6: null, 8: null };
+  checkins.forEach(ci => { byWeek[ci.week_number] = ci; });
+
+  const statusColor = challengeStatusColor(challenger.status);
+  const statusLabel = challengeStatusLabel(challenger.status);
+  const now = new Date();
+
+  return `
+    <div style="padding:20px 22px;display:flex;flex-direction:column;gap:18px">
+
+      <!-- Meta -->
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span class="badge badge-${statusColor}" style="font-size:12px">${statusLabel}</span>
+          ${challenger.status === 'completed'
+            ? `<button class="btn btn-primary btn-sm" onclick="approveRefund('${challenger.id}')">Approve Refund</button>`
+            : ''}
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px">
+          <div style="background:var(--bg-tertiary);border-radius:8px;padding:10px 12px">
+            <div style="font-size:11px;color:var(--text-muted);margin-bottom:3px">Email</div>
+            <div style="font-size:13px;font-weight:500">${esc(challenger.email)}</div>
+          </div>
+          <div style="background:var(--bg-tertiary);border-radius:8px;padding:10px 12px">
+            <div style="font-size:11px;color:var(--text-muted);margin-bottom:3px">Order #</div>
+            <div style="font-size:13px;font-weight:500">${esc(challenger.order_number)}</div>
+          </div>
+          <div style="background:var(--bg-tertiary);border-radius:8px;padding:10px 12px">
+            <div style="font-size:11px;color:var(--text-muted);margin-bottom:3px">Signed up</div>
+            <div style="font-size:13px;font-weight:500">${fmtDate(challenger.signup_date)}</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Check-in panels -->
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div style="font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted)">Check-Ins</div>
+
+        ${renderCheckinPanel(0, byWeek[0], photos, challenger, now)}
+        ${[2,4,6,8].map(w => renderCheckinPanel(w, byWeek[w], photos, challenger, now)).join('')}
+      </div>
+    </div>
+  `;
+}
+
+function renderCheckinPanel(week, checkin, photos, challenger, now) {
+  const isWeek0 = week === 0;
+  const label = isWeek0 ? 'Week 0 — Before Photo' : `Week ${week} Check-In`;
+  const photoId = isWeek0 ? `w0-photo-${challenger.id}` : (checkin ? `ci-photo-${checkin.id}` : null);
+  const photoUrl = photos[photoId];
+
+  let statusBadge = '';
+  let bodyContent = '';
+
+  if (isWeek0) {
+    statusBadge = checkin?.photo_url
+      ? `<span class="badge badge-green" style="font-size:10px">Submitted</span>`
+      : `<span class="badge badge-gray" style="font-size:10px">No photo</span>`;
+    if (checkin?.photo_url) {
+      bodyContent = renderPhotoArea(photoUrl, photoId, isWeek0 ? null : checkin?.id, true, false);
+    }
+  } else if (!checkin) {
+    statusBadge = `<span class="badge badge-gray" style="font-size:10px">No data</span>`;
+  } else if (checkin.submitted_at) {
+    statusBadge = `<span class="badge badge-green" style="font-size:10px">Submitted ${fmtDateShort(checkin.submitted_at)}</span>`;
+    const starColor = checkin.is_strong_content ? 'var(--yellow)' : 'var(--text-muted)';
+    const starTitle = checkin.is_strong_content ? 'Unflag content' : 'Flag as strong content';
+    bodyContent = `
+      ${renderPhotoArea(photoUrl, photoId, checkin.id, false, checkin.is_strong_content)}
+      <div style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap">
+        <span style="font-size:12px;color:var(--text-muted)">Used consistently: <strong style="color:${checkin.used_consistently ? 'var(--green)' : 'var(--orange)'}">${checkin.used_consistently ? 'Yes' : 'No'}</strong></span>
+        <button class="btn btn-sm btn-secondary" style="color:${starColor}" title="${starTitle}"
+          onclick="toggleCheckinFlag('${checkin.id}', '${challenger.id}')">
+          ${checkin.is_strong_content ? '★' : '☆'} ${checkin.is_strong_content ? 'Flagged' : 'Flag Content'}
+        </button>
+      </div>
+      ${checkin.notes ? `<div style="font-size:12.5px;color:var(--text-secondary);margin-top:6px;line-height:1.5">"${esc(checkin.notes)}"</div>` : ''}
+    `;
+  } else {
+    const opens  = new Date(checkin.window_opens_at);
+    const closes = checkin.grace_closes_at ? new Date(checkin.grace_closes_at) : new Date(checkin.window_closes_at);
+    if (now > closes) {
+      statusBadge = `<span class="badge badge-red" style="font-size:10px">Missed</span>`;
+    } else if (now >= opens) {
+      statusBadge = `<span class="badge badge-yellow" style="font-size:10px">Window open · due ${fmtDateShort(checkin.window_closes_at)}</span>`;
+    } else {
+      statusBadge = `<span class="badge badge-gray" style="font-size:10px">Opens ${fmtDateShort(checkin.window_opens_at)}</span>`;
+    }
+  }
+
+  return `
+    <div style="background:var(--bg-tertiary);border-radius:10px;padding:14px 16px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:${bodyContent ? '10px' : '0'}">
+        <span style="font-size:13px;font-weight:600">${label}</span>
+        ${statusBadge}
+      </div>
+      ${bodyContent}
+    </div>
+  `;
+}
+
+function renderPhotoArea(signedUrl, photoId, checkinId, isWeek0, isFlagged) {
+  if (!signedUrl) {
+    return `<div id="${photoId}-container" style="background:var(--bg-elevated);border-radius:8px;height:80px;display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:12px">Loading photo...</div>`;
+  }
+  return `
+    <div style="position:relative;display:inline-block;width:100%">
+      <img id="${photoId}-img" src="${signedUrl}" alt="Check-in photo"
+        style="width:100%;max-height:220px;object-fit:cover;border-radius:8px;display:block">
+      <a href="${signedUrl}" download class="btn btn-secondary btn-sm"
+        style="position:absolute;bottom:8px;right:8px;font-size:11px;padding:4px 10px">Download</a>
+    </div>
+  `;
+}
+
+async function loadChallengerPhotos(challenger) {
+  const checkins = challenger.challenge_checkins || [];
+  const panel    = document.getElementById('detail-panel');
+  if (!panel || panel.style.display === 'none') return;
+
+  // Load week 0 photo
+  if (challenger.week0_photo_url) {
+    try {
+      const { url } = await fetchAPI(`${API.challenge}/challengers/${challenger.id}/week0-photo`);
+      const photoId = `w0-photo-${challenger.id}`;
+      // Re-render with the URL available
+      const body = document.getElementById('detail-drawer-body');
+      if (body && state.selectedChallengerId === challenger.id) {
+        body.innerHTML = renderChallengerDetailBody(challenger, { [photoId]: url });
+        // Load check-in photos after week 0 renders
+        loadCheckinPhotos(checkins, challenger);
+      }
+    } catch { /* non-fatal */ }
+  } else {
+    loadCheckinPhotos(checkins, challenger);
+  }
+}
+
+async function loadCheckinPhotos(checkins, challenger) {
+  const submitted = checkins.filter(ci => ci.submitted_at && ci.photo_url);
+  for (const ci of submitted) {
+    if (state.selectedChallengerId !== challenger.id) break;
+    try {
+      const { url } = await fetchAPI(`${API.challenge}/checkins/${ci.id}/photo`);
+      const imgEl = document.getElementById(`ci-photo-${ci.id}-img`);
+      const container = document.getElementById(`ci-photo-${ci.id}-container`);
+      if (imgEl) {
+        imgEl.src = url;
+      } else if (container) {
+        container.outerHTML = renderPhotoArea(url, `ci-photo-${ci.id}`, ci.id, false, ci.is_strong_content);
+      }
+    } catch { /* non-fatal */ }
+  }
+}
+
+async function toggleCheckinFlag(checkinId, challengerId) {
+  try {
+    const updated = await fetchAPI(`${API.challenge}/checkins/${checkinId}/flag`, { method: 'PUT' });
+    // Update in state
+    const challenger = state.challengers.find(c => c.id === challengerId);
+    if (challenger) {
+      const ci = (challenger.challenge_checkins || []).find(c => c.id === checkinId);
+      if (ci) ci.is_strong_content = updated.is_strong_content;
+    }
+    showToast(updated.is_strong_content ? 'Flagged as strong content ★' : 'Flag removed');
+    // Re-render just the detail body (no photo reload needed)
+    const body = document.getElementById('detail-drawer-body');
+    if (body && state.selectedChallengerId === challengerId) {
+      const c = state.challengers.find(x => x.id === challengerId);
+      if (c) {
+        // Preserve loaded photo URLs by extracting them from DOM
+        const photoMap = {};
+        document.querySelectorAll('[id$="-img"]').forEach(img => {
+          const key = img.id.replace('-img', '');
+          if (img.src) photoMap[key] = img.src;
+        });
+        body.innerHTML = renderChallengerDetailBody(c, photoMap);
+      }
+    }
+    if (state.currentPage === 'challenge') renderChallengePage();
+  } catch (err) { showToast(err.message, 'error'); }
+}

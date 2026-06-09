@@ -177,3 +177,65 @@ ALTER TABLE roster ADD COLUMN IF NOT EXISTS posting_schedule_confirmed BOOLEAN D
 -- Scripts — add mode column for write vs teardown
 -- ============================================================
 ALTER TABLE scripts ADD COLUMN IF NOT EXISTS mode TEXT;
+
+-- ============================================================
+-- BBL Challenge Tracker
+-- Run these in Supabase SQL Editor
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS challengers (
+  id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name                TEXT NOT NULL,
+  email               TEXT NOT NULL UNIQUE,
+  order_number        TEXT NOT NULL,
+  signup_date         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  week0_photo_url     TEXT,
+  week0_drive_file_id TEXT,
+  status              TEXT NOT NULL DEFAULT 'active',
+  -- active | completed | disqualified | refund_approved
+  drive_folder_id     TEXT,
+  created_at          TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE challengers DISABLE ROW LEVEL SECURITY;
+GRANT ALL ON TABLE challengers TO anon;
+GRANT ALL ON TABLE challengers TO authenticated;
+
+CREATE TABLE IF NOT EXISTS challenge_checkins (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  challenger_id     UUID NOT NULL REFERENCES challengers(id) ON DELETE CASCADE,
+  week_number       INT NOT NULL,        -- 2, 4, 6, 8
+  token             UUID NOT NULL DEFAULT gen_random_uuid() UNIQUE,
+  window_opens_at   TIMESTAMPTZ NOT NULL,
+  window_closes_at  TIMESTAMPTZ NOT NULL,
+  grace_closes_at   TIMESTAMPTZ,         -- set when warning email sent
+  photo_url         TEXT,
+  drive_file_id     TEXT,
+  used_consistently BOOLEAN,
+  notes             TEXT,
+  submitted_at      TIMESTAMPTZ,
+  is_strong_content BOOLEAN DEFAULT false,
+  reminder_sent_at  TIMESTAMPTZ,
+  warning_sent_at   TIMESTAMPTZ,
+  created_at        TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE challenge_checkins DISABLE ROW LEVEL SECURITY;
+GRANT ALL ON TABLE challenge_checkins TO anon;
+GRANT ALL ON TABLE challenge_checkins TO authenticated;
+
+-- ============================================================
+-- Customer Support Tracker
+-- ============================================================
+CREATE TABLE IF NOT EXISTS support_issues (
+  id            UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  issue_type    TEXT NOT NULL,   -- pump_issue | short_shipped | missing_item
+  customer_name TEXT,
+  order_id      TEXT,
+  platform      TEXT DEFAULT 'TikTok Shop',
+  status        TEXT NOT NULL DEFAULT 'open',  -- open | in_progress | resolved
+  notes         TEXT,
+  resolved_at   TIMESTAMPTZ,
+  created_at    TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE support_issues DISABLE ROW LEVEL SECURITY;
+GRANT ALL ON TABLE support_issues TO anon;
+GRANT ALL ON TABLE support_issues TO authenticated;
