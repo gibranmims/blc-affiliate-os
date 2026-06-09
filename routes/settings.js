@@ -8,7 +8,7 @@ const supabase = createClient(
 );
 
 // Keys that are allowed to be read/written via this public settings API
-const ALLOWED_KEYS = ['discord_invite_link', 'custom_issue_types'];
+const ALLOWED_KEYS = ['discord_invite_link', 'custom_issue_types', 'monthly_affiliate_goal', 'monthly_affiliate_revenue'];
 
 // GET /api/settings
 router.get('/', async (req, res) => {

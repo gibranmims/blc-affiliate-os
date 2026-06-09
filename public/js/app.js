@@ -11,7 +11,8 @@ const API = {
   support:     '/api/support',
   settings:    '/api/settings',
   tasks:       '/api/tasks',
-  dailyTop2:   '/api/daily-top2'
+  dailyTop2:   '/api/daily-top2',
+  ideas:       '/api/ideas'
 };
 
 const STATUSES = [
@@ -51,7 +52,10 @@ const state = {
   support:            [],
   customIssueTypes:   [],
   tasks:              [],
-  dailyTop2:          []
+  dailyTop2:          [],
+  ideas:              [],
+  monthlyGoal:        0,
+  monthlyRevenue:     0
 };
 
 const nbState = {
@@ -549,6 +553,7 @@ function navigate(page) {
   const renderers = {
     home:         renderHomePage,
     'daily-top2': renderDailyTop2Page,
+    ideas:        renderIdeasPage,
     outreach:     renderOutreachPage,
     roster:       renderRosterPage,
     scripts:      renderScriptsPage,
@@ -5858,8 +5863,14 @@ function renderTaskList(assignee) {
 function refreshTaskBoard() {
   const fEl = document.getElementById('tasks-founder');
   const lEl = document.getElementById('tasks-lu');
+  const gEl = document.getElementById('tasks-for-founder');
   if (fEl) fEl.innerHTML = renderTaskList('founder');
   if (lEl) lEl.innerHTML = renderTaskList('lu');
+  if (gEl) gEl.innerHTML = renderTaskList('for-founder');
+  // Update "For Founder" badge count
+  const pending = state.tasks.filter(t => t.assignee === 'for-founder' && !t.archived && !t.completed).length;
+  const badge = document.querySelector('.focus-col-review .focus-col-badge');
+  if (badge) { badge.textContent = pending; badge.style.display = pending > 0 ? 'inline-flex' : 'none'; }
 }
 
 function startAddTask(assignee) {
@@ -6129,15 +6140,31 @@ function renderHomePage() {
   const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   const supportThisMonth = state.support.filter(i => (i.issue_date || '').startsWith(thisMonth)).length;
 
+  // Goal progress ring
+  const goal = state.monthlyGoal || 0;
+  const goalPct = goal > 0 ? Math.min(activeAffiliates / goal, 1) : 0;
+  const r = 38, circ = +(2 * Math.PI * r).toFixed(1);
+  const offset = +(circ * (1 - goalPct)).toFixed(1);
+  const ringColor = goalPct >= 1 ? 'var(--green)' : goalPct >= 0.6 ? 'var(--accent)' : goalPct > 0 ? 'var(--yellow)' : 'var(--border)';
+
+  // Revenue
+  const rev = state.monthlyRevenue || 0;
+  const revFmt = rev >= 1000 ? '$' + (rev / 1000).toFixed(1) + 'k' : rev > 0 ? '$' + rev.toLocaleString() : '—';
+
+  // For Founder queue
+  const forFounderPending = state.tasks.filter(t => t.assignee === 'for-founder' && !t.archived && !t.completed).length;
+
   document.getElementById('page-content').innerHTML = `
     <div class="home-page">
 
+      <!-- Hero -->
       <div class="home-hero">
         <div class="home-greeting">${greeting}, team.</div>
         <div class="home-date">${dateStr}</div>
       </div>
 
-      <div class="home-metrics">
+      <!-- Metrics row (5 cards) -->
+      <div class="home-metrics home-metrics-5">
         <div class="home-metric">
           <div class="home-metric-num">${activeAffiliates}</div>
           <div class="home-metric-label">Active Affiliates</div>
@@ -6158,60 +6185,98 @@ function renderHomePage() {
           <div class="home-metric-label">Challengers</div>
           <div class="home-metric-sub">enrolled</div>
         </div>
+        <div class="home-metric home-metric-editable" onclick="openRevenueEdit()" title="Click to update">
+          <div class="home-metric-num home-metric-green">${revFmt}</div>
+          <div class="home-metric-label">Affiliate Revenue</div>
+          <div class="home-metric-sub">this month · <span class="home-metric-edit-hint">edit</span></div>
+        </div>
       </div>
 
-      ${(needsReply > 0 || supportThisMonth > 0) ? `
-      <div class="home-attention">
-        ${needsReply > 0 ? `
-          <div class="home-attention-item" onclick="navigate('outreach')">
-            <span class="home-attn-dot home-attn-dot-yellow"></span>
-            <span>${needsReply} creator${needsReply !== 1 ? 's' : ''} waiting for a reply</span>
-            <span class="home-attn-arrow">→</span>
-          </div>` : ''}
-        ${supportThisMonth > 0 ? `
-          <div class="home-attention-item" onclick="navigate('support')">
-            <span class="home-attn-dot home-attn-dot-orange"></span>
-            <span>${supportThisMonth} support issue${supportThisMonth !== 1 ? 's' : ''} this month</span>
-            <span class="home-attn-arrow">→</span>
-          </div>` : ''}
-      </div>` : ''}
+      <!-- Goal Progress + Attention strip -->
+      <div class="home-goal-row">
+        <div class="home-goal-ring-wrap">
+          <svg width="88" height="88" viewBox="0 0 88 88">
+            <circle cx="44" cy="44" r="${r}" fill="none" stroke="var(--border)" stroke-width="7"/>
+            <circle cx="44" cy="44" r="${r}" fill="none" stroke="${ringColor}" stroke-width="7"
+              stroke-dasharray="${circ}" stroke-dashoffset="${offset}"
+              stroke-linecap="round" transform="rotate(-90 44 44)"
+              style="transition:stroke-dashoffset 0.7s ease"/>
+          </svg>
+          <div class="home-goal-center">
+            <span class="home-goal-pct">${goal > 0 ? Math.round(goalPct * 100) + '%' : '—'}</span>
+          </div>
+        </div>
+        <div class="home-goal-text">
+          <div class="home-goal-headline">
+            ${activeAffiliates}${goal > 0 ? ' <span class="home-goal-of">/ ' + goal + '</span>' : ''}
+            <span class="home-goal-headline-unit"> active affiliates</span>
+          </div>
+          <div class="home-goal-status">${goal > 0 ? (goalPct >= 1 ? '🎉 Goal reached!' : `${goal - activeAffiliates} away from your goal`) : 'No monthly goal set'}</div>
+          <button class="home-goal-edit-btn" onclick="openGoalEdit()">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            ${goal > 0 ? 'Edit goal' : 'Set a goal'}
+          </button>
+        </div>
+        ${(needsReply > 0 || supportThisMonth > 0) ? `
+        <div class="home-attention home-attention-inline">
+          ${needsReply > 0 ? `
+            <div class="home-attention-item" onclick="navigate('outreach')">
+              <span class="home-attn-dot home-attn-dot-yellow"></span>
+              <span>${needsReply} creator${needsReply !== 1 ? 's' : ''} waiting for a reply</span>
+              <span class="home-attn-arrow">→</span>
+            </div>` : ''}
+          ${supportThisMonth > 0 ? `
+            <div class="home-attention-item" onclick="navigate('support')">
+              <span class="home-attn-dot home-attn-dot-orange"></span>
+              <span>${supportThisMonth} support issue${supportThisMonth !== 1 ? 's' : ''} this month</span>
+              <span class="home-attn-arrow">→</span>
+            </div>` : ''}
+        </div>` : ''}
+      </div>
 
+      <!-- Bottom: Quick Actions + Team Focus -->
       <div class="home-bottom">
 
+        <!-- Quick Actions — 2×2 preview cards -->
         <div class="home-bottom-left">
           <div class="home-section-label">Quick Actions</div>
-          <div class="home-actions">
-            <button class="home-action" onclick="navigate('outreach')">
-              <span class="home-action-icon">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-              </span>
-              <span class="home-action-label">Affiliate Outreach</span>
-              <span class="home-action-arr">→</span>
+          <div class="home-qa-grid">
+            <button class="home-qa-card" onclick="navigate('outreach')">
+              <div class="home-qa-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+              </div>
+              <div class="home-qa-name">Affiliate Outreach</div>
+              <div class="home-qa-stat">${inPipeline}</div>
+              <div class="home-qa-sub">in pipeline${needsReply > 0 ? `&nbsp;· <span class="qa-alert">${needsReply} need reply</span>` : ''}</div>
             </button>
-            <button class="home-action" onclick="navigate('roster')">
-              <span class="home-action-icon">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
-              </span>
-              <span class="home-action-label">Affiliate Roster</span>
-              <span class="home-action-arr">→</span>
+            <button class="home-qa-card" onclick="navigate('roster')">
+              <div class="home-qa-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+              </div>
+              <div class="home-qa-name">Affiliate Roster</div>
+              <div class="home-qa-stat">${activeAffiliates}</div>
+              <div class="home-qa-sub">active affiliates</div>
             </button>
-            <button class="home-action" onclick="navigate('support');setTimeout(openLogIssueModal,150)">
-              <span class="home-action-icon">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
-              </span>
-              <span class="home-action-label">Log Support Issue</span>
-              <span class="home-action-arr">→</span>
+            <button class="home-qa-card" onclick="navigate('support');setTimeout(openLogIssueModal,150)">
+              <div class="home-qa-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+              </div>
+              <div class="home-qa-name">Log Support Issue</div>
+              <div class="home-qa-stat">${supportThisMonth}</div>
+              <div class="home-qa-sub">issues this month</div>
             </button>
-            <button class="home-action" onclick="navigate('challenge')">
-              <span class="home-action-icon">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-              </span>
-              <span class="home-action-label">Before &amp; Afters</span>
-              <span class="home-action-arr">→</span>
+            <button class="home-qa-card" onclick="navigate('challenge')">
+              <div class="home-qa-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+              </div>
+              <div class="home-qa-name">Before &amp; Afters</div>
+              <div class="home-qa-stat">${challengers}</div>
+              <div class="home-qa-sub">challengers enrolled</div>
             </button>
           </div>
         </div>
 
+        <!-- Team Focus (3 columns) -->
         <div class="home-bottom-right">
           <div class="home-section-label">Team Focus</div>
           <div class="home-focus">
@@ -6237,6 +6302,20 @@ function renderHomePage() {
                 Add task
               </button>
             </div>
+            <div class="focus-col focus-col-review">
+              <div class="focus-col-head">
+                <span class="focus-avatar focus-avatar-review">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 17H2a3 3 0 000 6h20a3 3 0 000-6z"/><path d="M5.45 9A7 7 0 0119 11"/><path d="M12 2v7"/></svg>
+                </span>
+                <span class="focus-col-name">For Founder</span>
+                <span class="focus-col-badge" style="display:${forFounderPending > 0 ? 'inline-flex' : 'none'}">${forFounderPending}</span>
+              </div>
+              <div class="focus-list" id="tasks-for-founder">${renderTaskList('for-founder')}</div>
+              <button class="focus-add-btn focus-add-btn-review" onclick="startAddTask('for-founder')">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Leave for Founder
+              </button>
+            </div>
           </div>
         </div>
 
@@ -6244,6 +6323,186 @@ function renderHomePage() {
 
     </div>
   `;
+}
+
+// ============================================================
+// GOAL + REVENUE
+// ============================================================
+
+async function loadHomeSettings() {
+  try {
+    const s = await fetchAPI(API.settings);
+    state.monthlyGoal    = parseInt(s.monthly_affiliate_goal)    || 0;
+    state.monthlyRevenue = parseFloat(s.monthly_affiliate_revenue) || 0;
+  } catch {}
+}
+
+function openGoalEdit() {
+  openModal('Monthly Affiliate Goal', `
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <p style="color:var(--text-secondary);font-size:14px;margin:0">Set a target for active affiliates — the progress ring on your dashboard will track toward this number.</p>
+      <div class="form-group">
+        <label class="form-label">Target (active affiliates)</label>
+        <input class="form-input" id="goal-input" type="number" min="1" max="9999"
+               value="${state.monthlyGoal || ''}" placeholder="e.g. 15">
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        ${state.monthlyGoal ? `<button class="btn btn-secondary btn-sm" onclick="saveGoal(0)">Clear goal</button>` : '<span></span>'}
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-secondary btn-sm" onclick="closeModal()">Cancel</button>
+          <button class="btn btn-primary btn-sm" onclick="saveGoal()">Set Goal</button>
+        </div>
+      </div>
+    </div>
+  `);
+  setTimeout(() => { const el = document.getElementById('goal-input'); el?.focus(); el?.select(); }, 60);
+}
+
+async function saveGoal(override) {
+  const val = override !== undefined ? override : (parseInt(document.getElementById('goal-input')?.value) || 0);
+  try {
+    await fetchAPI(API.settings, { method: 'PUT', body: JSON.stringify({ monthly_affiliate_goal: val || null }) });
+    state.monthlyGoal = val;
+    closeModal();
+    renderHomePage();
+  } catch (err) { showToast(err.message, 'error'); }
+}
+
+function openRevenueEdit() {
+  openModal('Affiliate Revenue — This Month', `
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <p style="color:var(--text-secondary);font-size:14px;margin:0">Manually track affiliate-driven revenue for this month. Update anytime.</p>
+      <div class="form-group">
+        <label class="form-label">Revenue ($)</label>
+        <input class="form-input" id="revenue-input" type="number" min="0" step="1"
+               value="${state.monthlyRevenue || ''}" placeholder="e.g. 4200">
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:8px">
+        <button class="btn btn-secondary btn-sm" onclick="closeModal()">Cancel</button>
+        <button class="btn btn-primary btn-sm" onclick="saveRevenue()">Update</button>
+      </div>
+    </div>
+  `);
+  setTimeout(() => { const el = document.getElementById('revenue-input'); el?.focus(); el?.select(); }, 60);
+}
+
+async function saveRevenue() {
+  const val = parseFloat(document.getElementById('revenue-input')?.value) || 0;
+  try {
+    await fetchAPI(API.settings, { method: 'PUT', body: JSON.stringify({ monthly_affiliate_revenue: val || null }) });
+    state.monthlyRevenue = val;
+    closeModal();
+    renderHomePage();
+    showToast('Revenue updated');
+  } catch (err) { showToast(err.message, 'error'); }
+}
+
+// ============================================================
+// IDEA BOARD
+// ============================================================
+
+async function loadIdeas() {
+  state.ideas = await fetchAPI(API.ideas);
+}
+
+function renderIdeasPage() {
+  const COLORS = ['yellow', 'pink', 'blue', 'green', 'purple'];
+  document.getElementById('page-content').innerHTML = `
+    <div class="ideas-page">
+      <div class="ideas-header">
+        <div>
+          <h1 class="page-title" style="margin-bottom:6px">Idea Board</h1>
+          <p class="ideas-subtitle">Random ideas to revisit — nothing gets lost</p>
+        </div>
+        <button class="btn btn-primary" onclick="openIdeaModal(null)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right:6px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          New Idea
+        </button>
+      </div>
+      ${state.ideas.length === 0
+        ? `<div class="ideas-empty">
+             <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--text-muted);margin-bottom:12px"><path d="M12 2a7 7 0 015.292 11.647l-.792 1.353A2 2 0 0114.764 16H9.236a2 2 0 01-1.736-1l-.792-1.353A7 7 0 0112 2z"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="10" y1="23" x2="14" y2="23"/></svg>
+             <p>No ideas yet — drop anything here to revisit later</p>
+           </div>`
+        : `<div class="ideas-grid">
+             ${state.ideas.map(idea => `
+               <div class="idea-card idea-${idea.color}" onclick="openIdeaModal('${idea.id}')">
+                 <div class="idea-body">${esc(idea.body)}</div>
+                 <div class="idea-footer">
+                   <span class="idea-date">${fmtDate(idea.created_at)}</span>
+                 </div>
+               </div>
+             `).join('')}
+           </div>`}
+    </div>
+  `;
+}
+
+function openIdeaModal(id) {
+  const idea = id ? state.ideas.find(x => x.id === id) : null;
+  const isEdit = !!idea;
+  const currentColor = idea?.color || 'yellow';
+  const COLORS = ['yellow', 'pink', 'blue', 'green', 'purple'];
+
+  openModal(isEdit ? 'Edit Idea' : 'New Idea', `
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div class="form-group">
+        <label class="form-label">Idea</label>
+        <textarea class="form-input" id="idea-body" rows="5" placeholder="Write your idea here…" style="resize:vertical">${isEdit ? esc(idea.body) : ''}</textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Color</label>
+        <div class="idea-color-row">
+          ${COLORS.map(c => `
+            <button class="idea-color-dot idea-dot-${c}${currentColor === c ? ' idea-dot-active' : ''}"
+                    onclick="pickIdeaColor('${c}')" data-color="${c}"></button>
+          `).join('')}
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:space-between">
+        <div>${isEdit ? `<button class="btn btn-danger btn-sm" onclick="deleteIdea('${id}')">Delete</button>` : ''}</div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-secondary btn-sm" onclick="closeModal()">Cancel</button>
+          <button class="btn btn-primary btn-sm" onclick="saveIdea(${id ? `'${id}'` : 'null'})">
+            ${isEdit ? 'Save' : 'Add Idea'}
+          </button>
+        </div>
+      </div>
+    </div>
+  `);
+  setTimeout(() => document.getElementById('idea-body')?.focus(), 60);
+}
+
+function pickIdeaColor(color) {
+  document.querySelectorAll('.idea-color-dot').forEach(b => b.classList.toggle('idea-dot-active', b.dataset.color === color));
+}
+
+async function saveIdea(id) {
+  const body  = document.getElementById('idea-body')?.value.trim();
+  const color = document.querySelector('.idea-color-dot.idea-dot-active')?.dataset.color || 'yellow';
+  if (!body) { showToast('Write something first', 'error'); return; }
+  try {
+    if (id) {
+      const updated = await fetchAPI(`${API.ideas}/${id}`, { method: 'PUT', body: JSON.stringify({ body, color }) });
+      const i = state.ideas.findIndex(x => x.id === id);
+      if (i !== -1) state.ideas[i] = updated;
+    } else {
+      const created = await fetchAPI(API.ideas, { method: 'POST', body: JSON.stringify({ body, color }) });
+      state.ideas.unshift(created);
+    }
+    closeModal();
+    if (state.currentPage === 'ideas') renderIdeasPage();
+  } catch (err) { showToast(err.message, 'error'); }
+}
+
+async function deleteIdea(id) {
+  try {
+    await fetchAPI(`${API.ideas}/${id}`, { method: 'DELETE' });
+    state.ideas = state.ideas.filter(x => x.id !== id);
+    closeModal();
+    if (state.currentPage === 'ideas') renderIdeasPage();
+    showToast('Idea deleted');
+  } catch (err) { showToast(err.message, 'error'); }
 }
 
 // ============================================================
@@ -6293,6 +6552,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     loadCustomIssueTypes().catch(() => {}),
     loadTasks().catch(() => {}),
     loadDailyTop2().catch(() => {}),
+    loadHomeSettings().catch(() => {}),
+    loadIdeas().catch(() => {}),
     checkTikTokStatus().catch(() => {})
   ]);
 
