@@ -6004,7 +6004,7 @@ async function deleteTaskModal(id) {
 }
 
 // ============================================================
-// DAILY TOP 2
+// DAILY TOP 2  (per-person: founder + lu)
 // ============================================================
 
 async function loadDailyTop2() {
@@ -6016,76 +6016,96 @@ function refreshDailyTop2() {
   renderDailyTop2Page();
 }
 
-function renderDailyTop2Page() {
-  const items = state.dailyTop2.length === 2
-    ? state.dailyTop2
-    : [{ slot: 1, title: null, completed: false }, { slot: 2, title: null, completed: false }];
-  const allDone = items.every(i => i.completed && i.title);
+function getDT2(person) {
+  // Returns slots [1, 2] for the given person, filling blanks if needed
+  const found = state.dailyTop2.filter(i => i.person === person).sort((a, b) => a.slot - b.slot);
+  return [
+    found.find(i => i.slot === 1) || { person, slot: 1, title: null, completed: false },
+    found.find(i => i.slot === 2) || { person, slot: 2, title: null, completed: false }
+  ];
+}
 
-  document.getElementById('page-content').innerHTML = `
-    <div class="dt2-page">
-      <div class="dt2-header">
-        <div>
-          <h1 class="page-title" style="margin-bottom:6px">Daily Top 2</h1>
-          <p class="dt2-subtitle">2 things that move the brand forward today</p>
-        </div>
-        <button class="btn btn-secondary btn-sm" onclick="resetDailyTop2()" style="margin-top:6px">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:5px"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg>
-          Reset for tomorrow
+function renderDT2PersonCol(person, label, avatarLetter) {
+  const items = getDT2(person);
+  const allDone = items.every(i => i.completed && i.title);
+  return `
+    <div class="dt2-person-col">
+      <div class="dt2-person-head">
+        <span class="focus-avatar" style="width:26px;height:26px;font-size:11px">${avatarLetter}</span>
+        <span class="dt2-person-name">${label}</span>
+        <button class="dt2-reset-btn" onclick="resetDailyTop2('${person}')" title="Reset for tomorrow">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg>
         </button>
       </div>
-
       <div class="dt2-items">
         ${items.map(item => `
-          <div class="dt2-card${item.completed ? ' dt2-done' : ''}" id="dt2-card-${item.slot}">
-            <button class="dt2-check${item.completed ? ' dt2-checked' : ''}" onclick="toggleDailyTop2(${item.slot})" title="${item.completed ? 'Mark incomplete' : 'Mark done'}">
+          <div class="dt2-card${item.completed ? ' dt2-done' : ''}" id="dt2-card-${person}-${item.slot}">
+            <button class="dt2-check${item.completed ? ' dt2-checked' : ''}"
+                    onclick="toggleDailyTop2('${person}', ${item.slot})"
+                    title="${item.completed ? 'Mark incomplete' : 'Mark done'}">
               ${item.completed ? `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>` : ''}
             </button>
             <div class="dt2-body">
               <span class="dt2-num">${item.slot}</span>
               <span class="dt2-title${!item.title ? ' dt2-placeholder' : ''}"
-                    id="dt2-title-${item.slot}"
-                    onclick="startEditDailyTop2(${item.slot})">
-                ${item.title ? esc(item.title) : `Click to set your #${item.slot} priority…`}
+                    id="dt2-title-${person}-${item.slot}"
+                    onclick="startEditDailyTop2('${person}', ${item.slot})">
+                ${item.title ? esc(item.title) : `Click to set priority #${item.slot}…`}
               </span>
             </div>
           </div>
         `).join('')}
       </div>
-
       ${allDone ? `
-        <div class="dt2-celebration">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-          Both done — the brand moved forward today.
+        <div class="dt2-celebration" style="margin-top:16px;font-size:14px;padding:14px 16px">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          Both done!
         </div>` : ''}
     </div>
   `;
 }
 
-async function toggleDailyTop2(slot) {
-  const item = state.dailyTop2.find(i => i.slot === slot);
-  if (!item) return;
+function renderDailyTop2Page() {
+  document.getElementById('page-content').innerHTML = `
+    <div class="dt2-page">
+      <div class="dt2-header">
+        <div>
+          <h1 class="page-title" style="margin-bottom:6px">Daily Top 2</h1>
+          <p class="dt2-subtitle">2 things each person commits to moving forward today</p>
+        </div>
+      </div>
+      <div class="dt2-two-col">
+        ${renderDT2PersonCol('founder', 'Gibran', 'G')}
+        ${renderDT2PersonCol('lu', 'Lu', 'L')}
+      </div>
+    </div>
+  `;
+}
+
+async function toggleDailyTop2(person, slot) {
+  const item = state.dailyTop2.find(i => i.person === person && i.slot === slot);
+  const current = item?.completed || false;
   try {
-    const updated = await fetchAPI(`${API.dailyTop2}/${slot}`, {
+    const updated = await fetchAPI(`${API.dailyTop2}/${person}/${slot}`, {
       method: 'PUT',
-      body: JSON.stringify({ completed: !item.completed })
+      body: JSON.stringify({ completed: !current })
     });
-    const i = state.dailyTop2.findIndex(x => x.slot === slot);
+    const i = state.dailyTop2.findIndex(x => x.person === person && x.slot === slot);
     if (i !== -1) state.dailyTop2[i] = updated;
+    else state.dailyTop2.push(updated);
     refreshDailyTop2();
   } catch (err) { showToast(err.message, 'error'); }
 }
 
-function startEditDailyTop2(slot) {
-  const item = state.dailyTop2.find(i => i.slot === slot);
-  if (!item) return;
-  const titleEl = document.getElementById(`dt2-title-${slot}`);
+function startEditDailyTop2(person, slot) {
+  const item = state.dailyTop2.find(i => i.person === person && i.slot === slot);
+  const titleEl = document.getElementById(`dt2-title-${person}-${slot}`);
   if (!titleEl || titleEl.tagName === 'INPUT') return;
 
   const input = document.createElement('input');
   input.className = 'dt2-input';
-  input.value = item.title || '';
-  input.placeholder = `Set your #${slot} priority for today…`;
+  input.value = item?.title || '';
+  input.placeholder = `Set priority #${slot} for today…`;
   input.maxLength = 120;
   titleEl.replaceWith(input);
   input.focus();
@@ -6096,27 +6116,35 @@ function startEditDailyTop2(slot) {
     if (saved) return; saved = true;
     const title = input.value.trim();
     try {
-      const updated = await fetchAPI(`${API.dailyTop2}/${slot}`, {
+      const updated = await fetchAPI(`${API.dailyTop2}/${person}/${slot}`, {
         method: 'PUT',
         body: JSON.stringify({ title: title || null })
       });
-      const i = state.dailyTop2.findIndex(x => x.slot === slot);
+      const i = state.dailyTop2.findIndex(x => x.person === person && x.slot === slot);
       if (i !== -1) state.dailyTop2[i] = updated;
+      else state.dailyTop2.push(updated);
     } catch (err) { showToast(err.message, 'error'); }
     refreshDailyTop2();
   }
 
   input.addEventListener('keydown', e => {
-    if (e.key === 'Enter') { input.blur(); }
+    if (e.key === 'Enter')  { input.blur(); }
     if (e.key === 'Escape') { saved = true; refreshDailyTop2(); }
   });
   input.addEventListener('blur', save);
 }
 
-async function resetDailyTop2() {
+async function resetDailyTop2(person) {
   try {
-    await fetchAPI(`${API.dailyTop2}/reset`, { method: 'DELETE' });
-    state.dailyTop2 = state.dailyTop2.map(i => ({ ...i, title: null, completed: false }));
+    const url = person === 'all' ? `${API.dailyTop2}/reset` : `${API.dailyTop2}/${person}`;
+    await fetchAPI(url, { method: 'DELETE' });
+    if (person === 'all') {
+      state.dailyTop2 = state.dailyTop2.map(i => ({ ...i, title: null, completed: false }));
+    } else {
+      state.dailyTop2 = state.dailyTop2.map(i =>
+        i.person === person ? { ...i, title: null, completed: false } : i
+      );
+    }
     renderDailyTop2Page();
     showToast('Reset for tomorrow ✓');
   } catch (err) { showToast(err.message, 'error'); }
@@ -6508,10 +6536,30 @@ async function deleteIdea(id) {
 }
 
 // ============================================================
+// SIDEBAR COLLAPSE
+// ============================================================
+
+function toggleSidebar() {
+  const sidebar = document.querySelector('.sidebar');
+  const revealBtn = document.getElementById('sidebar-reveal-btn');
+  const isHidden = sidebar.classList.toggle('sidebar-hidden');
+  if (revealBtn) revealBtn.style.display = isHidden ? 'flex' : 'none';
+  localStorage.setItem('sidebar-hidden', isHidden ? '1' : '0');
+}
+
+// ============================================================
 // INIT
 // ============================================================
 
 document.addEventListener('DOMContentLoaded', async () => {
+  // Restore sidebar collapse state from localStorage
+  const sidebarHidden = localStorage.getItem('sidebar-hidden') === '1';
+  if (sidebarHidden) {
+    document.querySelector('.sidebar')?.classList.add('sidebar-hidden');
+    const revealBtn = document.getElementById('sidebar-reveal-btn');
+    if (revealBtn) revealBtn.style.display = 'flex';
+  }
+
   // Regular nav items (not the roster group trigger or Creative Lab items — handled separately)
   document.querySelectorAll('.nav-item:not(.nav-group-trigger):not(.nav-cl-item)').forEach(el => {
     el.addEventListener('click', e => { e.preventDefault(); navigate(el.dataset.page); });

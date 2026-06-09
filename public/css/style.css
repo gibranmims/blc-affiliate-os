@@ -91,7 +91,32 @@ body {
   flex-direction: column;
   overflow: hidden;
   z-index: 10;
+  transition: width 0.22s ease, border-color 0.22s ease;
 }
+.sidebar.sidebar-hidden {
+  width: 0;
+  border-right-color: transparent;
+}
+#sidebar-reveal-btn {
+  position: fixed;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 200;
+  width: 22px;
+  height: 52px;
+  background: var(--text-primary);
+  color: #fff;
+  border: none;
+  border-radius: 0 8px 8px 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 2px 0 8px rgba(0,0,0,0.18);
+  transition: background 0.15s;
+}
+#sidebar-reveal-btn:hover { background: #374151; }
 
 .sidebar-header {
   padding: 22px 18px 18px;
@@ -5332,7 +5357,7 @@ a.cl-profile-handle:hover {
    ============================================================ */
 
 .home-page {
-  max-width: 1160px;
+  max-width: 1340px;
 }
 
 .home-hero {
@@ -5448,7 +5473,7 @@ a.cl-profile-handle:hover {
 /* Bottom two-column layout */
 .home-bottom {
   display: grid;
-  grid-template-columns: 1fr 2.4fr;
+  grid-template-columns: 1fr 3fr;
   gap: 24px;
   align-items: start;
 }
@@ -6451,21 +6476,7 @@ textarea:focus {
 }
 .home-goal-row .home-attn-arrow { color: rgba(255,255,255,0.35) !important; }
 
-/* ── Active Affiliates — black hero metric ──────────────── */
-.home-metric:first-child {
-  background: #09090B !important;
-  border-color: #09090B !important;
-  box-shadow: var(--shadow-lg) !important;
-}
-.home-metric:first-child .home-metric-num   { color: #FFFFFF !important; }
-.home-metric:first-child .home-metric-label { color: rgba(255,255,255,0.85) !important; }
-.home-metric:first-child .home-metric-sub   { color: rgba(255,255,255,0.45) !important; }
-
-/* ── Metric cards: colored left-border accent ───────────── */
-.home-metric:nth-child(2) { border-left: 3px solid var(--blue) !important; }
-.home-metric:nth-child(3) { border-left: 3px solid var(--green) !important; }
-.home-metric:nth-child(4) { border-left: 3px solid var(--purple) !important; }
-.home-metric:nth-child(5) { border-left: 3px solid var(--orange) !important; }
+/* ── Metric cards: all clean white (no special overrides) ─ */
 
 /* ── QA cards: icon bg per card ─────────────────────────── */
 .home-qa-card:nth-child(1) .home-qa-icon { background: rgba(37,99,235,0.1);  color: var(--blue); }
@@ -6476,3 +6487,44 @@ textarea:focus {
 .home-qa-card:nth-child(2) .home-qa-stat { color: var(--green); }
 .home-qa-card:nth-child(3) .home-qa-stat { color: var(--orange); }
 .home-qa-card:nth-child(4) .home-qa-stat { color: var(--purple); }
+
+/* ── Daily Top 2: two-person layout ─────────────────────── */
+.dt2-two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 28px;
+  margin-top: 28px;
+}
+.dt2-person-col {
+  display: flex;
+  flex-direction: column;
+}
+.dt2-person-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.dt2-person-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+  flex: 1;
+}
+.dt2-reset-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+  color: var(--text-muted);
+  transition: background 0.15s, color 0.15s;
+  flex-shrink: 0;
+}
+.dt2-reset-btn:hover { background: var(--surface-hover); color: var(--text-primary); }
