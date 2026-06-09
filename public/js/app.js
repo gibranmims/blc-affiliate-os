@@ -543,6 +543,7 @@ function navigate(page) {
     updateRosterSubNav();
   }
   const renderers = {
+    home:      renderHomePage,
     outreach:  renderOutreachPage,
     roster:    renderRosterPage,
     scripts:   renderScriptsPage,
@@ -5792,6 +5793,123 @@ async function deleteSupportIssue(id) {
 }
 
 // ============================================================
+// HOME PAGE
+// ============================================================
+
+function renderHomePage() {
+  const now = new Date();
+  const h = now.getHours();
+  const greeting = h < 5 ? 'Still at it —' : h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : h < 21 ? 'Good evening' : 'Good night';
+  const dateStr = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+
+  // Metrics
+  const activeAffiliates = state.roster.filter(r => r.status === 'active').length;
+  const pipelineExcluded = new Set(['signed', 'archived', 'counter_rejected']);
+  const inPipeline = state.outreach.filter(o => !pipelineExcluded.has(o.status)).length;
+  const signed = state.outreach.filter(o => o.status === 'signed').length;
+  const challengers = state.challengers.length;
+
+  // Attention items
+  const needsReply = state.outreach.filter(o => o.status === 'replied').length;
+  const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const supportThisMonth = state.support.filter(i => (i.issue_date || '').startsWith(thisMonth)).length;
+
+  document.getElementById('page-content').innerHTML = `
+    <div class="home-page">
+
+      <div class="home-hero">
+        <div class="home-greeting">${greeting}, team.</div>
+        <div class="home-date">${dateStr}</div>
+      </div>
+
+      <div class="home-metrics">
+        <div class="home-metric">
+          <div class="home-metric-num">${activeAffiliates}</div>
+          <div class="home-metric-label">Active Affiliates</div>
+          <div class="home-metric-sub">on the roster</div>
+        </div>
+        <div class="home-metric">
+          <div class="home-metric-num">${inPipeline}</div>
+          <div class="home-metric-label">In Pipeline</div>
+          <div class="home-metric-sub">being outreached</div>
+        </div>
+        <div class="home-metric home-metric-green">
+          <div class="home-metric-num">${signed}</div>
+          <div class="home-metric-label">Signed</div>
+          <div class="home-metric-sub">total contracts</div>
+        </div>
+        <div class="home-metric">
+          <div class="home-metric-num">${challengers}</div>
+          <div class="home-metric-label">Challengers</div>
+          <div class="home-metric-sub">enrolled</div>
+        </div>
+      </div>
+
+      ${(needsReply > 0 || supportThisMonth > 0) ? `
+      <div class="home-attention">
+        ${needsReply > 0 ? `
+          <div class="home-attention-item" onclick="navigate('outreach')">
+            <span class="home-attn-dot home-attn-dot-yellow"></span>
+            <span>${needsReply} creator${needsReply !== 1 ? 's' : ''} waiting for a reply</span>
+            <span class="home-attn-arrow">→</span>
+          </div>` : ''}
+        ${supportThisMonth > 0 ? `
+          <div class="home-attention-item" onclick="navigate('support')">
+            <span class="home-attn-dot home-attn-dot-orange"></span>
+            <span>${supportThisMonth} support issue${supportThisMonth !== 1 ? 's' : ''} this month</span>
+            <span class="home-attn-arrow">→</span>
+          </div>` : ''}
+      </div>` : ''}
+
+      <div class="home-actions-header">Quick Actions</div>
+      <div class="home-actions">
+        <button class="home-action" onclick="navigate('outreach')">
+          <span class="home-action-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+          </span>
+          <div class="home-action-text">
+            <div class="home-action-label">Affiliate Outreach</div>
+            <div class="home-action-sub">Manage your creator pipeline</div>
+          </div>
+          <span class="home-action-arr">→</span>
+        </button>
+        <button class="home-action" onclick="navigate('roster')">
+          <span class="home-action-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+          </span>
+          <div class="home-action-text">
+            <div class="home-action-label">Creator Roster</div>
+            <div class="home-action-sub">Active affiliates &amp; contracts</div>
+          </div>
+          <span class="home-action-arr">→</span>
+        </button>
+        <button class="home-action" onclick="navigate('support');setTimeout(openLogIssueModal,150)">
+          <span class="home-action-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+          </span>
+          <div class="home-action-text">
+            <div class="home-action-label">Log Support Issue</div>
+            <div class="home-action-sub">Track customer complaints</div>
+          </div>
+          <span class="home-action-arr">→</span>
+        </button>
+        <button class="home-action" onclick="navigate('challenge')">
+          <span class="home-action-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          </span>
+          <div class="home-action-text">
+            <div class="home-action-label">Before &amp; Afters</div>
+            <div class="home-action-sub">BBL challenge tracker</div>
+          </div>
+          <span class="home-action-arr">→</span>
+        </button>
+      </div>
+
+    </div>
+  `;
+}
+
+// ============================================================
 // INIT
 // ============================================================
 
@@ -5841,7 +5959,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const params = new URLSearchParams(window.location.search);
   const tiktokResult = params.get('tiktok');
-  const startPage = params.get('page') || 'outreach';
+  const startPage = params.get('page') || 'home';
   if (tiktokResult === 'connected') showToast('TikTok Shop connected!');
   if (tiktokResult === 'error')     showToast('TikTok connection failed. Try again.', 'error');
   if (tiktokResult) window.history.replaceState({}, '', '/');
