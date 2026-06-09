@@ -15,6 +15,7 @@ const transcriptRoutes = require('./routes/transcript');
 const supportRoutes    = require('./routes/support');
 const challengeRoutes = require('./routes/challenge');
 const challengeAdminRoutes = require('./routes/challenge-admin');
+const tasksRoutes          = require('./routes/tasks');
 const { requireAuth } = require('./middleware/auth');
 const { startCron } = require('./cron/reminders');
 
@@ -95,6 +96,9 @@ app.use('/api/support',    supportRoutes);
 // ── Challenge routes ──────────────────────────────────────────────
 app.use('/api/challenge', challengeRoutes);
 app.use('/api/challenge', challengeAdminRoutes);
+
+// ── Tasks ─────────────────────────────────────────────────────────
+app.use('/api/tasks', tasksRoutes);
 
 // ── SPA fallback (serves index.html for all other GET requests) ───
 app.get('*', (req, res) => {

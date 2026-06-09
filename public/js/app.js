@@ -9,7 +9,8 @@ const API = {
   outreachGen: '/api/outreach-gen',
   challenge:   '/api/challenge',
   support:     '/api/support',
-  settings:    '/api/settings'
+  settings:    '/api/settings',
+  tasks:       '/api/tasks'
 };
 
 const STATUSES = [
@@ -47,7 +48,8 @@ const state = {
   challengeFilter:    'all',    // 'all' | 'active' | 'completed' | 'disqualified' | 'refund_approved'
   selectedChallengerId: null,
   support:            [],
-  customIssueTypes:   []
+  customIssueTypes:   [],
+  tasks:              []
 };
 
 const nbState = {
@@ -5796,6 +5798,92 @@ async function deleteSupportIssue(id) {
 // HOME PAGE
 // ============================================================
 
+async function loadTasks() {
+  state.tasks = await fetchAPI(API.tasks);
+}
+
+function renderTaskList(assignee) {
+  const tasks = state.tasks
+    .filter(t => t.assignee === assignee)
+    .sort((a, b) => {
+      if (a.completed !== b.completed) return a.completed ? 1 : -1;
+      return new Date(a.created_at) - new Date(b.created_at);
+    });
+  if (tasks.length === 0) {
+    return `<div class="focus-empty">Nothing yet</div>`;
+  }
+  return tasks.map(t => `
+    <div class="focus-task${t.completed ? ' focus-done' : ''}">
+      <button class="focus-check${t.completed ? ' focus-checked' : ''}" onclick="toggleTask('${t.id}')">
+        ${t.completed ? `<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5"><polyline points="20 6 9 17 4 12"/></svg>` : ''}
+      </button>
+      <span class="focus-task-title">${esc(t.title)}</span>
+      <button class="focus-del" onclick="deleteTask('${t.id}')" title="Remove">×</button>
+    </div>
+  `).join('');
+}
+
+function refreshTaskBoard() {
+  const fEl = document.getElementById('tasks-founder');
+  const lEl = document.getElementById('tasks-lu');
+  if (fEl) fEl.innerHTML = renderTaskList('founder');
+  if (lEl) lEl.innerHTML = renderTaskList('lu');
+}
+
+function startAddTask(assignee) {
+  const listEl = document.getElementById(`tasks-${assignee}`);
+  if (!listEl || listEl.querySelector('.focus-add-row')) return;
+  const row = document.createElement('div');
+  row.className = 'focus-task focus-add-row';
+  row.innerHTML = `
+    <span class="focus-check"></span>
+    <input class="focus-add-input" type="text" placeholder="Add a task…" maxlength="120">
+  `;
+  listEl.appendChild(row);
+  const input = row.querySelector('input');
+  input.focus();
+  async function commit() {
+    const title = input.value.trim();
+    row.remove();
+    if (!title) return;
+    try {
+      const task = await fetchAPI(API.tasks, {
+        method: 'POST',
+        body: JSON.stringify({ title, assignee })
+      });
+      state.tasks.push(task);
+      refreshTaskBoard();
+    } catch (err) { showToast(err.message, 'error'); }
+  }
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') commit();
+    if (e.key === 'Escape') row.remove();
+  });
+  input.addEventListener('blur', () => setTimeout(() => { if (row.parentNode) row.remove(); }, 150));
+}
+
+async function toggleTask(id) {
+  const task = state.tasks.find(t => t.id === id);
+  if (!task) return;
+  try {
+    const updated = await fetchAPI(`${API.tasks}/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ completed: !task.completed })
+    });
+    const i = state.tasks.findIndex(t => t.id === id);
+    if (i !== -1) state.tasks[i] = updated;
+    refreshTaskBoard();
+  } catch (err) { showToast(err.message, 'error'); }
+}
+
+async function deleteTask(id) {
+  try {
+    await fetchAPI(`${API.tasks}/${id}`, { method: 'DELETE' });
+    state.tasks = state.tasks.filter(t => t.id !== id);
+    refreshTaskBoard();
+  } catch (err) { showToast(err.message, 'error'); }
+}
+
 function renderHomePage() {
   const now = new Date();
   const h = now.getHours();
@@ -5861,48 +5949,70 @@ function renderHomePage() {
           </div>` : ''}
       </div>` : ''}
 
-      <div class="home-actions-header">Quick Actions</div>
-      <div class="home-actions">
-        <button class="home-action" onclick="navigate('outreach')">
-          <span class="home-action-icon">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-          </span>
-          <div class="home-action-text">
-            <div class="home-action-label">Affiliate Outreach</div>
-            <div class="home-action-sub">Manage your creator pipeline</div>
+      <div class="home-bottom">
+
+        <div class="home-bottom-left">
+          <div class="home-section-label">Quick Actions</div>
+          <div class="home-actions">
+            <button class="home-action" onclick="navigate('outreach')">
+              <span class="home-action-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+              </span>
+              <span class="home-action-label">Affiliate Outreach</span>
+              <span class="home-action-arr">→</span>
+            </button>
+            <button class="home-action" onclick="navigate('roster')">
+              <span class="home-action-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+              </span>
+              <span class="home-action-label">Creator Roster</span>
+              <span class="home-action-arr">→</span>
+            </button>
+            <button class="home-action" onclick="navigate('support');setTimeout(openLogIssueModal,150)">
+              <span class="home-action-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+              </span>
+              <span class="home-action-label">Log Support Issue</span>
+              <span class="home-action-arr">→</span>
+            </button>
+            <button class="home-action" onclick="navigate('challenge')">
+              <span class="home-action-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+              </span>
+              <span class="home-action-label">Before &amp; Afters</span>
+              <span class="home-action-arr">→</span>
+            </button>
           </div>
-          <span class="home-action-arr">→</span>
-        </button>
-        <button class="home-action" onclick="navigate('roster')">
-          <span class="home-action-icon">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
-          </span>
-          <div class="home-action-text">
-            <div class="home-action-label">Creator Roster</div>
-            <div class="home-action-sub">Active affiliates &amp; contracts</div>
+        </div>
+
+        <div class="home-bottom-right">
+          <div class="home-section-label">Team Focus</div>
+          <div class="home-focus">
+            <div class="focus-col">
+              <div class="focus-col-head">
+                <span class="focus-avatar">G</span>
+                <span class="focus-col-name">Founder</span>
+              </div>
+              <div class="focus-list" id="tasks-founder">${renderTaskList('founder')}</div>
+              <button class="focus-add-btn" onclick="startAddTask('founder')">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Add task
+              </button>
+            </div>
+            <div class="focus-col">
+              <div class="focus-col-head">
+                <span class="focus-avatar">L</span>
+                <span class="focus-col-name">Lu</span>
+              </div>
+              <div class="focus-list" id="tasks-lu">${renderTaskList('lu')}</div>
+              <button class="focus-add-btn" onclick="startAddTask('lu')">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Add task
+              </button>
+            </div>
           </div>
-          <span class="home-action-arr">→</span>
-        </button>
-        <button class="home-action" onclick="navigate('support');setTimeout(openLogIssueModal,150)">
-          <span class="home-action-icon">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
-          </span>
-          <div class="home-action-text">
-            <div class="home-action-label">Log Support Issue</div>
-            <div class="home-action-sub">Track customer complaints</div>
-          </div>
-          <span class="home-action-arr">→</span>
-        </button>
-        <button class="home-action" onclick="navigate('challenge')">
-          <span class="home-action-icon">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-          </span>
-          <div class="home-action-text">
-            <div class="home-action-label">Before &amp; Afters</div>
-            <div class="home-action-sub">BBL challenge tracker</div>
-          </div>
-          <span class="home-action-arr">→</span>
-        </button>
+        </div>
+
       </div>
 
     </div>
@@ -5954,6 +6064,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     loadChallengers().catch(err => console.error('Challengers load failed:', err)),
     loadSupport().catch(err => console.error('Support load failed:', err)),
     loadCustomIssueTypes().catch(() => {}),
+    loadTasks().catch(() => {}),
     checkTikTokStatus().catch(() => {})
   ]);
 
