@@ -5015,7 +5015,7 @@ a.cl-profile-handle:hover {
 }
 .rs-renew-btn {
   background: var(--accent);
-  color: #fff;
+  color: #0a0a0a;
   border: none;
   padding: 7px 14px;
   border-radius: var(--radius-sm);
