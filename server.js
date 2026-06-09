@@ -26,8 +26,13 @@ app.use(session({
   secret: process.env.SESSION_SECRET || 'blc-os-secret-change-me',
   resave: false,
   saveUninitialized: false,
-  cookie: { secure: process.env.NODE_ENV === 'production', maxAge: 7 * 24 * 60 * 60 * 1000 }
+  cookie: {
+    secure: 'auto',
+    sameSite: 'lax',
+    maxAge: 7 * 24 * 60 * 60 * 1000
+  }
 }));
+app.set('trust proxy', 1);
 
 app.use(cors());
 app.use(express.json());
