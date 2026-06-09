@@ -5586,7 +5586,7 @@ function renderSupportPage() {
     <div class="page-header">
       <div>
         <h1 class="page-title">Customer Support</h1>
-        <p class="page-subtitle">Issue log · ${all.length} total</p>
+        <p class="page-subtitle">Monthly issue log · ${all.length} total</p>
       </div>
       <button class="btn btn-primary" onclick="openLogIssueModal()">+ Log Issue</button>
     </div>
