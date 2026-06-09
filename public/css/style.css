@@ -6609,3 +6609,78 @@ textarea:focus {
   background: rgba(255,255,255,0.18);
   color: #fff;
 }
+
+/* ── Attention strip: dark-friendly (no home-attention base class) ─ */
+.home-attention-inline {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 220px;
+  /* No white background — fully transparent inside goal row */
+}
+.home-attention-inline .home-attention-item {
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 10px;
+  color: rgba(255,255,255,0.82);
+  font-size: 13px;
+  padding: 10px 14px;
+}
+.home-attention-inline .home-attention-item:hover {
+  background: rgba(255,255,255,0.15);
+  color: #fff;
+}
+.home-attention-inline .home-attn-arrow {
+  color: rgba(255,255,255,0.35);
+}
+
+/* ── QA card entrance stagger ───────────────────────────── */
+.home-qa-card { animation: cardEnter 0.3s ease-out both; }
+.home-qa-card:nth-child(1) { animation-delay: 0.04s; }
+.home-qa-card:nth-child(2) { animation-delay: 0.09s; }
+.home-qa-card:nth-child(3) { animation-delay: 0.14s; }
+.home-qa-card:nth-child(4) { animation-delay: 0.19s; }
+@keyframes cardEnter {
+  from { opacity: 0; transform: translateY(14px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ── Idea card entrance stagger ─────────────────────────── */
+.idea-card { animation: cardEnter 0.3s ease-out both; }
+.idea-card:nth-child(1) { animation-delay: 0.03s; }
+.idea-card:nth-child(2) { animation-delay: 0.07s; }
+.idea-card:nth-child(3) { animation-delay: 0.11s; }
+.idea-card:nth-child(4) { animation-delay: 0.15s; }
+.idea-card:nth-child(5) { animation-delay: 0.19s; }
+.idea-card:nth-child(6) { animation-delay: 0.22s; }
+
+/* ── DT2 card entrance stagger ───────────────────────────── */
+.dt2-card { animation: cardEnter 0.28s ease-out both; }
+.dt2-card:nth-child(1) { animation-delay: 0.06s; }
+.dt2-card:nth-child(2) { animation-delay: 0.13s; }
+
+/* ── Task check: pop flash on complete ───────────────────── */
+.focus-check {
+  transition: background 0.15s, border-color 0.15s, transform 0.15s;
+}
+.focus-check:active { transform: scale(0.85); }
+.focus-done .focus-check { animation: checkPop 0.3s cubic-bezier(0.34,1.56,0.64,1); }
+@keyframes checkPop {
+  0%   { transform: scale(0); }
+  60%  { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+
+/* ── Focus task strikethrough animate ───────────────────── */
+.focus-task-title {
+  transition: color 0.2s, text-decoration-color 0.2s;
+}
+
+/* ── Nav item transition polish ─────────────────────────── */
+.nav-item { transition: background 0.12s, color 0.12s, padding-left 0.12s; }
+
+/* ── Badge pop on count change ───────────────────────────── */
+.nav-review-badge, .focus-col-badge {
+  transition: transform 0.2s cubic-bezier(0.34,1.56,0.64,1);
+}

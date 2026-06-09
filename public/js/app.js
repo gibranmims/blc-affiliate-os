@@ -369,6 +369,41 @@ function avgRatePerVid(r) {
   return rates.reduce((a, b) => a + b, 0) / rates.length;
 }
 
+// ============================================================
+// ANIMATIONS
+// ============================================================
+
+function countUp(el, duration = 750) {
+  const raw = el.textContent.trim();
+  const n = parseFloat(raw.replace(/[^0-9.]/g, ''));
+  if (isNaN(n) || n <= 0) return;
+  const start = performance.now();
+  const isInt = Number.isInteger(n);
+  el.textContent = isInt ? '0' : '0.0';
+  (function tick(now) {
+    const t = Math.min((now - start) / duration, 1);
+    const ease = 1 - Math.pow(1 - t, 3); // cubic ease-out
+    const val = n * ease;
+    el.textContent = isInt ? String(Math.round(val)) : val.toFixed(1);
+    if (t < 1) requestAnimationFrame(tick);
+    else el.textContent = raw; // restore original string (handles $2.5k etc)
+  })(start);
+}
+
+function animateHomeStats() {
+  // Count-up on QA stat numbers
+  document.querySelectorAll('.home-qa-stat').forEach(el => countUp(el, 650));
+  // Animate goal ring from empty → real offset
+  const arc = document.querySelector('.home-goal-arc');
+  if (arc) {
+    const target = arc.dataset.target;
+    arc.style.strokeDashoffset = arc.dataset.circ;
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      arc.style.strokeDashoffset = target;
+    }));
+  }
+}
+
 function esc(str) {
   if (!str) return '';
   return String(str)
@@ -6253,12 +6288,14 @@ function renderHomePage() {
         <div class="home-goal-ring-wrap">
           <svg width="88" height="88" viewBox="0 0 88 88">
             <circle cx="44" cy="44" r="${r}" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="7"/>
-            <circle cx="44" cy="44" r="${r}" fill="none"
+            <circle class="home-goal-arc"
+              data-target="${offset}" data-circ="${circ}"
+              cx="44" cy="44" r="${r}" fill="none"
               stroke="${goalPct >= 1 ? '#4ade80' : goalPct > 0 ? '#a5f3a0' : 'rgba(255,255,255,0.25)'}"
               stroke-width="7"
-              stroke-dasharray="${circ}" stroke-dashoffset="${offset}"
+              stroke-dasharray="${circ}" stroke-dashoffset="${circ}"
               stroke-linecap="round" transform="rotate(-90 44 44)"
-              style="transition:stroke-dashoffset 0.7s ease"/>
+              style="transition:stroke-dashoffset 0.9s cubic-bezier(0.25,0.46,0.45,0.94)"/>
           </svg>
           <div class="home-goal-center">
             <span class="home-goal-pct">${goal > 0 ? Math.round(goalPct * 100) + '%' : '—'}</span>
@@ -6289,7 +6326,7 @@ function renderHomePage() {
         </div>
 
         ${(needsReply > 0 || supportThisMonth > 0) ? `
-        <div class="home-attention home-attention-inline">
+        <div class="home-attention-inline">
           ${needsReply > 0 ? `
             <div class="home-attention-item" onclick="navigate('outreach')">
               <span class="home-attn-dot home-attn-dot-yellow"></span>
@@ -6346,6 +6383,8 @@ function renderHomePage() {
 
     </div>
   `;
+  // Animate numbers after DOM is painted
+  requestAnimationFrame(animateHomeStats);
 }
 
 // ============================================================
