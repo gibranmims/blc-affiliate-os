@@ -98,6 +98,23 @@ router.get('/challengers/:id/week0-photo', async (req, res) => {
   }
 });
 
+// ── DELETE /api/challenge/challengers/:id ────────────────────────
+// Removes a challenger and all their check-ins (cascade delete)
+
+router.delete('/challengers/:id', async (req, res) => {
+  try {
+    const db = supabase();
+    const { error } = await db
+      .from('challengers')
+      .delete()
+      .eq('id', req.params.id);
+    if (error) throw error;
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ── POST /api/challenge/challengers/:id/approve-refund ───────────
 
 router.post('/challengers/:id/approve-refund', async (req, res) => {

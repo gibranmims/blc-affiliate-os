@@ -42,7 +42,7 @@ function buildCheckinWindows(signupDate) {
 
 router.post('/signup', upload.single('photo'), async (req, res) => {
   try {
-    const { name, email: customerEmail, order_number } = req.body;
+    const { name, email: customerEmail, order_number, body_part } = req.body;
 
     if (!name || !customerEmail || !order_number) {
       return res.status(400).json({ error: 'name, email, and order_number are required' });
@@ -67,7 +67,7 @@ router.post('/signup', upload.single('photo'), async (req, res) => {
     const signupDate = new Date().toISOString();
     const { data: challenger, error: insertErr } = await db
       .from('challengers')
-      .insert({ name: name.trim(), email: customerEmail.toLowerCase().trim(), order_number: order_number.trim(), signup_date: signupDate })
+      .insert({ name: name.trim(), email: customerEmail.toLowerCase().trim(), order_number: order_number.trim(), signup_date: signupDate, body_part: body_part || null })
       .select()
       .single();
     if (insertErr) throw insertErr;

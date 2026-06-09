@@ -45,8 +45,7 @@ const state = {
   challengers:        [],
   challengeFilter:    'all',    // 'all' | 'active' | 'completed' | 'disqualified' | 'refund_approved'
   selectedChallengerId: null,
-  support:            [],
-  supportFilter:      'open'    // 'open' | 'all' | 'resolved'
+  support:            []
 };
 
 const nbState = {
@@ -161,12 +160,14 @@ function fmtGMV(val) {
 
 function fmtDate(d) {
   if (!d) return '—';
-  return new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  const date = d.includes('T') ? new Date(d) : new Date(d + 'T12:00:00');
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
 function fmtDateShort(d) {
   if (!d) return '—';
-  return new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const date = d.includes('T') ? new Date(d) : new Date(d + 'T12:00:00');
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
 function todayStr() {
@@ -5481,12 +5482,6 @@ const ISSUE_TYPES = [
   { key: 'missing_item',  label: 'Missing Item',  color: 'red'    }
 ];
 
-const SUPPORT_STATUSES = [
-  { key: 'open',        label: 'Open',        color: 'red'    },
-  { key: 'in_progress', label: 'In Progress', color: 'yellow' },
-  { key: 'resolved',    label: 'Resolved',    color: 'green'  }
-];
-
 async function loadSupport() {
   state.support = await fetchAPI(API.support);
   updateSupportBadge();
@@ -5495,82 +5490,95 @@ async function loadSupport() {
 function updateSupportBadge() {
   const badge = document.getElementById('support-badge');
   if (!badge) return;
-  const openCount = state.support.filter(i => i.status !== 'resolved').length;
-  badge.textContent = openCount;
-  badge.style.display = openCount > 0 ? 'inline-flex' : 'none';
-}
-
-function setSupportFilter(f) {
-  state.supportFilter = f;
-  renderSupportPage();
+  const now = new Date();
+  const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const thisMonthCount = state.support.filter(i => (i.issue_date || '').startsWith(thisMonth)).length;
+  badge.textContent = thisMonthCount;
+  badge.style.display = thisMonthCount > 0 ? 'inline-flex' : 'none';
 }
 
 function renderSupportPage() {
   const all = state.support;
-  const filtered = state.supportFilter === 'all'
-    ? all
-    : state.supportFilter === 'resolved'
-    ? all.filter(i => i.status === 'resolved')
-    : all.filter(i => i.status !== 'resolved');
 
-  // Stats by issue type (open only)
+  // This month stats
+  const now = new Date();
+  const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const thisMonthIssues = all.filter(i => (i.issue_date || '').startsWith(thisMonth));
   const typeCounts = {};
-  ISSUE_TYPES.forEach(t => {
-    typeCounts[t.key] = all.filter(i => i.issue_type === t.key && i.status !== 'resolved').length;
-  });
-  const totalOpen     = all.filter(i => i.status !== 'resolved').length;
-  const totalResolved = all.filter(i => i.status === 'resolved').length;
+  ISSUE_TYPES.forEach(t => { typeCounts[t.key] = thisMonthIssues.filter(i => i.issue_type === t.key).length; });
 
   const statCards = ISSUE_TYPES.map(t => `
     <div class="sup-stat sup-stat-${t.color}">
       <div class="sup-stat-count">${typeCounts[t.key]}</div>
       <div class="sup-stat-label">${t.label}</div>
-      <div class="sup-stat-sub">open</div>
+      <div class="sup-stat-sub">this month</div>
     </div>`).join('') + `
-    <div class="sup-stat sup-stat-green">
-      <div class="sup-stat-count">${totalResolved}</div>
-      <div class="sup-stat-label">Resolved</div>
-      <div class="sup-stat-sub">total</div>
+    <div class="sup-stat sup-stat-gray">
+      <div class="sup-stat-count">${thisMonthIssues.length}</div>
+      <div class="sup-stat-label">Total</div>
+      <div class="sup-stat-sub">this month</div>
     </div>`;
 
-  const filterLabels = [
-    { key: 'open',     label: `Open (${totalOpen})` },
-    { key: 'all',      label: 'All' },
-    { key: 'resolved', label: `Resolved (${totalResolved})` }
-  ];
-  const filterPills = filterLabels.map(f =>
-    `<button class="sup-filter-pill ${state.supportFilter === f.key ? 'active' : ''}"
-      onclick="setSupportFilter('${f.key}')">${f.label}</button>`
-  ).join('');
+  // Group by year-month
+  const groups = {};
+  all.forEach(issue => {
+    const d = issue.issue_date || (issue.created_at || '').split('T')[0] || '';
+    const key = d.slice(0, 7);
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(issue);
+  });
+  const sortedMonths = Object.keys(groups).sort((a, b) => b.localeCompare(a));
 
-  let tableBody = '';
-  if (filtered.length === 0) {
-    tableBody = `<tr><td colspan="7" class="sup-empty">
-      ${state.supportFilter === 'open' ? 'No open issues — all clear.' : 'No issues found.'}
-    </td></tr>`;
+  let tableContent = '';
+  if (all.length === 0) {
+    tableContent = `<div class="sup-empty">No issues logged yet.</div>`;
   } else {
-    tableBody = filtered.map(issue => {
-      const typeObj   = ISSUE_TYPES.find(t => t.key === issue.issue_type) || { label: issue.issue_type, color: 'gray' };
-      const statusObj = SUPPORT_STATUSES.find(s => s.key === issue.status) || { label: issue.status, color: 'gray' };
-      const dateStr   = issue.created_at ? new Date(issue.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
-      return `<tr class="sup-row" onclick="openEditIssueModal('${issue.id}')">
-        <td class="sup-td sup-td-date">${dateStr}</td>
-        <td class="sup-td"><span class="sup-type-pill sup-type-${typeObj.color}">${typeObj.label}</span></td>
-        <td class="sup-td">${esc(issue.customer_name || '—')}</td>
-        <td class="sup-td sup-td-order">${esc(issue.order_id || '—')}</td>
-        <td class="sup-td sup-td-platform">${esc(issue.platform || '—')}</td>
-        <td class="sup-td">
-          <span class="sup-status-pill sup-status-${statusObj.color}">${statusObj.label}</span>
-        </td>
-        <td class="sup-td sup-td-notes">${esc(issue.notes || '')}</td>
-        <td class="sup-td sup-td-actions" onclick="event.stopPropagation()">
-          ${issue.status !== 'resolved'
-            ? `<button class="sup-action-btn sup-resolve-btn" onclick="quickResolveIssue('${issue.id}')" title="Mark resolved">✓</button>`
-            : `<span class="sup-resolved-check" title="Resolved">✓</span>`
-          }
-          <button class="sup-action-btn sup-delete-btn" onclick="deleteSupportIssue('${issue.id}')" title="Delete">✕</button>
-        </td>
-      </tr>`;
+    tableContent = sortedMonths.map(monthKey => {
+      const [yr, mo] = monthKey.split('-');
+      const monthLabel = new Date(parseInt(yr), parseInt(mo) - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+      const issues = groups[monthKey];
+      const breakdown = ISSUE_TYPES.map(t => {
+        const cnt = issues.filter(i => i.issue_type === t.key).length;
+        return cnt > 0 ? `${t.label}: ${cnt}` : null;
+      }).filter(Boolean).join(' · ');
+
+      const rows = issues.map(issue => {
+        const typeObj = ISSUE_TYPES.find(t => t.key === issue.issue_type) || { label: issue.issue_type, color: 'gray' };
+        const dateStr = issue.issue_date
+          ? new Date(issue.issue_date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+          : '—';
+        return `<tr class="sup-row" onclick="openEditIssueModal('${issue.id}')">
+          <td class="sup-td sup-td-date">${dateStr}</td>
+          <td class="sup-td sup-td-platform">${esc(issue.platform || '—')}</td>
+          <td class="sup-td">${esc(issue.customer_name || '—')}</td>
+          <td class="sup-td sup-td-order">${esc(issue.order_id || '—')}</td>
+          <td class="sup-td"><span class="sup-type-pill sup-type-${typeObj.color}">${typeObj.label}</span></td>
+          <td class="sup-td sup-td-actions" onclick="event.stopPropagation()">
+            <button class="sup-action-btn sup-delete-btn" onclick="deleteSupportIssue('${issue.id}')" title="Delete">✕</button>
+          </td>
+        </tr>`;
+      }).join('');
+
+      return `
+        <div class="sup-month-group">
+          <div class="sup-month-header">
+            <span class="sup-month-label">${monthLabel}</span>
+            <span class="sup-month-meta">${issues.length} issue${issues.length !== 1 ? 's' : ''}${breakdown ? ' · ' + breakdown : ''}</span>
+          </div>
+          <table class="sup-table">
+            <thead>
+              <tr>
+                <th class="sup-th">Date</th>
+                <th class="sup-th">Platform</th>
+                <th class="sup-th">Customer</th>
+                <th class="sup-th">Order #</th>
+                <th class="sup-th">Issue</th>
+                <th class="sup-th"></th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>`;
     }).join('');
   }
 
@@ -5578,56 +5586,28 @@ function renderSupportPage() {
     <div class="page-header">
       <div>
         <h1 class="page-title">Customer Support</h1>
-        <p class="page-subtitle">Track and resolve customer issues</p>
+        <p class="page-subtitle">Issue log · ${all.length} total</p>
       </div>
       <button class="btn btn-primary" onclick="openLogIssueModal()">+ Log Issue</button>
     </div>
-
     <div class="sup-stats-row">${statCards}</div>
-
-    <div class="sup-table-card">
-      <div class="sup-table-header">
-        <div class="sup-filters">${filterPills}</div>
-        <span class="sup-count-label">${filtered.length} issue${filtered.length !== 1 ? 's' : ''}</span>
-      </div>
-      <div class="sup-table-wrap">
-        <table class="sup-table">
-          <thead>
-            <tr>
-              <th class="sup-th">Date</th>
-              <th class="sup-th">Issue Type</th>
-              <th class="sup-th">Customer</th>
-              <th class="sup-th">Order ID</th>
-              <th class="sup-th">Platform</th>
-              <th class="sup-th">Status</th>
-              <th class="sup-th">Notes</th>
-              <th class="sup-th"></th>
-            </tr>
-          </thead>
-          <tbody>${tableBody}</tbody>
-        </table>
-      </div>
-    </div>`;
+    <div class="sup-table-card">${tableContent}</div>`;
 }
 
 function openLogIssueModal() {
+  const today = new Date().toISOString().split('T')[0];
   const html = `
     <form id="modal-form">
       <div class="form-grid">
         <div class="form-group">
-          <label>Issue Type</label>
-          <select name="issue_type" required>
-            <option value="">-- Select --</option>
-            <option value="pump_issue">Pump Issue (not pumping properly)</option>
-            <option value="short_shipped">Short Shipped (ordered 2, got 1)</option>
-            <option value="missing_item">Missing Item</option>
-          </select>
+          <label>Date</label>
+          <input type="date" name="issue_date" value="${today}" required>
         </div>
         <div class="form-group">
-          <label>Status</label>
-          <select name="status">
-            <option value="open">Open</option>
-            <option value="in_progress">In Progress</option>
+          <label>Platform</label>
+          <select name="platform">
+            <option value="TikTok Shop">TikTok Shop</option>
+            <option value="Shopify">Shopify</option>
           </select>
         </div>
         <div class="form-group">
@@ -5635,28 +5615,25 @@ function openLogIssueModal() {
           <input type="text" name="customer_name" placeholder="e.g. Jane D.">
         </div>
         <div class="form-group">
-          <label>Order ID</label>
+          <label>Order Number</label>
           <input type="text" name="order_id" placeholder="e.g. #12345">
         </div>
-        <div class="form-group">
-          <label>Platform</label>
-          <select name="platform">
-            <option value="TikTok Shop">TikTok Shop</option>
-            <option value="Shopify">Shopify</option>
-            <option value="Other">Other</option>
-          </select>
-        </div>
       </div>
-      <div class="form-group" style="margin-top:12px">
-        <label>Notes</label>
-        <textarea name="notes" rows="3" placeholder="Details about the issue..." style="resize:vertical;min-height:72px"></textarea>
+      <div class="form-group" style="margin-top:4px">
+        <label>Customer Issue</label>
+        <select name="issue_type" required>
+          <option value="">-- Select issue --</option>
+          <option value="pump_issue">Pump Issue (not pumping properly)</option>
+          <option value="short_shipped">Short Shipped (ordered 2, received 1)</option>
+          <option value="missing_item">Missing Item (not in package)</option>
+        </select>
       </div>
       <div class="form-actions">
         <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
         <button type="submit" class="btn btn-primary">Log Issue</button>
       </div>
     </form>`;
-  openModal('Log Support Issue', html, async (e) => {
+  openModal('Log Issue', html, async (e) => {
     const data = Object.fromEntries(new FormData(e.target));
     if (!data.issue_type) { showToast('Select an issue type', 'error'); return; }
     try {
@@ -5673,20 +5650,17 @@ function openLogIssueModal() {
 function openEditIssueModal(id) {
   const issue = state.support.find(i => i.id === id);
   if (!issue) return;
-  const typeObj   = ISSUE_TYPES.find(t => t.key === issue.issue_type) || { label: issue.issue_type };
   const html = `
     <form id="modal-form">
       <div class="form-grid">
         <div class="form-group">
-          <label>Issue Type</label>
-          <select name="issue_type" required>
-            ${ISSUE_TYPES.map(t => `<option value="${t.key}" ${issue.issue_type === t.key ? 'selected' : ''}>${t.label}</option>`).join('')}
-          </select>
+          <label>Date</label>
+          <input type="date" name="issue_date" value="${issue.issue_date || ''}" required>
         </div>
         <div class="form-group">
-          <label>Status</label>
-          <select name="status">
-            ${SUPPORT_STATUSES.map(s => `<option value="${s.key}" ${issue.status === s.key ? 'selected' : ''}>${s.label}</option>`).join('')}
+          <label>Platform</label>
+          <select name="platform">
+            ${['TikTok Shop', 'Shopify'].map(p => `<option ${(issue.platform || 'TikTok Shop') === p ? 'selected' : ''}>${p}</option>`).join('')}
           </select>
         </div>
         <div class="form-group">
@@ -5694,19 +5668,15 @@ function openEditIssueModal(id) {
           <input type="text" name="customer_name" value="${esc(issue.customer_name || '')}">
         </div>
         <div class="form-group">
-          <label>Order ID</label>
+          <label>Order Number</label>
           <input type="text" name="order_id" value="${esc(issue.order_id || '')}">
         </div>
-        <div class="form-group">
-          <label>Platform</label>
-          <select name="platform">
-            ${['TikTok Shop', 'Shopify', 'Other'].map(p => `<option ${(issue.platform || 'TikTok Shop') === p ? 'selected' : ''}>${p}</option>`).join('')}
-          </select>
-        </div>
       </div>
-      <div class="form-group" style="margin-top:12px">
-        <label>Notes</label>
-        <textarea name="notes" rows="3" style="resize:vertical;min-height:72px">${esc(issue.notes || '')}</textarea>
+      <div class="form-group" style="margin-top:4px">
+        <label>Customer Issue</label>
+        <select name="issue_type" required>
+          ${ISSUE_TYPES.map(t => `<option value="${t.key}" ${issue.issue_type === t.key ? 'selected' : ''}>${t.label}</option>`).join('')}
+        </select>
       </div>
       <div class="form-actions" style="justify-content:space-between">
         <button type="button" class="btn btn-danger-outline" onclick="deleteSupportIssue('${id}');closeModal()">Delete</button>
@@ -5716,9 +5686,8 @@ function openEditIssueModal(id) {
         </div>
       </div>
     </form>`;
-  openModal(`${typeObj.label} — Edit Issue`, html, async (e) => {
+  openModal('Edit Issue', html, async (e) => {
     const data = Object.fromEntries(new FormData(e.target));
-    if (data.status === 'resolved') data.resolved_at = new Date().toISOString();
     try {
       const rec = await fetchAPI(`${API.support}/${id}`, { method: 'PUT', body: JSON.stringify(data) });
       const idx = state.support.findIndex(i => i.id === id);
@@ -5729,20 +5698,6 @@ function openEditIssueModal(id) {
       showToast('Issue updated ✓');
     } catch (err) { showToast(err.message, 'error'); }
   });
-}
-
-async function quickResolveIssue(id) {
-  try {
-    const rec = await fetchAPI(`${API.support}/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify({ status: 'resolved', resolved_at: new Date().toISOString() })
-    });
-    const idx = state.support.findIndex(i => i.id === id);
-    if (idx !== -1) state.support[idx] = rec;
-    updateSupportBadge();
-    renderSupportPage();
-    showToast('Marked resolved ✓');
-  } catch (err) { showToast(err.message, 'error'); }
 }
 
 async function deleteSupportIssue(id) {
@@ -5970,6 +5925,17 @@ function setChallengeFilter(filter) {
   renderChallengePage();
 }
 
+async function deleteChallenger(id) {
+  if (!confirm('Delete this challenger and all their check-in data? This cannot be undone.')) return;
+  try {
+    await fetchAPI(`${API.challenge}/challengers/${id}`, { method: 'DELETE' });
+    state.challengers = state.challengers.filter(c => c.id !== id);
+    closeDrawer();
+    renderChallengePage();
+    showToast('Challenger deleted');
+  } catch (err) { showToast(err.message, 'error'); }
+}
+
 async function approveRefund(challengerId) {
   if (!confirm('Mark refund as approved? This will notify the team to process the refund in Shopify.')) return;
   try {
@@ -6017,9 +5983,12 @@ function renderChallengerDetailBody(challenger, photos) {
       <div style="display:flex;flex-direction:column;gap:8px">
         <div style="display:flex;justify-content:space-between;align-items:center">
           <span class="badge badge-${statusColor}" style="font-size:12px">${statusLabel}</span>
-          ${challenger.status === 'completed'
-            ? `<button class="btn btn-primary btn-sm" onclick="approveRefund('${challenger.id}')">Approve Refund</button>`
-            : ''}
+          <div style="display:flex;gap:8px;align-items:center">
+            ${challenger.status === 'completed'
+              ? `<button class="btn btn-primary btn-sm" onclick="approveRefund('${challenger.id}')">Approve Refund</button>`
+              : ''}
+            <button class="btn btn-danger-outline btn-sm" onclick="deleteChallenger('${challenger.id}')">Delete</button>
+          </div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px">
           <div style="background:var(--bg-tertiary);border-radius:8px;padding:10px 12px">

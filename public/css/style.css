@@ -5162,12 +5162,25 @@ a.cl-profile-handle:hover {
 .sup-stat-yellow .sup-stat-count { color:var(--yellow); }
 .sup-stat-red    .sup-stat-count { color:var(--red);    }
 .sup-stat-green  .sup-stat-count { color:var(--green);  }
+.sup-stat-gray   .sup-stat-count { color:var(--text-secondary); }
 
 /* Table card */
 .sup-table-card {
   background:var(--bg-secondary); border:1px solid var(--border-light);
   border-radius:var(--radius-lg); overflow:hidden;
 }
+
+/* Monthly grouping */
+.sup-month-group { border-bottom:1px solid var(--border-light); }
+.sup-month-group:last-child { border-bottom:none; }
+.sup-month-header {
+  display:flex; align-items:baseline; justify-content:space-between;
+  padding:10px 18px; background:var(--bg-tertiary);
+  border-bottom:1px solid var(--border-light);
+  gap:12px;
+}
+.sup-month-label { font-size:12.5px; font-weight:700; color:var(--text-primary); letter-spacing:0.02em; }
+.sup-month-meta  { font-size:11.5px; color:var(--text-muted); }
 .sup-table-header {
   display:flex; align-items:center; justify-content:space-between;
   padding:14px 18px; border-bottom:1px solid var(--border-light);

@@ -223,19 +223,23 @@ GRANT ALL ON TABLE challenge_checkins TO anon;
 GRANT ALL ON TABLE challenge_checkins TO authenticated;
 
 -- ============================================================
--- Customer Support Tracker
+-- Customer Support Tracker (issue frequency log — no status tracking)
 -- ============================================================
-CREATE TABLE IF NOT EXISTS support_issues (
+DROP TABLE IF EXISTS support_issues;
+CREATE TABLE support_issues (
   id            UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  issue_type    TEXT NOT NULL,   -- pump_issue | short_shipped | missing_item
+  issue_date    DATE NOT NULL DEFAULT CURRENT_DATE,
+  platform      TEXT NOT NULL DEFAULT 'TikTok Shop',
   customer_name TEXT,
   order_id      TEXT,
-  platform      TEXT DEFAULT 'TikTok Shop',
-  status        TEXT NOT NULL DEFAULT 'open',  -- open | in_progress | resolved
-  notes         TEXT,
-  resolved_at   TIMESTAMPTZ,
+  issue_type    TEXT NOT NULL,   -- pump_issue | short_shipped | missing_item
   created_at    TIMESTAMPTZ DEFAULT NOW()
 );
 ALTER TABLE support_issues DISABLE ROW LEVEL SECURITY;
 GRANT ALL ON TABLE support_issues TO anon;
 GRANT ALL ON TABLE support_issues TO authenticated;
+
+-- ============================================================
+-- Challenge — body_part column (treatment area)
+-- ============================================================
+ALTER TABLE challengers ADD COLUMN IF NOT EXISTS body_part TEXT;

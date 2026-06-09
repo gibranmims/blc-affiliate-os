@@ -7,9 +7,7 @@ const supabase = createClient(
   process.env.SUPABASE_ANON_KEY
 );
 
-const FIELDS = [
-  'issue_type', 'customer_name', 'order_id', 'platform', 'status', 'notes', 'resolved_at'
-];
+const FIELDS = ['issue_type', 'customer_name', 'order_id', 'platform', 'issue_date'];
 
 function buildRecord(body) {
   const rec = {};
@@ -26,7 +24,7 @@ router.get('/', async (req, res) => {
     const { data, error } = await supabase
       .from('support_issues')
       .select('*')
-      .order('created_at', { ascending: false });
+      .order('issue_date', { ascending: false });
     if (error) throw error;
     res.json(data);
   } catch (err) {
@@ -39,7 +37,7 @@ router.post('/', async (req, res) => {
   try {
     const rec = buildRecord(req.body);
     if (!rec.issue_type) return res.status(400).json({ error: 'issue_type is required' });
-    rec.status = rec.status || 'open';
+    if (!rec.issue_date) rec.issue_date = new Date().toISOString().split('T')[0];
     const { data, error } = await supabase
       .from('support_issues')
       .insert(rec)
@@ -56,9 +54,6 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const updates = buildRecord(req.body);
-    if (updates.status === 'resolved' && !updates.resolved_at) {
-      updates.resolved_at = new Date().toISOString();
-    }
     const { data, error } = await supabase
       .from('support_issues')
       .update(updates)

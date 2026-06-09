@@ -31,6 +31,21 @@
       padding: 11px 13px; font-size: 14px; color: #FFF6EB; font-family: inherit; outline: none;
     }
     input:focus { border-color: #FFF6EB; box-shadow: 0 0 0 3px rgba(255,246,235,.08); }
+    select {
+      width: 100%; background: #171717; border: 1px solid #333; border-radius: 8px;
+      padding: 11px 13px; font-size: 14px; color: #FFF6EB; font-family: inherit; outline: none;
+      -webkit-appearance: none; appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23a89880' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 14px center;
+      cursor: pointer;
+    }
+    select:focus { border-color: #FFF6EB; box-shadow: 0 0 0 3px rgba(255,246,235,.08); }
+    select option { background: #171717; color: #FFF6EB; }
+    .photo-tips { background: rgba(255,246,235,.03); border: 1px solid rgba(255,246,235,.08); border-radius: 8px; padding: 12px 14px; margin-bottom: 10px; }
+    .photo-tips-title { font-size: 11.5px; font-weight: 600; color: #a89880; margin-bottom: 8px; }
+    .photo-tips-list { margin: 0; padding-left: 16px; }
+    .photo-tips-list li { font-size: 12px; color: #665e52; line-height: 1.65; margin-bottom: 3px; }
+    .photo-tips-list li:last-child { margin-bottom: 0; }
     .photo-drop { background: #171717; border: 1.5px dashed #333; border-radius: 10px; padding: 28px 20px; text-align: center; cursor: pointer; transition: border-color .2s, background .2s; position: relative; }
     .photo-drop:hover, .photo-drop.drag-over { border-color: #a89880; background: #1a1a1a; }
     .photo-drop input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
@@ -41,6 +56,8 @@
     .photo-preview { display: none; margin-top: 10px; }
     .photo-preview img { max-width: 100%; max-height: 180px; border-radius: 8px; object-fit: cover; }
     .photo-preview-label { font-size: 11.5px; color: #4ade80; margin-bottom: 6px; }
+    .section-divider { height: 1px; background: #1e1e1e; margin: 20px 0; }
+    .section-label { font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: #665e52; margin-bottom: 14px; }
     .btn { width: 100%; margin-top: 8px; padding: 13px; background: #FFF6EB; color: #0a0a0a; border: none; border-radius: 8px; font-size: 14.5px; font-weight: 600; font-family: inherit; cursor: pointer; transition: background .15s; }
     .btn:hover:not(:disabled) { background: #fff; }
     .btn:disabled { opacity: .6; cursor: not-allowed; }
@@ -50,7 +67,7 @@
     .success-screen.show { display: block; }
     .success-icon { font-size: 40px; margin-bottom: 16px; }
     .success-screen h2 { font-size: 22px; font-weight: 700; margin: 0 0 12px; }
-    .success-screen p { font-size: 14px; color: #a89880; line-height: 1.65; margin: 0; }
+    .success-screen p { font-size: 14px; color: #a89880; line-height: 1.65; margin: 0 0 10px; }
     .spinner { display: none; width: 18px; height: 18px; border: 2px solid rgba(10,10,10,.3); border-top-color: #0a0a0a; border-radius: 50%; animation: spin .6s linear infinite; margin: 0 auto; }
     @keyframes spin { to { transform: rotate(360deg); } }
   </style>
@@ -61,14 +78,14 @@
 
     <div class="hero-tag">$39.99 Full Refund Challenge</div>
     <h1>Win Your <span>Money Back</span> Challenge</h1>
-    <p class="sub">Buy one bottle of BBL Serum, use it every night for 8 weeks, submit 4 check-in photos — and we'll refund your full $39.99. No catches.</p>
+    <p class="sub">Use our BBL Serum every night for 8 weeks, check in with photos every 2 weeks — and we'll refund your full $39.99. Here's your before and after, on us.</p>
 
     <div class="how-it-works">
       <div class="how-it-works-title">How it works</div>
-      <div class="step"><div class="step-num">1</div><div class="step-text"><strong>Sign up below</strong> with your order number and a before photo.</div></div>
-      <div class="step"><div class="step-num">2</div><div class="step-text"><strong>Use your BBL Serum every night.</strong> Consistency is the whole game.</div></div>
-      <div class="step"><div class="step-num">3</div><div class="step-text"><strong>Check in every 2 weeks</strong> — you'll get a unique link by email at weeks 2, 4, 6, and 8.</div></div>
-      <div class="step"><div class="step-num">4</div><div class="step-text"><strong>Complete all 4 check-ins</strong> and we'll process your full $39.99 refund.</div></div>
+      <div class="step"><div class="step-num">1</div><div class="step-text"><strong>Sign up below</strong> with your order number and a <strong>before photo</strong> of the area you're treating. This is your Week 0 baseline.</div></div>
+      <div class="step"><div class="step-num">2</div><div class="step-text"><strong>Use your BBL Serum every night</strong> on your treatment area. Consistency is the whole game — don't skip nights.</div></div>
+      <div class="step"><div class="step-num">3</div><div class="step-text"><strong>Check in every 2 weeks</strong> — you'll get a unique link by email at weeks 2, 4, 6, and 8. Each check-in needs a progress photo from the same angle.</div></div>
+      <div class="step"><div class="step-num">4</div><div class="step-text"><strong>Complete all 4 check-ins</strong> and we'll process your full $39.99 refund. No catches, no gimmicks.</div></div>
     </div>
 
     <div class="card" id="form-card">
@@ -76,6 +93,9 @@
 
       <div id="signup-form-wrap">
         <form id="signup-form" enctype="multipart/form-data">
+
+          <div class="section-label">Your info</div>
+
           <div class="form-group">
             <label for="name">Your name</label>
             <input type="text" id="name" name="name" placeholder="Jane Smith" required>
@@ -89,7 +109,32 @@
             <input type="text" id="order_number" name="order_number" placeholder="e.g. 1234" required>
           </div>
           <div class="form-group">
-            <label>Before photo (Week 0)</label>
+            <label for="body_part">Treatment area — where are you applying the serum?</label>
+            <select id="body_part" name="body_part" required>
+              <option value="" disabled selected>Select your treatment area</option>
+              <option value="Bikini line">Bikini line</option>
+              <option value="Inner thighs">Inner thighs</option>
+              <option value="Underarms">Underarms</option>
+              <option value="Stomach">Stomach / abdomen</option>
+              <option value="Other">Other area</option>
+            </select>
+          </div>
+
+          <div class="section-divider"></div>
+          <div class="section-label">Your before photo (Week 0)</div>
+
+          <div class="photo-tips">
+            <div class="photo-tips-title">📸 How to take a good before photo</div>
+            <ul class="photo-tips-list">
+              <li>Use natural light — stand near a window, not under overhead lighting</li>
+              <li>Get close enough that the treatment area fills most of the frame</li>
+              <li>No filters — we need to see real skin texture to verify progress</li>
+              <li>Remember this angle and distance — you'll need to match it at every check-in</li>
+            </ul>
+          </div>
+
+          <div class="form-group">
+            <label>Upload your before photo</label>
             <div class="photo-drop" id="photo-drop">
               <input type="file" id="photo" name="photo" accept=".jpg,.jpeg,.png,.webp,.heic" required>
               <div class="photo-drop-icon">+</div>
@@ -113,7 +158,8 @@
       <div class="success-screen" id="success-screen">
         <div class="success-icon">✓</div>
         <h2>You're in!</h2>
-        <p>We've saved your entry. Your first check-in link will arrive by email in 2 weeks. Keep using your BBL Serum every night — consistency is what gets results.</p>
+        <p>Your before photo and entry are saved. Your first check-in link will arrive by email in 2 weeks.</p>
+        <p>Keep using your BBL Serum every night — don't skip. Consistency is what gets results <em>and</em> qualifies you for the refund.</p>
       </div>
     </div>
   </div>
