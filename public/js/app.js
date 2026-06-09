@@ -6248,36 +6248,7 @@ function renderHomePage() {
         <div class="home-date">${dateStr}</div>
       </div>
 
-      <!-- Metrics row (5 cards) -->
-      <div class="home-metrics home-metrics-5">
-        <div class="home-metric">
-          <div class="home-metric-num">${activeAffiliates}</div>
-          <div class="home-metric-label">Active Affiliates</div>
-          <div class="home-metric-sub">on the roster</div>
-        </div>
-        <div class="home-metric">
-          <div class="home-metric-num">${inPipeline}</div>
-          <div class="home-metric-label">In Pipeline</div>
-          <div class="home-metric-sub">being outreached</div>
-        </div>
-        <div class="home-metric home-metric-green">
-          <div class="home-metric-num">${signed}</div>
-          <div class="home-metric-label">Signed</div>
-          <div class="home-metric-sub">total contracts</div>
-        </div>
-        <div class="home-metric">
-          <div class="home-metric-num">${challengers}</div>
-          <div class="home-metric-label">Challengers</div>
-          <div class="home-metric-sub">enrolled</div>
-        </div>
-        <div class="home-metric home-metric-editable" onclick="openRevenueEdit()" title="Click to update">
-          <div class="home-metric-num home-metric-green">${revFmt}</div>
-          <div class="home-metric-label">Affiliate Revenue</div>
-          <div class="home-metric-sub">this month · <span class="home-metric-edit-hint">edit</span></div>
-        </div>
-      </div>
-
-      <!-- Goal Progress + Attention strip -->
+      <!-- Goal banner — active affiliates + signed + revenue in one place -->
       <div class="home-goal-row">
         <div class="home-goal-ring-wrap">
           <svg width="88" height="88" viewBox="0 0 88 88">
@@ -6293,17 +6264,30 @@ function renderHomePage() {
             <span class="home-goal-pct">${goal > 0 ? Math.round(goalPct * 100) + '%' : '—'}</span>
           </div>
         </div>
+
         <div class="home-goal-text">
           <div class="home-goal-headline">
             ${activeAffiliates}${goal > 0 ? ' <span class="home-goal-of">/ ' + goal + '</span>' : ''}
             <span class="home-goal-headline-unit"> active affiliates</span>
           </div>
-          <div class="home-goal-status">${goal > 0 ? (goalPct >= 1 ? '🎉 Goal reached!' : `${goal - activeAffiliates} away from your goal`) : 'No monthly goal set'}</div>
-          <button class="home-goal-edit-btn" onclick="openGoalEdit()">
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-            ${goal > 0 ? 'Edit goal' : 'Set a goal'}
-          </button>
+          <div class="home-goal-status">${goal > 0 ? (goalPct >= 1 ? 'Goal reached!' : `${goal - activeAffiliates} away from your goal`) : 'No monthly goal set'}</div>
+          <!-- Signed + Revenue chips — unique data not shown in QA cards -->
+          <div class="home-goal-chips">
+            <span class="home-goal-chip home-goal-chip-green">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              ${signed} signed
+            </span>
+            <span class="home-goal-chip home-goal-chip-revenue" onclick="openRevenueEdit()" title="Click to update" style="cursor:pointer">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+              ${revFmt} revenue
+            </span>
+            <button class="home-goal-edit-btn" onclick="openGoalEdit()">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              ${goal > 0 ? 'Edit goal' : 'Set a goal'}
+            </button>
+          </div>
         </div>
+
         ${(needsReply > 0 || supportThisMonth > 0) ? `
         <div class="home-attention home-attention-inline">
           ${needsReply > 0 ? `
@@ -6321,7 +6305,7 @@ function renderHomePage() {
         </div>` : ''}
       </div>
 
-      <!-- Quick Actions — 4-across live stat cards -->
+      <!-- Quick Actions — 4-across, each card shows unique data -->
       <div class="home-qa-section">
         <div class="home-section-label">Quick Actions</div>
         <div class="home-qa-grid home-qa-grid-4">
