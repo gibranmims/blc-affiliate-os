@@ -56,6 +56,14 @@ app.post('/api/logout', (req, res) => {
 });
 
 // ── Public challenge pages (no auth) ─────────────────────────────
+// Root redirect for challenge subdomain
+app.get('/', (req, res, next) => {
+  if (req.hostname === 'challenge.thebikiniline.co') {
+    return res.redirect(301, '/challenge/signup');
+  }
+  next();
+});
+
 app.get('/challenge/signup', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'challenge-signup.html'));
 });
