@@ -6731,3 +6731,44 @@ textarea:focus {
 .nav-review-badge, .focus-col-badge {
   transition: transform 0.2s cubic-bezier(0.34,1.56,0.64,1);
 }
+
+/* ═══════════════════════════════════════════════════════════
+   CONSISTENT ACCENT-TINTED HEADERS
+   Replace flat grey (--bg-tertiary / --bg-elevated) with the
+   same indigo tint used for active nav items everywhere a
+   header/section-label row needs contrast.
+   ═══════════════════════════════════════════════════════════ */
+
+/* Data tables (outreach, roster, challenge, support, etc.) */
+.data-table thead th {
+  background: var(--accent-dim) !important;
+  color: var(--accent) !important;
+}
+
+/* Finance table */
+.fin-table thead tr { background: var(--accent-dim) !important; }
+.fin-table th       { color: var(--accent) !important; }
+
+/* For Review section headers — default */
+.review-section-header {
+  background: var(--accent-dim) !important;
+}
+.review-section-header .review-section-title {
+  color: var(--accent) !important;
+}
+
+/* For Review: Final Payments — orange-tinted to match text */
+.review-section-final .review-section-header {
+  background: rgba(234,88,12,0.08) !important;
+}
+.review-section-final .review-section-title {
+  color: var(--orange) !important;
+}
+
+/* For Review: Counter Rejected — red-tinted to match text */
+.review-section-rejected .review-section-header {
+  background: rgba(220,38,38,0.08) !important;
+}
+.review-section-rejected .review-section-title {
+  color: var(--red) !important;
+}
