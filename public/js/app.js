@@ -6196,8 +6196,10 @@ function renderHomePage() {
       <div class="home-goal-row">
         <div class="home-goal-ring-wrap">
           <svg width="88" height="88" viewBox="0 0 88 88">
-            <circle cx="44" cy="44" r="${r}" fill="none" stroke="var(--border)" stroke-width="7"/>
-            <circle cx="44" cy="44" r="${r}" fill="none" stroke="${ringColor}" stroke-width="7"
+            <circle cx="44" cy="44" r="${r}" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="7"/>
+            <circle cx="44" cy="44" r="${r}" fill="none"
+              stroke="${goalPct >= 1 ? '#4ade80' : goalPct > 0 ? '#a5f3a0' : 'rgba(255,255,255,0.25)'}"
+              stroke-width="7"
               stroke-dasharray="${circ}" stroke-dashoffset="${offset}"
               stroke-linecap="round" transform="rotate(-90 44 44)"
               style="transition:stroke-dashoffset 0.7s ease"/>

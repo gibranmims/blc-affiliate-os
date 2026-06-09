@@ -5332,7 +5332,7 @@ a.cl-profile-handle:hover {
    ============================================================ */
 
 .home-page {
-  max-width: 960px;
+  max-width: 1160px;
 }
 
 .home-hero {
@@ -5448,8 +5448,8 @@ a.cl-profile-handle:hover {
 /* Bottom two-column layout */
 .home-bottom {
   display: grid;
-  grid-template-columns: 1fr 1.4fr;
-  gap: 20px;
+  grid-template-columns: 1fr 2.4fr;
+  gap: 24px;
   align-items: start;
 }
 
@@ -5531,8 +5531,8 @@ a.cl-profile-handle:hover {
 /* Team Focus board */
 .home-focus {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
 }
 
 .focus-col {
@@ -6365,3 +6365,114 @@ textarea:focus {
 .idea-dot-blue    { background: #93C5FD; }
 .idea-dot-green   { background: #86EFAC; }
 .idea-dot-purple  { background: #D8B4FE; }
+
+/* ══════════════════════════════════════════════════════════
+   CONTRAST + COLOR OVERRIDES
+   Status badges were near-invisible at 8% opacity on white.
+   Goal row becomes the dark hero element.
+   ══════════════════════════════════════════════════════════ */
+
+/* ── Status badge vivid colors on white background ─────── */
+.inline-status-select.status-key-drafted {
+  background: var(--bg-elevated) !important;
+  color: var(--text-muted) !important;
+}
+.inline-status-select.status-key-sent {
+  background: rgba(37,99,235,0.14) !important;
+  color: #1D4ED8 !important;
+  font-weight: 700 !important;
+}
+.inline-status-select.status-key-replied {
+  background: rgba(202,138,4,0.18) !important;
+  color: #92400E !important;
+  font-weight: 700 !important;
+}
+.inline-status-select.status-key-counter_review {
+  background: rgba(124,58,237,0.14) !important;
+  color: #5B21B6 !important;
+  font-weight: 700 !important;
+}
+.inline-status-select.status-key-counter_approved {
+  background: rgba(20,184,166,0.15) !important;
+  color: #0F766E !important;
+  font-weight: 700 !important;
+}
+.inline-status-select.status-key-counter_offered {
+  background: rgba(234,88,12,0.14) !important;
+  color: #C2410C !important;
+  font-weight: 700 !important;
+}
+.inline-status-select.status-key-counter_rejected {
+  background: rgba(220,38,38,0.14) !important;
+  color: #B91C1C !important;
+  font-weight: 700 !important;
+}
+.inline-status-select.status-key-signed {
+  background: var(--green) !important;
+  color: #fff !important;
+  font-weight: 700 !important;
+}
+.inline-status-select.status-key-archived {
+  background: var(--bg-elevated) !important;
+  color: var(--text-muted) !important;
+}
+
+/* Fix dropdown arrow to white on dark (signed) bg */
+.inline-status-select.status-key-signed {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 5'%3E%3Cpath fill='rgba(255,255,255,0.7)' d='M0 0l4 5 4-5z'/%3E%3C/svg%3E") !important;
+}
+
+/* ── Goal row — dark hero card ──────────────────────────── */
+.home-goal-row {
+  background: #09090B !important;
+  border-color: #09090B !important;
+  box-shadow: var(--shadow-lg) !important;
+}
+.home-goal-row .home-goal-headline    { color: #FFFFFF !important; }
+.home-goal-row .home-goal-of          { color: rgba(255,255,255,0.4) !important; }
+.home-goal-row .home-goal-headline-unit { color: rgba(255,255,255,0.55) !important; }
+.home-goal-row .home-goal-status      { color: rgba(255,255,255,0.6) !important; }
+.home-goal-row .home-goal-pct         { color: #FFFFFF !important; }
+.home-goal-row .home-goal-edit-btn {
+  background: rgba(255,255,255,0.10) !important;
+  color: rgba(255,255,255,0.75) !important;
+}
+.home-goal-row .home-goal-edit-btn:hover {
+  background: rgba(255,255,255,0.18) !important;
+  color: #fff !important;
+}
+.home-goal-row .home-attention-inline .home-attention-item {
+  color: rgba(255,255,255,0.7) !important;
+  border-color: rgba(255,255,255,0.08) !important;
+}
+.home-goal-row .home-attention-inline .home-attention-item:hover {
+  background: rgba(255,255,255,0.06) !important;
+  color: #fff !important;
+}
+.home-goal-row .home-attn-arrow { color: rgba(255,255,255,0.35) !important; }
+
+/* ── Active Affiliates — black hero metric ──────────────── */
+.home-metric:first-child {
+  background: #09090B !important;
+  border-color: #09090B !important;
+  box-shadow: var(--shadow-lg) !important;
+}
+.home-metric:first-child .home-metric-num   { color: #FFFFFF !important; }
+.home-metric:first-child .home-metric-label { color: rgba(255,255,255,0.85) !important; }
+.home-metric:first-child .home-metric-sub   { color: rgba(255,255,255,0.45) !important; }
+
+/* ── Metric cards: colored left-border accent ───────────── */
+.home-metric:nth-child(2) { border-left: 3px solid var(--blue) !important; }
+.home-metric:nth-child(3) { border-left: 3px solid var(--green) !important; }
+.home-metric:nth-child(4) { border-left: 3px solid var(--purple) !important; }
+.home-metric:nth-child(5) { border-left: 3px solid var(--orange) !important; }
+
+/* ── QA cards: icon bg per card ─────────────────────────── */
+.home-qa-card:nth-child(1) .home-qa-icon { background: rgba(37,99,235,0.1);  color: var(--blue); }
+.home-qa-card:nth-child(2) .home-qa-icon { background: rgba(22,163,74,0.1);  color: var(--green); }
+.home-qa-card:nth-child(3) .home-qa-icon { background: rgba(234,88,12,0.1);  color: var(--orange); }
+.home-qa-card:nth-child(4) .home-qa-icon { background: rgba(124,58,237,0.1); color: var(--purple); }
+.home-qa-card:nth-child(1) .home-qa-stat { color: var(--blue); }
+.home-qa-card:nth-child(2) .home-qa-stat { color: var(--green); }
+.home-qa-card:nth-child(3) .home-qa-stat { color: var(--orange); }
+.home-qa-card:nth-child(4) .home-qa-stat { color: var(--purple); }
