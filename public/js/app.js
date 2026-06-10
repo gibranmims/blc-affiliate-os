@@ -4727,7 +4727,14 @@ function renderAnalysis(data) {
 
   const passCount = data.criteria.filter(c => (c.verdict || '').toLowerCase() === 'pass').length;
   const total     = data.criteria.length;
-  const allPass   = passCount === total;
+  const rec       = (data.recommendation || '').toLowerCase(); // 'scale' | 'rewrite' | 'kill'
+
+  const recConfig = {
+    scale:   { label: 'SCALE',   sub: 'Test with budget',              cls: 'rec-scale'   },
+    rewrite: { label: 'REWRITE', sub: 'Heavy surgery needed',          cls: 'rec-rewrite' },
+    kill:    { label: 'KILL',    sub: 'Start over with a new angle',   cls: 'rec-kill'    },
+  };
+  const recInfo = recConfig[rec] || null;
 
   const rows = data.criteria.map(c => {
     const isPass = (c.verdict || '').toLowerCase() === 'pass';
@@ -4744,14 +4751,21 @@ function renderAnalysis(data) {
 
   return `
     <div class="analysis-result">
+      ${recInfo ? `
+      <div class="analysis-rec ${recInfo.cls}">
+        <div class="analysis-rec-label">${recInfo.label}</div>
+        <div class="analysis-rec-sub">${recInfo.sub}</div>
+        <div class="analysis-rec-score">${passCount}/${total} passing</div>
+      </div>` : `
       <div class="analysis-scorebar">
-        <div class="analysis-score ${allPass ? 'analysis-score-good' : ''}">${passCount}<span class="analysis-score-denom">/${total} passing</span></div>
+        <div class="analysis-score">${passCount}<span class="analysis-score-denom">/${total} passing</span></div>
         ${data.hookLine ? `<div class="analysis-hookline">Hook: "${esc(data.hookLine)}"</div>` : ''}
-      </div>
+      </div>`}
+      ${data.hookLine && recInfo ? `<div class="analysis-hookline-below">Hook: "${esc(data.hookLine)}"</div>` : ''}
       <div class="analysis-criteria">${rows}</div>
       ${data.verdict ? `
       <div class="analysis-verdict-box">
-        <div class="analysis-verdict-label">Most important fix</div>
+        <div class="analysis-verdict-label">Performance assessment</div>
         <div class="analysis-verdict-text">${esc(data.verdict)}</div>
       </div>` : ''}
     </div>`;
