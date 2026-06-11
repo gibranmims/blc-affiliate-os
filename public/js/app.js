@@ -4328,7 +4328,7 @@ function showAddVideoForm(rosterId) {
 }
 
 function renderCreatorGrid() {
-  const creators = state.roster.filter(r => r.affiliate_type !== 'free' || !r.affiliate_type);
+  const creators = state.roster.filter(r => (r.affiliate_type !== 'free' || !r.affiliate_type) && r.status !== 'inactive');
   if (creators.length === 0) {
     return `<div class="empty-state"><div class="empty-icon">👥</div><h3>No creators on your roster yet</h3><p>Add creators to your Roster to track their content here</p><button class="btn btn-primary" onclick="navigate('roster')">Go to Roster</button></div>`;
   }
