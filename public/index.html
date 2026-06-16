@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>BLC OS</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@300;400;500;600;700&family=Poppins:wght@600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
@@ -15,37 +15,28 @@
     <aside class="sidebar">
       <div class="sidebar-header">
         <div class="logo">
-          <div class="logo-mark">blc</div>
-          <div class="logo-text-group">
-            <span class="logo-name">OS</span>
+          <div class="logo-mark">
+            BLC<span style="font-weight:400;opacity:0.5"> OS</span>
           </div>
         </div>
       </div>
 
       <nav class="sidebar-nav">
         <a href="#" class="nav-item" data-page="home">
-          <span class="nav-icon">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-          </span>
+          <span class="nav-dot" style="background:#0055ff"></span>
           <span>Home</span>
         </a>
         <a href="#" class="nav-item" data-page="daily-top2">
-          <span class="nav-icon">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-          </span>
+          <span class="nav-dot" style="background:#f5c800"></span>
           <span>Daily Top 2</span>
         </a>
         <a href="#" class="nav-item" data-page="tasks">
-          <span class="nav-icon">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
-          </span>
+          <span class="nav-dot" style="background:#00c853"></span>
           <span>Team Tasks</span>
           <span class="nav-review-badge" id="tasks-nav-badge" style="display:none">0</span>
         </a>
         <a href="#" class="nav-item" data-page="ideas">
-          <span class="nav-icon">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a7 7 0 015.292 11.647l-.792 1.353A2 2 0 0114.764 16H9.236a2 2 0 01-1.736-1l-.792-1.353A7 7 0 0112 2z"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="10" y1="23" x2="14" y2="23"/></svg>
-          </span>
+          <span class="nav-dot" style="background:#e91e8c"></span>
           <span>Idea Board</span>
         </a>
 
@@ -53,16 +44,12 @@
 
         <div class="nav-section-label">WORKSPACE</div>
         <a href="#" class="nav-item" data-page="outreach">
-          <span class="nav-icon">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-          </span>
+          <span class="nav-dot" style="background:#e91e8c"></span>
           <span>Affiliate Outreach</span>
         </a>
         <div class="nav-group" id="nav-group-roster">
           <a href="#" class="nav-item nav-group-trigger" data-page="roster">
-            <span class="nav-icon">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
-            </span>
+            <span class="nav-dot" style="background:#e91e8c"></span>
             <span>Affiliate Roster</span>
             <span class="nav-chevron">
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
@@ -75,75 +62,55 @@
         </div>
 
         <a href="#" class="nav-item" data-page="review">
-          <span class="nav-icon">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8h1a4 4 0 010 8h-1"/><path d="M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>
-          </span>
+          <span class="nav-dot" style="background:#ff6b00"></span>
           <span>For Review</span>
           <span class="nav-review-badge" id="review-badge" style="display:none">0</span>
         </a>
 
         <a href="#" class="nav-item" data-page="finance">
-          <span class="nav-icon">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
-          </span>
+          <span class="nav-dot" style="background:#00c853"></span>
           <span>Finance</span>
         </a>
 
         <a href="#" class="nav-item" data-page="brand-finance">
-          <span class="nav-icon">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-          </span>
+          <span class="nav-dot" style="background:#e91e8c"></span>
           <span>BLC Tracker</span>
         </a>
 
         <a href="#" class="nav-item" data-page="support">
-          <span class="nav-icon">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
-          </span>
+          <span class="nav-dot" style="background:#ff6b00"></span>
           <span>Customer Support</span>
           <span class="nav-support-badge" id="support-badge" style="display:none">0</span>
         </a>
 
-        <div class="nav-section-label" style="margin-top: 20px;">CREATIVE LAB</div>
+        <div class="nav-section-label" style="margin-top:12px">CREATIVE LAB</div>
         <a href="#" class="nav-item nav-cl-item" data-scripts-tab="creators">
-          <span class="nav-icon">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
-          </span>
+          <span class="nav-dot" style="background:#e91e8c"></span>
           <span>Active Affiliates</span>
         </a>
         <a href="#" class="nav-item nav-cl-item" data-scripts-tab="write">
-          <span class="nav-icon">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-          </span>
+          <span class="nav-dot" style="background:#7c3aed"></span>
           <span>Write Script</span>
           <span class="nav-badge">AI</span>
         </a>
         <a href="#" class="nav-item nav-cl-item" data-scripts-tab="rewrite">
-          <span class="nav-icon">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg>
-          </span>
+          <span class="nav-dot" style="background:#7c3aed"></span>
           <span>Rewrite Script</span>
           <span class="nav-badge">AI</span>
         </a>
         <a href="#" class="nav-item nav-cl-item" data-scripts-tab="analyzer">
-          <span class="nav-icon">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          </span>
+          <span class="nav-dot" style="background:#7c3aed"></span>
           <span>Script Analyzer</span>
           <span class="nav-badge">AI</span>
         </a>
         <a href="#" class="nav-item nav-cl-item" data-scripts-tab="library">
-          <span class="nav-icon">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg>
-          </span>
+          <span class="nav-dot" style="background:#7c3aed"></span>
           <span>Script Library</span>
         </a>
 
-        <div class="nav-section-label" style="margin-top: 20px;">BBL CHALLENGE</div>
+        <div class="nav-section-label" style="margin-top:12px">BBL CHALLENGE</div>
         <a href="#" class="nav-item" data-page="challenge">
-          <span class="nav-icon">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-          </span>
+          <span class="nav-dot" style="background:#ff6b00"></span>
           <span>Before & Afters</span>
         </a>
       </nav>
