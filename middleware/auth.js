@@ -23,7 +23,7 @@ function requireAuth(req, res, next) {
   // Challenge subdomain is fully public — bypass auth entirely
   if (req.hostname === 'challenge.thebikiniline.co') return next();
   if (isPublic(req.path)) return next();
-  if (req.session && req.session.authed) return next();
+  if (req.signedCookies && req.signedCookies.auth === 'ok') return next();
   // API calls get 401, browser navigation gets redirect to login
   if (req.path.startsWith('/api/')) return res.status(401).json({ error: 'Unauthorized' });
   res.redirect('/login?redirect=' + encodeURIComponent(req.originalUrl));

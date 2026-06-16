@@ -2,7 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-const session = require('express-session');
+const cookieParser = require('cookie-parser');
 
 const outreachRoutes = require('./routes/outreach');
 const rosterRoutes = require('./routes/roster');
@@ -24,19 +24,8 @@ const { startCron } = require('./cron/reminders');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// ── Session ───────────────────────────────────────────────────────
-app.use(session({
-  secret: process.env.SESSION_SECRET || 'blc-os-secret-change-me',
-  resave: false,
-  saveUninitialized: false,
-  cookie: {
-    secure: 'auto',
-    sameSite: 'lax',
-    maxAge: 7 * 24 * 60 * 60 * 1000
-  }
-}));
 app.set('trust proxy', 1);
-
+app.use(cookieParser(process.env.SESSION_SECRET || 'blc-os-secret-change-me'));
 app.use(cors());
 app.use(express.json());
 
@@ -55,21 +44,28 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // ── Login route ───────────────────────────────────────────────────
 app.get('/login', (req, res) => {
-  if (req.session?.authed) return res.redirect('/');
+  if (req.signedCookies.auth === 'ok') return res.redirect('/');
   res.sendFile(path.join(__dirname, 'public', 'login.html'));
 });
 
 app.post('/api/login', (req, res) => {
   const { password } = req.body;
   if (password && password === process.env.ADMIN_PASSWORD) {
-    req.session.authed = true;
+    res.cookie('auth', 'ok', {
+      signed: true,
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: 30 * 24 * 60 * 60 * 1000  // 30 days
+    });
     return res.json({ ok: true });
   }
   res.status(401).json({ error: 'Incorrect password' });
 });
 
 app.post('/api/logout', (req, res) => {
-  req.session.destroy(() => res.json({ ok: true }));
+  res.clearCookie('auth');
+  res.json({ ok: true });
 });
 
 // ── Public challenge pages (no auth) ─────────────────────────────
