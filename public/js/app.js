@@ -4284,11 +4284,12 @@ function normalizeEukaCreator(row) {
   const handle = (row.creator_handle || row.handle || row.username || row.tiktok_handle || '').replace(/^@/, '').toLowerCase();
   return {
     handle,
-    name:     row.creator_name || row.name || row.display_name || handle,
-    videos:   parseInt(row.video_count || row.videos || row.total_videos || 0, 10),
-    gmv:      parseFloat(row.total_revenue || row.gmv || row.revenue || row.total_gmv || 0),
-    views:    parseInt(row.total_views || row.views || 0, 10),
-    avgViews: parseInt(row.avg_views || row.average_views || 0, 10),
+    name:        row.creator_name || row.name || row.display_name || handle,
+    // creator_level export uses rolling 30d metrics — used for supplementary display only
+    avgViews30d: parseInt(row.avg_video_views_30d || row.avg_views || row.average_views || 0, 10),
+    followerCount: parseInt(row.follower_count || 0, 10),
+    eukaGmv:     parseFloat(row.last_30d_gmv_our_shop || row.last_30d_gmv || 0),
+    tier:        row.tier || null,
   };
 }
 
@@ -4296,10 +4297,10 @@ function normalizeEukaVideo(row) {
   return {
     url:           row.video_url || row.url || row.tiktok_url || '',
     thumbnail_url: row.thumbnail_url || row.thumbnail || '',
-    views:         parseInt(row.views || row.video_views || 0, 10),
+    views:         parseInt(row.views_count || row.views || row.video_views || 0, 10),
     gmv:           parseFloat(row.revenue || row.gmv || row.video_revenue || 0),
-    posted_date:   row.posted_date || row.created_date || row.date || '',
-    title:         row.title || row.description || row.video_title || '',
+    posted_date:   (row.posted_date || row.created_date || row.date || '').slice(0, 10),
+    title:         row.description || row.title || row.video_title || '',
   };
 }
 
@@ -4420,40 +4421,49 @@ function renderCreatorGrid() {
   }
   const month = state.rosterMonth;
   const eukaLoading = state.eukaCreators[month]?.loading;
+  const eukaHasData = !eukaLoading && !!state.eukaCreators[month]?.rows;
 
-  // Per-creator stats: Euka data takes precedence over manual blc_videos
+  // Always use manual blc_videos for primary stats (month-specific).
+  // Euka creator_level is rolling 30d — used only for supplementary avg views.
   function creatorStats(r) {
-    const euka = getEukaCreatorData(r.handle, month);
-    if (euka) {
-      return { videos: euka.videos, gmv: euka.gmv, views: euka.views, avgViews: euka.avgViews, fromEuka: true };
-    }
     const allVideos = normalizeBLCVideos(r.blc_videos);
     const vids = videosForMonth(allVideos, month);
     const mGMV = vids.reduce((s, v) => s + (parseFloat(v.gmv) || 0), 0);
     const mViews = vids.reduce((s, v) => s + (parseInt(v.views) || 0), 0);
-    return { videos: vids.length, gmv: mGMV, views: mViews, avgViews: vids.length > 0 ? Math.round(mViews / vids.length) : 0, fromEuka: false };
+    const manualAvg = vids.length > 0 ? Math.round(mViews / vids.length) : 0;
+    const euka = getEukaCreatorData(r.handle, month);
+    return {
+      videos:      vids.length,
+      gmv:         mGMV,
+      views:       mViews,
+      avgViews:    manualAvg,
+      eukaAvg30d:  euka?.avgViews30d || 0,   // supplementary: Euka rolling 30d avg views
+      eukaFollowers: euka?.followerCount || 0,
+      hasEuka:     !!euka,
+    };
   }
 
-  // Totals for summary line
   const allStats = creators.map(r => creatorStats(r));
   const monthVideos = allStats.reduce((s, x) => s + x.videos, 0);
   const monthGMV    = allStats.reduce((s, x) => s + x.gmv, 0);
-  const eukaActive  = allStats.some(x => x.fromEuka);
 
-  // Sort by GMV desc
   const sorted = [...creators].map((r, i) => ({ r, stats: allStats[i] }))
     .sort((a, b) => b.stats.gmv - a.stats.gmv);
 
   return `
     <div class="cl-creators-summary">
       ${creators.length} creator${creators.length !== 1 ? 's' : ''} · ${monthVideos} video${monthVideos !== 1 ? 's' : ''} in ${monthLabel(month)} · <strong>${fmt$(monthGMV)} GMV</strong>
-      ${eukaLoading ? `<span class="euka-sync-pill euka-sync-loading">Syncing Euka…</span>` : eukaActive ? `<span class="euka-sync-pill">Euka synced</span>` : ''}
+      ${eukaLoading ? `<span class="euka-sync-pill euka-sync-loading">Syncing Euka…</span>` : eukaHasData ? `<span class="euka-sync-pill">Euka</span>` : ''}
     </div>
     <div class="cl-creators-grid">
       ${sorted.map(({ r, stats }) => {
         const hasVideos = stats.videos > 0;
         const allVideos = normalizeBLCVideos(r.blc_videos);
         const hasOther  = videosForMonth(allVideos, month).length === 0 && allVideos.length > 0;
+        // Show Euka 30d avg views as the 3rd stat when available and no manual views
+        const showEukaAvg = stats.eukaAvg30d > 0;
+        const avgVal   = stats.avgViews > 0 ? fmtNum(stats.avgViews) : (showEukaAvg ? fmtNum(stats.eukaAvg30d) : '—');
+        const avgLabel = stats.avgViews > 0 ? 'Avg Views' : (showEukaAvg ? 'Avg/30d' : 'Avg Views');
         return `
         <div class="cl-creator-card${!hasVideos ? ' cl-creator-card-empty' : ''}" onclick="openCreatorProfile('${r.id}')">
           <div class="cl-card-top">
@@ -4463,7 +4473,7 @@ function renderCreatorGrid() {
             </div>
             <div class="cl-card-badges">
               ${r.tier ? `<span class="grade-badge grade-${r.tier}">${r.tier}</span>` : ''}
-              ${stats.fromEuka ? `<span class="euka-badge">E</span>` : ''}
+              ${stats.hasEuka ? `<span class="euka-badge">E</span>` : ''}
             </div>
           </div>
           <div class="cl-card-stats">
@@ -4476,12 +4486,12 @@ function renderCreatorGrid() {
               <div class="cl-card-stat-label">GMV</div>
             </div>
             <div class="cl-card-stat">
-              <div class="cl-card-stat-val">${stats.avgViews > 0 ? fmtNum(stats.avgViews) : (stats.views > 0 ? fmtNum(stats.views) : '—')}</div>
-              <div class="cl-card-stat-label">${stats.fromEuka && stats.avgViews === 0 && stats.views > 0 ? 'Total Views' : 'Avg Views'}</div>
+              <div class="cl-card-stat-val">${avgVal}</div>
+              <div class="cl-card-stat-label">${avgLabel}</div>
             </div>
           </div>
           ${!hasVideos
-            ? `<div class="cl-card-no-videos">${hasOther ? `No videos in ${monthLabel(month)}` : (eukaLoading ? 'Syncing…' : 'No videos this month')}</div>`
+            ? `<div class="cl-card-no-videos">${hasOther ? `No videos in ${monthLabel(month)}` : 'No videos this month'}</div>`
             : stats.gmv > 0 ? `<div class="cl-card-top-video">${fmt$(stats.gmv)} GMV · ${stats.views > 0 ? fmtNum(stats.views) + ' views' : ''}</div>` : `<div class="cl-card-no-videos">No GMV tracked yet</div>`}
           <div class="cl-card-arrow">→</div>
         </div>`;
@@ -4498,18 +4508,19 @@ function renderCreatorContentProfile(id) {
   const eukaKey    = `${handle}:${month}`;
   const eukaLoading = state.eukaVideos[eukaKey]?.loading;
 
-  // Use Euka videos when available; fall back to manual blc_videos
+  // Manual videos are always the primary source for GMV tracking
   const allManual  = normalizeBLCVideos(r.blc_videos);
   const manualVids = videosForMonth(allManual, month);
-  const videos     = eukaVids && eukaVids.length > 0 ? eukaVids : manualVids;
+  // Euka shop-linked videos shown as supplementary (real thumbnails + view counts)
   const fromEuka   = eukaVids && eukaVids.length > 0;
 
+  const videos     = manualVids; // primary: manual
   const sorted     = [...videos].sort((a, b) => (parseFloat(b.gmv) || 0) - (parseFloat(a.gmv) || 0));
   const mGMV       = videos.reduce((s, v) => s + (parseFloat(v.gmv) || 0), 0);
   const mViews     = videos.reduce((s, v) => s + (parseInt(v.views) || 0), 0);
   const totalDeal  = (parseFloat(r.per_vid_rate) || 0) * (parseInt(r.video_count) || 0);
   const gmvPer1k   = mViews > 0 ? (mGMV / mViews * 1000) : 0;
-  const otherCount = fromEuka ? 0 : (allManual.length - manualVids.length);
+  const otherCount = allManual.length - manualVids.length;
 
   // Default date for new video form = first day of selected month
   const defaultDate = `${month}-01`;
@@ -4535,7 +4546,7 @@ function renderCreatorContentProfile(id) {
       </div>
 
       <div class="cl-profile-stats">
-        <div class="cl-pstat"><div class="cl-pstat-val">${videos.length}</div><div class="cl-pstat-label">${fromEuka ? 'Videos' : 'Videos Logged'}</div></div>
+        <div class="cl-pstat"><div class="cl-pstat-val">${videos.length}</div><div class="cl-pstat-label">Videos Logged</div></div>
         <div class="cl-pstat"><div class="cl-pstat-val">${mViews > 0 ? fmtNum(mViews) : '—'}</div><div class="cl-pstat-label">Total Views</div></div>
         <div class="cl-pstat cl-pstat-highlight"><div class="cl-pstat-val">${fmt$(mGMV)}</div><div class="cl-pstat-label">GMV — ${monthLabel(month)}</div></div>
         <div class="cl-pstat"><div class="cl-pstat-val">${gmvPer1k > 0 ? fmt$(gmvPer1k) : '—'}</div><div class="cl-pstat-label">GMV / 1k views</div></div>
@@ -4655,6 +4666,44 @@ function renderCreatorContentProfile(id) {
             </div>`;
           }).join('')}
         </div>`}
+
+      ${fromEuka ? `
+      <div class="cl-euka-section">
+        <div class="cl-euka-section-header">
+          <span class="euka-sync-pill">Euka Shop Videos</span>
+          <span class="cl-euka-section-sub">TikTok Shop-linked · ${eukaVids.length} video${eukaVids.length !== 1 ? 's' : ''} · view counts from Euka</span>
+        </div>
+        <div class="cl-videos-grid">
+          ${[...eukaVids].sort((a, b) => b.views - a.views).map((v, i) => {
+            const thumb = v.thumbnail_url || '';
+            return `
+            <div class="cl-video-card">
+              <a href="${esc(v.url)}" target="_blank" rel="noopener" class="cl-vc-thumb"
+                style="${thumb ? `background-image:url('${esc(thumb)}')` : ''}">
+                ${!thumb ? `<div class="cl-vc-thumb-placeholder"></div>` : ''}
+                <div class="cl-vc-rank-badge">#${i + 1}</div>
+              </a>
+              <div class="cl-vc-body">
+                <div class="cl-vc-stats-row">
+                  <div class="cl-vc-stat-group">
+                    <label class="cl-vc-label">Views</label>
+                    <div class="cl-vc-stat-val">${v.views ? fmtNum(v.views) : '—'}</div>
+                  </div>
+                  <div class="cl-vc-stat-group">
+                    <label class="cl-vc-label">Shop GMV</label>
+                    <div class="cl-vc-stat-val">${v.gmv > 0 ? fmt$(v.gmv) : '—'}</div>
+                  </div>
+                  <div class="cl-vc-stat-group">
+                    <label class="cl-vc-label">Date</label>
+                    <div class="cl-vc-stat-val">${v.posted_date ? fmtDateShort(v.posted_date) : '—'}</div>
+                  </div>
+                </div>
+                ${v.title ? `<div class="cl-vc-title">${esc(v.title)}</div>` : ''}
+              </div>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>` : eukaLoading ? `<div class="cl-euka-loading">Loading Euka shop videos…</div>` : ''}
     </div>`;
 }
 
