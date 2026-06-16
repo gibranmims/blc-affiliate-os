@@ -44,6 +44,8 @@ const state = {
   contentLabTab:      'creators',
   rosterMonth:        new Date().toISOString().slice(0, 7),
   contentLabCreatorId: null,
+  eukaCreators:       {},   // { [month]: { loading, rows: [] } }
+  eukaVideos:         {},   // { ['handle:month']: { loading, rows: [] } }
   rosterTab:          'paid',
   scriptMode:         'write',  // 'write' | 'teardown'
   challengers:        [],
@@ -4276,6 +4278,83 @@ async function deleteScript(e, id) {
   }
 }
 
+// ── Euka helpers ──────────────────────────────────────────────────────────────
+
+function normalizeEukaCreator(row) {
+  const handle = (row.creator_handle || row.handle || row.username || row.tiktok_handle || '').replace(/^@/, '').toLowerCase();
+  return {
+    handle,
+    name:     row.creator_name || row.name || row.display_name || handle,
+    videos:   parseInt(row.video_count || row.videos || row.total_videos || 0, 10),
+    gmv:      parseFloat(row.total_revenue || row.gmv || row.revenue || row.total_gmv || 0),
+    views:    parseInt(row.total_views || row.views || 0, 10),
+    avgViews: parseInt(row.avg_views || row.average_views || 0, 10),
+  };
+}
+
+function normalizeEukaVideo(row) {
+  return {
+    url:           row.video_url || row.url || row.tiktok_url || '',
+    thumbnail_url: row.thumbnail_url || row.thumbnail || '',
+    views:         parseInt(row.views || row.video_views || 0, 10),
+    gmv:           parseFloat(row.revenue || row.gmv || row.video_revenue || 0),
+    posted_date:   row.posted_date || row.created_date || row.date || '',
+    title:         row.title || row.description || row.video_title || '',
+  };
+}
+
+async function loadEukaCreators(month) {
+  if (state.eukaCreators[month]?.loading || state.eukaCreators[month]?.rows) return;
+  state.eukaCreators[month] = { loading: true, rows: null };
+  try {
+    const data = await fetchAPI(`/api/euka/creators?month=${month}`);
+    const rows = Array.isArray(data) ? data : (data.data || data.rows || data.creators || []);
+    state.eukaCreators[month] = { loading: false, rows: rows.map(normalizeEukaCreator) };
+  } catch (_) {
+    state.eukaCreators[month] = { loading: false, rows: [] };
+  }
+  // Re-render grid if still on creators tab
+  if (state.currentPage === 'scripts' && state.contentLabTab === 'creators' && !state.contentLabCreatorId) {
+    const body = document.getElementById('cl-body');
+    if (body) body.innerHTML = renderCreatorsTab();
+  }
+}
+
+async function loadEukaCreatorVideos(handle, month) {
+  const key = `${handle}:${month}`;
+  if (state.eukaVideos[key]?.loading || state.eukaVideos[key]?.rows) return;
+  state.eukaVideos[key] = { loading: true, rows: null };
+  try {
+    const data = await fetchAPI(`/api/euka/creator-videos?handle=${encodeURIComponent(handle)}&month=${month}`);
+    const rows = Array.isArray(data) ? data : (data.data || data.rows || data.videos || []);
+    state.eukaVideos[key] = { loading: false, rows: rows.map(normalizeEukaVideo) };
+  } catch (_) {
+    state.eukaVideos[key] = { loading: false, rows: [] };
+  }
+  // Re-render profile if still viewing this creator
+  if (state.contentLabCreatorId) {
+    const r = state.roster.find(x => x.id === state.contentLabCreatorId);
+    if (r && (r.handle || '').replace(/^@/, '').toLowerCase() === handle.toLowerCase()) {
+      const body = document.getElementById('cl-body');
+      if (body) body.innerHTML = renderCreatorsTab();
+    }
+  }
+}
+
+function getEukaCreatorData(handle, month) {
+  const rows = state.eukaCreators[month]?.rows;
+  if (!rows) return null;
+  const h = (handle || '').replace(/^@/, '').toLowerCase();
+  return rows.find(r => r.handle === h) || null;
+}
+
+function getEukaVideoData(handle, month) {
+  const key = `${(handle || '').replace(/^@/, '').toLowerCase()}:${month}`;
+  return state.eukaVideos[key]?.rows || null;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 function renderCreatorsTab() {
   const isCurrentMonth = state.rosterMonth === new Date().toISOString().slice(0, 7);
   const nav = `
@@ -4287,7 +4366,14 @@ function renderCreatorsTab() {
       </div>
       <button class="month-nav-btn" onclick="switchRosterMonth('next')">›</button>
     </div>`;
-  if (state.contentLabCreatorId) return nav + renderCreatorContentProfile(state.contentLabCreatorId);
+  if (state.contentLabCreatorId) {
+    // Kick off Euka video fetch for this creator (runs async, re-renders when done)
+    const r = state.roster.find(x => x.id === state.contentLabCreatorId);
+    if (r?.handle) loadEukaCreatorVideos(r.handle.replace(/^@/, ''), state.rosterMonth);
+    return nav + renderCreatorContentProfile(state.contentLabCreatorId);
+  }
+  // Kick off Euka creator stats fetch (runs async, re-renders when done)
+  loadEukaCreators(state.rosterMonth);
   return nav + renderCreatorGrid();
 }
 
@@ -4333,32 +4419,43 @@ function renderCreatorGrid() {
     return `<div class="empty-state"><div class="empty-icon">👥</div><h3>No creators on your roster yet</h3><p>Add creators to your Roster to track their content here</p><button class="btn btn-primary" onclick="navigate('roster')">Go to Roster</button></div>`;
   }
   const month = state.rosterMonth;
-  // Monthly totals for summary line
-  const monthVideos = creators.reduce((s, r) => s + videosForMonth(normalizeBLCVideos(r.blc_videos), month).length, 0);
-  const monthGMV    = creators.reduce((s, r) => s + videosForMonth(normalizeBLCVideos(r.blc_videos), month).reduce((vs, v) => vs + (parseFloat(v.gmv) || 0), 0), 0);
+  const eukaLoading = state.eukaCreators[month]?.loading;
 
-  // Sort creators: those with monthly videos first (by monthly GMV desc), then the rest
-  const sorted = [...creators].sort((a, b) => {
-    const aGMV = videosForMonth(normalizeBLCVideos(a.blc_videos), month).reduce((s, v) => s + (parseFloat(v.gmv) || 0), 0);
-    const bGMV = videosForMonth(normalizeBLCVideos(b.blc_videos), month).reduce((s, v) => s + (parseFloat(v.gmv) || 0), 0);
-    return bGMV - aGMV;
-  });
+  // Per-creator stats: Euka data takes precedence over manual blc_videos
+  function creatorStats(r) {
+    const euka = getEukaCreatorData(r.handle, month);
+    if (euka) {
+      return { videos: euka.videos, gmv: euka.gmv, views: euka.views, avgViews: euka.avgViews, fromEuka: true };
+    }
+    const allVideos = normalizeBLCVideos(r.blc_videos);
+    const vids = videosForMonth(allVideos, month);
+    const mGMV = vids.reduce((s, v) => s + (parseFloat(v.gmv) || 0), 0);
+    const mViews = vids.reduce((s, v) => s + (parseInt(v.views) || 0), 0);
+    return { videos: vids.length, gmv: mGMV, views: mViews, avgViews: vids.length > 0 ? Math.round(mViews / vids.length) : 0, fromEuka: false };
+  }
+
+  // Totals for summary line
+  const allStats = creators.map(r => creatorStats(r));
+  const monthVideos = allStats.reduce((s, x) => s + x.videos, 0);
+  const monthGMV    = allStats.reduce((s, x) => s + x.gmv, 0);
+  const eukaActive  = allStats.some(x => x.fromEuka);
+
+  // Sort by GMV desc
+  const sorted = [...creators].map((r, i) => ({ r, stats: allStats[i] }))
+    .sort((a, b) => b.stats.gmv - a.stats.gmv);
 
   return `
     <div class="cl-creators-summary">
       ${creators.length} creator${creators.length !== 1 ? 's' : ''} · ${monthVideos} video${monthVideos !== 1 ? 's' : ''} in ${monthLabel(month)} · <strong>${fmt$(monthGMV)} GMV</strong>
+      ${eukaLoading ? `<span class="euka-sync-pill euka-sync-loading">Syncing Euka…</span>` : eukaActive ? `<span class="euka-sync-pill">Euka synced</span>` : ''}
     </div>
     <div class="cl-creators-grid">
-      ${sorted.map(r => {
-        const allVideos  = normalizeBLCVideos(r.blc_videos);
-        const videos     = videosForMonth(allVideos, month);
-        const mGMV       = videos.reduce((s, v) => s + (parseFloat(v.gmv) || 0), 0);
-        const mViews     = videos.reduce((s, v) => s + (parseInt(v.views) || 0), 0);
-        const avgViews   = videos.length > 0 ? Math.round(mViews / videos.length) : 0;
-        const topVideo   = videos.length > 0 ? [...videos].sort((a, b) => (parseFloat(b.gmv) || 0) - (parseFloat(a.gmv) || 0))[0] : null;
-        const hasOther   = allVideos.length > videos.length; // has videos in other months
+      ${sorted.map(({ r, stats }) => {
+        const hasVideos = stats.videos > 0;
+        const allVideos = normalizeBLCVideos(r.blc_videos);
+        const hasOther  = videosForMonth(allVideos, month).length === 0 && allVideos.length > 0;
         return `
-        <div class="cl-creator-card${videos.length === 0 ? ' cl-creator-card-empty' : ''}" onclick="openCreatorProfile('${r.id}')">
+        <div class="cl-creator-card${!hasVideos ? ' cl-creator-card-empty' : ''}" onclick="openCreatorProfile('${r.id}')">
           <div class="cl-card-top">
             <div class="cl-card-identity">
               <div class="cl-card-name">${esc(r.name || r.handle)}</div>
@@ -4366,27 +4463,26 @@ function renderCreatorGrid() {
             </div>
             <div class="cl-card-badges">
               ${r.tier ? `<span class="grade-badge grade-${r.tier}">${r.tier}</span>` : ''}
+              ${stats.fromEuka ? `<span class="euka-badge">E</span>` : ''}
             </div>
           </div>
           <div class="cl-card-stats">
             <div class="cl-card-stat">
-              <div class="cl-card-stat-val">${videos.length}</div>
+              <div class="cl-card-stat-val">${stats.videos}</div>
               <div class="cl-card-stat-label">Videos</div>
             </div>
             <div class="cl-card-stat">
-              <div class="cl-card-stat-val">${fmt$(mGMV)}</div>
+              <div class="cl-card-stat-val">${fmt$(stats.gmv)}</div>
               <div class="cl-card-stat-label">GMV</div>
             </div>
             <div class="cl-card-stat">
-              <div class="cl-card-stat-val">${avgViews > 0 ? fmtNum(avgViews) : '—'}</div>
-              <div class="cl-card-stat-label">Avg Views</div>
+              <div class="cl-card-stat-val">${stats.avgViews > 0 ? fmtNum(stats.avgViews) : (stats.views > 0 ? fmtNum(stats.views) : '—')}</div>
+              <div class="cl-card-stat-label">${stats.fromEuka && stats.avgViews === 0 && stats.views > 0 ? 'Total Views' : 'Avg Views'}</div>
             </div>
           </div>
-          ${topVideo && topVideo.gmv
-            ? `<div class="cl-card-top-video">Top: ${topVideo.views ? fmtNum(topVideo.views) + ' views · ' : ''}${fmt$(topVideo.gmv)} GMV</div>`
-            : `<div class="cl-card-no-videos">${videos.length === 0
-                ? (hasOther ? `No videos in ${monthLabel(month)}` : 'No videos logged yet')
-                : 'No GMV tracked yet'}</div>`}
+          ${!hasVideos
+            ? `<div class="cl-card-no-videos">${hasOther ? `No videos in ${monthLabel(month)}` : (eukaLoading ? 'Syncing…' : 'No videos this month')}</div>`
+            : stats.gmv > 0 ? `<div class="cl-card-top-video">${fmt$(stats.gmv)} GMV · ${stats.views > 0 ? fmtNum(stats.views) + ' views' : ''}</div>` : `<div class="cl-card-no-videos">No GMV tracked yet</div>`}
           <div class="cl-card-arrow">→</div>
         </div>`;
       }).join('')}
@@ -4397,14 +4493,23 @@ function renderCreatorContentProfile(id) {
   const r = state.roster.find(x => x.id === id);
   if (!r) return '<div class="empty-state">Creator not found</div>';
   const month      = state.rosterMonth;
-  const allVideos  = normalizeBLCVideos(r.blc_videos);
-  const videos     = videosForMonth(allVideos, month);  // monthly filter
+  const handle     = (r.handle || '').replace(/^@/, '');
+  const eukaVids   = getEukaVideoData(handle, month);
+  const eukaKey    = `${handle}:${month}`;
+  const eukaLoading = state.eukaVideos[eukaKey]?.loading;
+
+  // Use Euka videos when available; fall back to manual blc_videos
+  const allManual  = normalizeBLCVideos(r.blc_videos);
+  const manualVids = videosForMonth(allManual, month);
+  const videos     = eukaVids && eukaVids.length > 0 ? eukaVids : manualVids;
+  const fromEuka   = eukaVids && eukaVids.length > 0;
+
   const sorted     = [...videos].sort((a, b) => (parseFloat(b.gmv) || 0) - (parseFloat(a.gmv) || 0));
   const mGMV       = videos.reduce((s, v) => s + (parseFloat(v.gmv) || 0), 0);
   const mViews     = videos.reduce((s, v) => s + (parseInt(v.views) || 0), 0);
   const totalDeal  = (parseFloat(r.per_vid_rate) || 0) * (parseInt(r.video_count) || 0);
   const gmvPer1k   = mViews > 0 ? (mGMV / mViews * 1000) : 0;
-  const otherCount = allVideos.length - videos.length; // videos in other months
+  const otherCount = fromEuka ? 0 : (allManual.length - manualVids.length);
 
   // Default date for new video form = first day of selected month
   const defaultDate = `${month}-01`;
@@ -4413,7 +4518,10 @@ function renderCreatorContentProfile(id) {
     <div class="cl-profile">
       <div class="cl-profile-nav">
         <button class="cl-back-btn" onclick="backToCreators()">← All Creators</button>
-        <button class="btn btn-primary btn-sm" onclick="showAddVideoForm('${r.id}')">+ Add Video</button>
+        <div style="display:flex;align-items:center;gap:8px">
+          ${eukaLoading ? `<span class="euka-sync-pill euka-sync-loading">Syncing…</span>` : fromEuka ? `<span class="euka-sync-pill">Euka</span>` : ''}
+          ${!fromEuka ? `<button class="btn btn-primary btn-sm" onclick="showAddVideoForm('${r.id}')">+ Add Video</button>` : ''}
+        </div>
       </div>
 
       <div class="cl-profile-header">
@@ -4427,7 +4535,7 @@ function renderCreatorContentProfile(id) {
       </div>
 
       <div class="cl-profile-stats">
-        <div class="cl-pstat"><div class="cl-pstat-val">${videos.length}</div><div class="cl-pstat-label">Videos Logged</div></div>
+        <div class="cl-pstat"><div class="cl-pstat-val">${videos.length}</div><div class="cl-pstat-label">${fromEuka ? 'Videos' : 'Videos Logged'}</div></div>
         <div class="cl-pstat"><div class="cl-pstat-val">${mViews > 0 ? fmtNum(mViews) : '—'}</div><div class="cl-pstat-label">Total Views</div></div>
         <div class="cl-pstat cl-pstat-highlight"><div class="cl-pstat-val">${fmt$(mGMV)}</div><div class="cl-pstat-label">GMV — ${monthLabel(month)}</div></div>
         <div class="cl-pstat"><div class="cl-pstat-val">${gmvPer1k > 0 ? fmt$(gmvPer1k) : '—'}</div><div class="cl-pstat-label">GMV / 1k views</div></div>
@@ -4459,27 +4567,56 @@ function renderCreatorContentProfile(id) {
 
       ${sorted.length === 0
         ? `<div class="cl-no-videos">
-            No videos logged for ${monthLabel(month)}
-            ${otherCount > 0 ? `<span class="cl-other-months-hint"> · ${otherCount} video${otherCount !== 1 ? 's' : ''} in other months</span>` : ' — click "+ Add Video" to add the first one'}
+            ${eukaLoading ? 'Syncing videos from Euka…' : `No videos for ${monthLabel(month)}`}
+            ${!eukaLoading && !fromEuka && otherCount > 0 ? `<span class="cl-other-months-hint"> · ${otherCount} in other months</span>` : ''}
+            ${!eukaLoading && !fromEuka ? ' — click "+ Add Video" to add the first one' : ''}
            </div>`
         : `<div class="cl-videos-grid">
           ${otherCount > 0 ? `<div class="cl-month-scope-note" style="grid-column:1/-1">${videos.length} video${videos.length !== 1 ? 's' : ''} in ${monthLabel(month)} · ${otherCount} in other months</div>` : ''}
           ${sorted.map((v, displayIdx) => {
-            const origIdx = allVideos.findIndex(x => x.url === v.url && x.posted_date === v.posted_date);
-            const isTop   = displayIdx === 0 && (parseFloat(v.gmv) || 0) > 0;
-            const rank    = `#${displayIdx + 1}`;
-            const thumb   = v.thumbnail_url || '';
+            const isTop     = displayIdx === 0 && (parseFloat(v.gmv) || 0) > 0;
+            const rank      = `#${displayIdx + 1}`;
+            const thumb     = v.thumbnail_url || '';
             const dateShort = v.posted_date ? fmtDateShort(v.posted_date) : '—';
+            if (fromEuka) {
+              // Euka video card — read-only with thumbnail
+              return `
+              <div class="cl-video-card${isTop ? ' cl-video-card-top' : ''}">
+                <a href="${esc(v.url)}" target="_blank" rel="noopener" class="cl-vc-thumb"
+                  style="${thumb ? `background-image:url('${esc(thumb)}')` : ''}">
+                  ${!thumb ? `<div class="cl-vc-thumb-placeholder"></div>` : ''}
+                  <div class="cl-vc-rank-badge">${rank}</div>
+                  ${v.gmv ? `<div class="cl-vc-gmv-badge">${fmt$(v.gmv)}</div>` : ''}
+                </a>
+                <div class="cl-vc-body">
+                  <div class="cl-vc-stats-row">
+                    <div class="cl-vc-stat-group">
+                      <label class="cl-vc-label">Views</label>
+                      <div class="cl-vc-stat-val">${v.views ? fmtNum(v.views) : '—'}</div>
+                    </div>
+                    <div class="cl-vc-stat-group">
+                      <label class="cl-vc-label">GMV</label>
+                      <div class="cl-vc-stat-val">${v.gmv ? fmt$(v.gmv) : '—'}</div>
+                    </div>
+                    <div class="cl-vc-stat-group">
+                      <label class="cl-vc-label">Date</label>
+                      <div class="cl-vc-stat-val">${dateShort}</div>
+                    </div>
+                  </div>
+                  ${v.title ? `<div class="cl-vc-title">${esc(v.title)}</div>` : ''}
+                </div>
+              </div>`;
+            }
+            // Manual video card — editable
+            const origIdx = allManual.findIndex(x => x.url === v.url && x.posted_date === v.posted_date);
             return `
             <div class="cl-video-card${isTop ? ' cl-video-card-top' : ''}">
-              <!-- Thumbnail -->
               <a href="${esc(v.url)}" target="_blank" rel="noopener" class="cl-vc-thumb"
                 style="${thumb ? `background-image:url('${esc(thumb)}')` : ''}">
                 ${!thumb ? `<div class="cl-vc-thumb-placeholder"></div>` : ''}
                 <div class="cl-vc-rank-badge">${rank}</div>
                 <div class="cl-vc-gmv-badge">${v.gmv ? fmt$(v.gmv) : ''}</div>
               </a>
-              <!-- Stats & edit inputs -->
               <div class="cl-vc-body">
                 <div class="cl-vc-stats-row">
                   <div class="cl-vc-stat-group">
@@ -4498,7 +4635,6 @@ function renderCreatorContentProfile(id) {
                       onblur="updateBLCVideoField('${r.id}', ${origIdx}, 'posted_date', this.value)">
                   </div>
                 </div>
-                <!-- Transcript -->
                 <div class="cl-vc-transcript-row">
                   <button class="cl-vc-transcript-btn${v.transcript ? ' cl-vc-transcript-saved' : ''}"
                     onclick="toggleVideoTranscript('${r.id}', ${origIdx})">
