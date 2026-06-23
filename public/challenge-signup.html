@@ -4,81 +4,87 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Win Your Money Back — BBL Serum Challenge</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; }
 
     body {
       margin: 0;
-      background: #FFFCF7;
-      color: #1A1A1A;
-      font-family: 'Inter', sans-serif;
+      background: #FFF6EB;
+      color: #2a1f17;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       min-height: 100vh;
     }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
 
     /* ── Top bar ── */
     .topbar {
       padding: 14px 24px;
       text-align: center;
-      font-size: 11px;
-      letter-spacing: 0.16em;
+      font-size: 0.75rem;
+      letter-spacing: 0.18em;
       text-transform: uppercase;
-      color: #1A1A1A;
-      border-bottom: 1px solid #EDE8E0;
+      font-weight: 500;
+      color: #2a1f17;
+      border-bottom: 1px solid rgba(0,0,0,0.08);
+      background: #FFF6EB;
     }
 
     /* ── Hero ── */
     .hero {
-      background: #1A1A1A;
-      color: #FFFCF7;
-      padding: 56px 24px 52px;
+      background: #2a1f17;
+      color: #FFF6EB;
+      padding: clamp(3rem, 8vw, 5rem) clamp(1.25rem, 6vw, 4rem);
       text-align: center;
     }
     .hero-tag {
       display: inline-block;
-      padding: 5px 14px;
-      border: 1px solid rgba(255,252,247,.2);
-      border-radius: 20px;
-      font-size: 11.5px;
-      font-weight: 600;
-      letter-spacing: 0.08em;
-      color: #C8A882;
-      margin-bottom: 20px;
+      padding: 0.375rem 1rem;
+      border: 1.5px solid rgba(255,246,235,0.35);
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 500;
+      letter-spacing: 0.18em;
+      color: #D0996C;
+      margin-bottom: 1.25rem;
       text-transform: uppercase;
     }
     .hero h1 {
-      font-family: 'Playfair Display', serif;
-      font-size: clamp(32px, 6vw, 48px);
-      font-weight: 700;
-      line-height: 1.15;
-      margin: 0 0 16px;
-      color: #FFFCF7;
+      font-size: clamp(2.5rem, 6vw, 5rem);
+      font-weight: 500;
+      line-height: 1.1;
+      letter-spacing: -0.03em;
+      margin: 0 0 1rem;
+      color: #FFF6EB;
     }
     .hero h1 em {
       font-style: italic;
-      color: #C8A882;
+      color: #D0996C;
     }
     .hero-sub {
-      font-size: 15px;
-      color: rgba(255,252,247,.7);
+      font-size: 1rem;
+      color: rgba(255,246,235,0.7);
       line-height: 1.7;
       max-width: 480px;
-      margin: 0 auto 28px;
+      margin: 0 auto 1.75rem;
     }
     .hero-guarantee {
       display: inline-flex;
       align-items: center;
       gap: 8px;
-      background: rgba(255,252,247,.06);
-      border: 1px solid rgba(255,252,247,.12);
-      border-radius: 10px;
-      padding: 10px 18px;
-      font-size: 13px;
-      color: rgba(255,252,247,.9);
+      background: rgba(255,246,235,0.06);
+      border: 1.5px solid rgba(255,246,235,0.35);
+      border-radius: 999px;
+      padding: 0.625rem 1.25rem;
+      font-size: 0.875rem;
+      color: rgba(255,246,235,0.9);
       font-weight: 500;
     }
-    .hero-guarantee-dot {
+    .hero-dot {
       width: 7px;
       height: 7px;
       border-radius: 50%;
@@ -88,56 +94,63 @@
 
     /* ── Page body ── */
     .page-body {
-      max-width: 680px;
+      max-width: 720px;
       margin: 0 auto;
-      padding: 0 20px 80px;
+      padding: 0 clamp(1.25rem, 6vw, 2rem) clamp(4rem, 8vw, 7rem);
     }
 
-    /* ── Results section ── */
-    .results-section {
-      padding: 48px 0 0;
-    }
-    .section-eyebrow {
-      text-align: center;
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 0.14em;
+    /* ── Eyebrow ── */
+    .eyebrow {
+      font-size: 0.75rem;
+      font-weight: 500;
+      letter-spacing: 0.18em;
       text-transform: uppercase;
-      color: #C8A882;
-      margin-bottom: 8px;
+      color: #D0996C;
+      margin-bottom: 0.5rem;
     }
-    .section-heading {
-      text-align: center;
-      font-family: 'Playfair Display', serif;
-      font-size: 26px;
-      font-weight: 700;
-      color: #1A1A1A;
-      margin: 0 0 28px;
+    .eyebrow.center { text-align: center; }
+
+    .section-h2 {
+      font-size: clamp(1.75rem, 4vw, 2.75rem);
+      font-weight: 500;
+      letter-spacing: -0.02em;
+      color: #2a1f17;
+      margin: 0 0 1.75rem;
+      line-height: 1.2;
+    }
+    .section-h2.center { text-align: center; }
+
+    /* ── Results ── */
+    .results-section {
+      padding-top: clamp(3rem, 6vw, 4.5rem);
+      opacity: 0;
+      animation: fadeUp 0.4s ease 0.05s forwards;
     }
 
     .ba-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 12px;
-      margin-bottom: 12px;
+      gap: 1rem;
+      margin-bottom: 0.875rem;
     }
-
     .ba-card {
-      border-radius: 12px;
+      border-radius: 14px;
       overflow: hidden;
-      border: 1px solid #EDE8E0;
+      border: 1px solid rgba(0,0,0,0.08);
       background: #fff;
+      transition: box-shadow 0.2s ease;
     }
+    .ba-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
     .ba-images {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      height: 220px;
+      height: 240px;
       position: relative;
     }
     .ba-side {
       position: relative;
       overflow: hidden;
-      background: #EDE8E0;
+      background: rgba(42,31,23,0.07);
     }
     .ba-side img {
       width: 100%;
@@ -149,55 +162,57 @@
       position: absolute;
       bottom: 7px;
       left: 7px;
-      font-size: 9px;
-      font-weight: 700;
+      font-size: 0.625rem;
+      font-weight: 600;
       letter-spacing: 0.1em;
       text-transform: uppercase;
-      background: rgba(255,255,255,.92);
-      color: #1A1A1A;
-      padding: 2px 7px;
-      border-radius: 20px;
+      background: rgba(255,255,255,0.92);
+      color: #2a1f17;
+      padding: 2px 8px;
+      border-radius: 999px;
     }
     .ba-divider {
       position: absolute;
       left: 50%;
-      top: 0;
-      bottom: 0;
+      top: 0; bottom: 0;
       width: 2px;
       background: #fff;
       z-index: 2;
       transform: translateX(-50%);
     }
     .ba-caption {
-      padding: 10px 12px;
-      font-size: 11.5px;
+      padding: 0.625rem 0.875rem;
+      font-size: 0.8125rem;
       font-weight: 600;
-      color: #6B6560;
+      color: rgba(42,31,23,0.6);
       text-align: center;
     }
-
     .results-note {
       text-align: center;
-      font-size: 12px;
-      color: #A09690;
+      font-size: 0.8125rem;
+      color: rgba(42,31,23,0.45);
       margin: 0;
+      line-height: 1.6;
     }
 
     /* ── How it works ── */
     .how-section {
-      padding-top: 48px;
+      padding-top: clamp(2.5rem, 5vw, 3.5rem);
+      opacity: 0;
+      animation: fadeUp 0.4s ease 0.1s forwards;
     }
     .how-steps {
       background: #fff;
-      border: 1px solid #EDE8E0;
-      border-radius: 16px;
-      padding: 28px;
+      border: 1px solid rgba(0,0,0,0.08);
+      border-radius: 14px;
+      padding: 1.75rem;
       display: grid;
-      gap: 20px;
+      gap: 1.25rem;
+      margin-top: 0.75rem;
     }
     .step {
       display: flex;
-      gap: 16px;
+      gap: 1rem;
       align-items: flex-start;
     }
     .step-num {
@@ -205,9 +220,9 @@
       width: 28px;
       height: 28px;
       border-radius: 50%;
-      background: #1A1A1A;
-      color: #FFFCF7;
-      font-size: 12px;
+      background: #2a1f17;
+      color: #FFF6EB;
+      font-size: 0.75rem;
       font-weight: 700;
       display: flex;
       align-items: center;
@@ -215,284 +230,281 @@
       margin-top: 1px;
     }
     .step-text {
-      font-size: 14px;
-      color: #4A4440;
-      line-height: 1.55;
+      font-size: 0.9375rem;
+      color: rgba(42,31,23,0.75);
+      line-height: 1.65;
     }
-    .step-text strong { color: #1A1A1A; }
+    .step-text strong { color: #2a1f17; font-weight: 600; }
 
-    /* ── Form card ── */
-    .form-section { padding-top: 40px; }
-
+    /* ── Form ── */
+    .form-section {
+      padding-top: clamp(2.5rem, 5vw, 3.5rem);
+      opacity: 0;
+      animation: fadeUp 0.4s ease 0.15s forwards;
+    }
     .card {
       background: #fff;
-      border: 1px solid #EDE8E0;
+      border: 1px solid rgba(0,0,0,0.08);
       border-radius: 16px;
-      padding: 32px;
+      padding: 2rem;
     }
     .form-title {
-      font-family: 'Playfair Display', serif;
-      font-size: 22px;
-      font-weight: 700;
-      margin: 0 0 6px;
-      color: #1A1A1A;
+      font-size: clamp(1.5rem, 3.5vw, 2.25rem);
+      font-weight: 500;
+      letter-spacing: -0.02em;
+      margin: 0 0 0.375rem;
+      color: #2a1f17;
+      line-height: 1.2;
     }
     .form-subtitle {
-      font-size: 13.5px;
-      color: #6B6560;
-      margin: 0 0 28px;
-      line-height: 1.5;
+      font-size: 0.9375rem;
+      color: rgba(42,31,23,0.55);
+      margin: 0 0 1.75rem;
+      line-height: 1.6;
     }
 
-    .section-divider { height: 1px; background: #EDE8E0; margin: 24px 0; }
-    .section-label {
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 0.1em;
+    .divider { height: 1px; background: rgba(0,0,0,0.07); margin: 1.5rem 0; }
+    .field-section-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.18em;
       text-transform: uppercase;
-      color: #C8A882;
-      margin-bottom: 16px;
+      color: #D0996C;
+      margin-bottom: 1rem;
     }
-
-    .form-group { margin-bottom: 16px; }
+    .form-group { margin-bottom: 1rem; }
     label {
       display: block;
-      font-size: 12.5px;
-      font-weight: 600;
-      color: #4A4440;
-      margin-bottom: 7px;
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: rgba(42,31,23,0.8);
+      margin-bottom: 0.4375rem;
     }
     input[type="text"],
     input[type="email"] {
       width: 100%;
-      background: #FFFCF7;
-      border: 1.5px solid #EDE8E0;
+      background: #FFF6EB;
+      border: 1.5px solid rgba(0,0,0,0.11);
       border-radius: 10px;
-      padding: 12px 14px;
-      font-size: 14px;
-      color: #1A1A1A;
+      padding: 0.75rem 0.875rem;
+      font-size: 0.9375rem;
+      color: #2a1f17;
       font-family: inherit;
       outline: none;
-      transition: border-color .15s, box-shadow .15s;
+      transition: border-color 0.15s, box-shadow 0.15s;
     }
     input[type="text"]:focus,
     input[type="email"]:focus {
-      border-color: #1A1A1A;
-      box-shadow: 0 0 0 3px rgba(26,26,26,.06);
+      border-color: #2a1f17;
+      box-shadow: 0 0 0 3px rgba(42,31,23,0.06);
       background: #fff;
     }
     select {
       width: 100%;
-      background: #FFFCF7;
-      border: 1.5px solid #EDE8E0;
+      background: #FFF6EB;
+      border: 1.5px solid rgba(0,0,0,0.11);
       border-radius: 10px;
-      padding: 12px 14px;
-      font-size: 14px;
-      color: #1A1A1A;
+      padding: 0.75rem 0.875rem;
+      font-size: 0.9375rem;
+      color: #2a1f17;
       font-family: inherit;
       outline: none;
       -webkit-appearance: none;
       appearance: none;
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%236B6560' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%232a1f17' opacity='.4' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
       background-repeat: no-repeat;
       background-position: right 14px center;
       cursor: pointer;
-      transition: border-color .15s;
+      transition: border-color 0.15s;
     }
-    select:focus { border-color: #1A1A1A; outline: none; }
-    select option { background: #fff; color: #1A1A1A; }
-    select.unset { color: #A09690; }
+    select:focus { border-color: #2a1f17; outline: none; }
+    select option { background: #fff; color: #2a1f17; }
+    select.unset { color: rgba(42,31,23,0.4); }
 
-    /* Photo tips */
+    /* Accent notice box — photo tips */
     .photo-tips {
-      background: #FFF8F0;
-      border: 1px solid #EDE8E0;
-      border-radius: 10px;
-      padding: 14px 16px;
-      margin-bottom: 12px;
+      background: rgba(42,31,23,0.04);
+      border-left: 3px solid #D0996C;
+      border-radius: 8px;
+      padding: 0.875rem 1rem;
+      margin-bottom: 0.875rem;
     }
-    .photo-tips-title { font-size: 12.5px; font-weight: 600; color: #1A1A1A; margin-bottom: 10px; }
-    .photo-tips-list { margin: 0; padding-left: 16px; }
-    .photo-tips-list li { font-size: 12.5px; color: #4A4440; line-height: 1.65; margin-bottom: 4px; }
+    .photo-tips-title { font-size: 0.875rem; font-weight: 600; color: #2a1f17; margin-bottom: 0.5rem; }
+    .photo-tips-list { margin: 0; padding-left: 1.1rem; }
+    .photo-tips-list li { font-size: 0.875rem; color: rgba(42,31,23,0.72); line-height: 1.65; margin-bottom: 0.25rem; }
     .photo-tips-list li:last-child { margin-bottom: 0; }
 
     /* Drop zone */
     .photo-drop {
-      background: #FFFCF7;
-      border: 1.5px dashed #C8A882;
+      background: #FFF6EB;
+      border: 1.5px dashed #D0996C;
       border-radius: 10px;
-      padding: 32px 20px;
+      padding: 2rem 1.25rem;
       text-align: center;
       cursor: pointer;
-      transition: border-color .2s, background .2s;
+      transition: border-color 0.2s, background 0.2s;
       position: relative;
     }
-    .photo-drop:hover,
-    .photo-drop.drag-over { border-color: #1A1A1A; background: #fff; }
+    .photo-drop:hover, .photo-drop.drag-over { border-color: #2a1f17; background: #fff; }
     .photo-drop input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
-    .photo-drop-icon { font-size: 28px; margin-bottom: 8px; }
-    .photo-drop-text { font-size: 13.5px; color: #4A4440; font-weight: 500; }
-    .photo-drop-text strong { color: #1A1A1A; }
-    .photo-drop-hint { font-size: 11.5px; color: #A09690; margin-top: 5px; }
+    .photo-drop-icon { font-size: 1.75rem; margin-bottom: 0.5rem; }
+    .photo-drop-text { font-size: 0.875rem; color: rgba(42,31,23,0.7); font-weight: 500; }
+    .photo-drop-text strong { color: #2a1f17; }
+    .photo-drop-hint { font-size: 0.75rem; color: rgba(42,31,23,0.4); margin-top: 0.3rem; }
 
-    .photo-preview { display: none; margin-top: 10px; }
+    .photo-preview { display: none; margin-top: 0.75rem; }
     .photo-preview img { max-width: 100%; max-height: 200px; border-radius: 10px; object-fit: cover; }
-    .photo-preview-label { font-size: 12px; color: #2D7A4F; font-weight: 600; margin-bottom: 8px; }
+    .photo-preview-label { font-size: 0.8125rem; color: #2D7A4F; font-weight: 600; margin-bottom: 0.5rem; }
 
-    /* Submit */
+    /* Pill button — primary on light bg */
     .btn {
       width: 100%;
-      margin-top: 10px;
-      padding: 15px;
-      background: #1A1A1A;
-      color: #FFFCF7;
+      margin-top: 0.75rem;
+      padding: 1rem 2rem;
+      background: #000;
+      color: #fff;
       border: none;
-      border-radius: 10px;
-      font-size: 15px;
-      font-weight: 600;
+      border-radius: 999px;
+      font-size: 0.9375rem;
+      font-weight: 500;
       font-family: inherit;
       cursor: pointer;
-      transition: background .15s;
-      letter-spacing: 0.02em;
+      transition: box-shadow 0.2s ease, transform 0.2s ease;
     }
-    .btn:hover:not(:disabled) { background: #333; }
-    .btn:disabled { opacity: .5; cursor: not-allowed; }
+    .btn:hover:not(:disabled) {
+      box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+      transform: translateY(-1px);
+    }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
     .form-fine-print {
       text-align: center;
-      font-size: 11.5px;
-      color: #A09690;
-      margin-top: 12px;
-      line-height: 1.5;
+      font-size: 0.75rem;
+      color: rgba(42,31,23,0.4);
+      margin-top: 0.75rem;
+      line-height: 1.6;
     }
 
     .error {
       display: none;
-      margin-top: 12px;
-      padding: 11px 14px;
+      margin-top: 0.75rem;
+      padding: 0.6875rem 0.875rem;
       background: #FFF0F0;
       border: 1px solid #FECACA;
       border-radius: 8px;
-      font-size: 13px;
+      font-size: 0.8125rem;
       color: #DC2626;
     }
     .error.show { display: block; }
 
     /* Success */
-    .success-screen { display: none; text-align: center; padding: 16px 0 8px; }
+    .success-screen { display: none; text-align: center; padding: 1rem 0 0.5rem; }
     .success-screen.show { display: block; }
-    .success-icon { font-size: 44px; margin-bottom: 14px; }
+    .success-icon { font-size: 2.75rem; margin-bottom: 0.875rem; }
     .success-screen h2 {
-      font-family: 'Playfair Display', serif;
-      font-size: 26px;
-      font-weight: 700;
-      margin: 0 0 12px;
-      color: #1A1A1A;
+      font-size: clamp(1.5rem, 3.5vw, 2rem);
+      font-weight: 500;
+      letter-spacing: -0.02em;
+      margin: 0 0 0.75rem;
+      color: #2a1f17;
     }
-    .success-screen p { font-size: 14px; color: #6B6560; line-height: 1.7; margin: 0 0 10px; }
+    .success-screen p { font-size: 0.9375rem; color: rgba(42,31,23,0.65); line-height: 1.7; margin: 0 0 0.625rem; }
     .success-badge {
       display: inline-block;
-      background: #F0FBF4;
-      color: #2D7A4F;
-      font-size: 12.5px;
-      font-weight: 600;
-      padding: 8px 18px;
-      border-radius: 20px;
-      margin-top: 8px;
+      background: rgba(42,31,23,0.06);
+      border: 1px solid rgba(42,31,23,0.12);
+      color: #2a1f17;
+      font-size: 0.8125rem;
+      font-weight: 500;
+      padding: 0.5rem 1.125rem;
+      border-radius: 999px;
+      margin-top: 0.5rem;
     }
 
     .spinner {
       display: none;
       width: 18px;
       height: 18px;
-      border: 2px solid rgba(255,252,247,.3);
-      border-top-color: #FFFCF7;
+      border: 2px solid rgba(255,255,255,.3);
+      border-top-color: #fff;
       border-radius: 50%;
-      animation: spin .6s linear infinite;
+      animation: spin 0.6s linear infinite;
       margin: 0 auto;
     }
-    @keyframes spin { to { transform: rotate(360deg); } }
 
-    @media (max-width: 560px) {
-      .ba-grid { grid-template-columns: 1fr; gap: 10px; }
-      .ba-images { height: 180px; }
-      .hero { padding: 40px 20px 36px; }
-      .card { padding: 22px; }
-      .how-steps { padding: 20px; }
+    @media (max-width: 749px) {
+      .ba-grid { grid-template-columns: 1fr; gap: 0.75rem; }
+      .ba-images { height: 200px; }
+      .card { padding: 1.5rem; }
+      .how-steps { padding: 1.25rem; }
     }
   </style>
 </head>
 <body>
 
-  <!-- Top bar -->
   <div class="topbar">The Bikini Line Co.</div>
 
-  <!-- Hero -->
   <div class="hero">
     <div class="hero-tag">$39.99 Full Refund Challenge</div>
     <h1>Real results.<br><em>Or your money back.</em></h1>
     <p class="hero-sub">Use our BBL Serum every night for 8 weeks, check in with photos every 2 weeks — and we'll refund your full $39.99. No catches.</p>
     <div class="hero-guarantee">
-      <span class="hero-guarantee-dot"></span>
+      <span class="hero-dot"></span>
       Money-back guarantee · 8 weeks · 4 check-ins
     </div>
   </div>
 
   <div class="page-body">
 
-    <!-- Results -->
+    <!-- Real results -->
     <div class="results-section">
-      <div class="section-eyebrow">Real customer results</div>
-      <h2 class="section-heading">What 8 weeks looks like</h2>
+      <div class="eyebrow center">Real customer results</div>
+      <h2 class="section-h2 center">What 8 weeks looks like</h2>
 
       <div class="ba-grid">
-        <!-- Before/After 1 — Legs/thighs -->
-        <!-- Replace src values with your hosted image URLs -->
         <div class="ba-card">
           <div class="ba-images">
             <div class="ba-side">
-              <img src="https://drive.google.com/uc?export=view&id=1gDq8N4xoJCioH1zOYRZI0cwrIsRQAWaK" alt="Before — legs" onerror="this.style.display='none'">
+              <img src="https://prgtvaoiwpyisowiewxk.supabase.co/storage/v1/object/public/examples/1.png" alt="Before — legs">
               <span class="ba-side-label">Before</span>
             </div>
             <div class="ba-divider"></div>
             <div class="ba-side">
-              <img src="https://drive.google.com/uc?export=view&id=13FJFoJwvQ7GsTrEnm_50QFKORk4p-YGH" alt="After — legs" onerror="this.style.display='none'">
+              <img src="https://prgtvaoiwpyisowiewxk.supabase.co/storage/v1/object/public/examples/2.png" alt="After — legs">
               <span class="ba-side-label">After</span>
             </div>
           </div>
           <div class="ba-caption">Inner thighs · 8 weeks</div>
         </div>
 
-        <!-- Before/After 2 — Stomach -->
         <div class="ba-card">
           <div class="ba-images">
             <div class="ba-side">
-              <img src="https://drive.google.com/uc?export=view&id=1SfkmPlspHI0xWzwJQIX-xFMPRxFJD9rK" alt="Before — stomach" onerror="this.style.display='none'">
+              <img src="https://prgtvaoiwpyisowiewxk.supabase.co/storage/v1/object/public/examples/3.png" alt="Before — bikini line">
               <span class="ba-side-label">Before</span>
             </div>
             <div class="ba-divider"></div>
             <div class="ba-side">
-              <img src="https://drive.google.com/uc?export=view&id=1LFiFnl-YLPBou9BheBbtVKSkZF0ffVaf" alt="After — stomach" onerror="this.style.display='none'">
-              <span class="ba-side-label">After</span>
-            </div>
-          </div>
-          <div class="ba-caption">Stomach · 8 weeks</div>
-        </div>
-
-        <!-- Before/After 3 — Bikini line -->
-        <div class="ba-card">
-          <div class="ba-images">
-            <div class="ba-side">
-              <img src="https://drive.google.com/uc?export=view&id=1R-Hbe3RNd-O_nabtVsNHrjWTBn8di9aG" alt="Before — bikini line" onerror="this.style.display='none'">
-              <span class="ba-side-label">Before</span>
-            </div>
-            <div class="ba-divider"></div>
-            <div class="ba-side">
-              <img src="https://drive.google.com/uc?export=view&id=1Qqp4TcCEugXV7NGrJXSGYqVwZnJQtU8t" alt="After — bikini line" onerror="this.style.display='none'">
+              <img src="https://prgtvaoiwpyisowiewxk.supabase.co/storage/v1/object/public/examples/4.png" alt="After — bikini line">
               <span class="ba-side-label">After</span>
             </div>
           </div>
           <div class="ba-caption">Bikini line · 8 weeks</div>
+        </div>
+
+        <div class="ba-card">
+          <div class="ba-images">
+            <div class="ba-side">
+              <img src="https://prgtvaoiwpyisowiewxk.supabase.co/storage/v1/object/public/examples/5.png" alt="Before — stomach">
+              <span class="ba-side-label">Before</span>
+            </div>
+            <div class="ba-divider"></div>
+            <div class="ba-side">
+              <img src="https://prgtvaoiwpyisowiewxk.supabase.co/storage/v1/object/public/examples/6.png" alt="After — stomach">
+              <span class="ba-side-label">After</span>
+            </div>
+          </div>
+          <div class="ba-caption">Stomach · 8 weeks</div>
         </div>
       </div>
 
@@ -501,7 +513,7 @@
 
     <!-- How it works -->
     <div class="how-section">
-      <div class="section-eyebrow" style="text-align:left;margin-bottom:10px">How it works</div>
+      <div class="eyebrow">How it works</div>
       <div class="how-steps">
         <div class="step">
           <div class="step-num">1</div>
@@ -531,7 +543,7 @@
         <div id="signup-form-wrap">
           <form id="signup-form" enctype="multipart/form-data">
 
-            <div class="section-label">Your info</div>
+            <div class="field-section-label">Your info</div>
 
             <div class="form-group">
               <label for="name">Your name</label>
@@ -557,8 +569,8 @@
               </select>
             </div>
 
-            <div class="section-divider"></div>
-            <div class="section-label">Your before photo (Week 0)</div>
+            <div class="divider"></div>
+            <div class="field-section-label">Your before photo (Week 0)</div>
 
             <div class="photo-tips">
               <div class="photo-tips-title">📸 How to take a good before photo</div>
@@ -597,16 +609,15 @@
           <div class="success-icon">🎉</div>
           <h2>You're officially in!</h2>
           <p>Your before photo is saved and your challenge has started. Your first check-in link will arrive by email in 2 weeks.</p>
-          <p>Use your BBL Serum every single night — consistency is what gets results <em>and</em> what qualifies you for the full refund.</p>
+          <p>Use your BBL Serum every single night — consistency is what gets results <em>and</em> qualifies you for the full refund.</p>
           <span class="success-badge">Week 2 check-in coming your way soon</span>
         </div>
       </div>
     </div>
 
-  </div><!-- /page-body -->
+  </div>
 
   <script>
-    // Photo preview
     const photoInput = document.getElementById('photo');
     const preview    = document.getElementById('photo-preview');
     const previewImg = document.getElementById('preview-img');
@@ -621,8 +632,8 @@
       }
     });
 
-    photoDrop.addEventListener('dragover', e => { e.preventDefault(); photoDrop.classList.add('drag-over'); });
-    photoDrop.addEventListener('dragleave', () => photoDrop.classList.remove('drag-over'));
+    photoDrop.addEventListener('dragover',  e => { e.preventDefault(); photoDrop.classList.add('drag-over'); });
+    photoDrop.addEventListener('dragleave', ()  => photoDrop.classList.remove('drag-over'));
     photoDrop.addEventListener('drop', e => {
       e.preventDefault();
       photoDrop.classList.remove('drag-over');
@@ -634,8 +645,7 @@
       }
     });
 
-    // Form submit
-    document.getElementById('signup-form').addEventListener('submit', async (e) => {
+    document.getElementById('signup-form').addEventListener('submit', async e => {
       e.preventDefault();
       const btn     = document.getElementById('submit-btn');
       const btnText = document.getElementById('btn-text');
@@ -648,8 +658,7 @@
       spinner.style.display = 'block';
 
       try {
-        const data = new FormData(document.getElementById('signup-form'));
-        const res  = await fetch('/api/challenge/signup', { method: 'POST', body: data });
+        const res  = await fetch('/api/challenge/signup', { method: 'POST', body: new FormData(e.target) });
         const json = await res.json();
         if (res.ok) {
           document.getElementById('signup-form-wrap').style.display = 'none';
