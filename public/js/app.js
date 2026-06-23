@@ -6615,7 +6615,9 @@ function ccOpenDayModal(dayIdx) {
   const dayName = CC_DAYS[dayIdx];
   const dateNum = ccDayDate(week, dayIdx);
 
-  openModal(`${dayName} — ${ccWeekLabel(week).split('–')[0].trim()} ${dateNum}`, `
+  const _mo = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const _d  = new Date(week + 'T12:00:00'); _d.setDate(_d.getDate() + dayIdx);
+  openModal(`${dayName} — ${_mo[_d.getMonth()]} ${_d.getDate()}`, `
     <div class="cc-modal">
       <div class="cc-form-row">
         <label class="cc-label">Post Title</label>

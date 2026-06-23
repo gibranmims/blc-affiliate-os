@@ -5,171 +5,612 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Win Your Money Back — BBL Serum Challenge</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; }
-    body { margin: 0; background: #0a0a0a; color: #FFF6EB; font-family: 'Inter', sans-serif; min-height: 100vh; padding: 40px 20px 80px; }
-    .container { max-width: 520px; margin: 0 auto; }
-    .brand { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: #665e52; margin-bottom: 32px; }
-    .hero-tag { display: inline-block; padding: 4px 12px; background: rgba(255,246,235,.08); border: 1px solid rgba(255,246,235,.12); border-radius: 20px; font-size: 11.5px; font-weight: 500; color: #a89880; margin-bottom: 16px; }
-    h1 { margin: 0 0 12px; font-size: 28px; font-weight: 700; line-height: 1.2; }
-    h1 span { color: #FFF6EB; }
-    .sub { font-size: 14.5px; color: #a89880; line-height: 1.65; margin: 0 0 28px; }
-    .how-it-works { background: #111; border: 1px solid #2a2a2a; border-radius: 12px; padding: 20px 22px; margin-bottom: 28px; }
-    .how-it-works-title { font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: #665e52; margin-bottom: 14px; }
-    .step { display: flex; gap: 14px; align-items: flex-start; margin-bottom: 12px; }
-    .step:last-child { margin-bottom: 0; }
-    .step-num { flex-shrink: 0; width: 22px; height: 22px; background: rgba(255,246,235,.08); border-radius: 50%; font-size: 11px; font-weight: 600; display: flex; align-items: center; justify-content: center; color: #a89880; margin-top: 1px; }
-    .step-text { font-size: 13px; color: #a89880; line-height: 1.5; }
-    .step-text strong { color: #FFF6EB; }
-    .card { background: #111111; border: 1px solid #2a2a2a; border-radius: 14px; padding: 28px; }
-    .form-title { font-size: 16px; font-weight: 600; margin: 0 0 20px; }
+
+    body {
+      margin: 0;
+      background: #FFFCF7;
+      color: #1A1A1A;
+      font-family: 'Inter', sans-serif;
+      min-height: 100vh;
+    }
+
+    /* ── Top bar ── */
+    .topbar {
+      padding: 14px 24px;
+      text-align: center;
+      font-size: 11px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: #1A1A1A;
+      border-bottom: 1px solid #EDE8E0;
+    }
+
+    /* ── Hero ── */
+    .hero {
+      background: #1A1A1A;
+      color: #FFFCF7;
+      padding: 56px 24px 52px;
+      text-align: center;
+    }
+    .hero-tag {
+      display: inline-block;
+      padding: 5px 14px;
+      border: 1px solid rgba(255,252,247,.2);
+      border-radius: 20px;
+      font-size: 11.5px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      color: #C8A882;
+      margin-bottom: 20px;
+      text-transform: uppercase;
+    }
+    .hero h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(32px, 6vw, 48px);
+      font-weight: 700;
+      line-height: 1.15;
+      margin: 0 0 16px;
+      color: #FFFCF7;
+    }
+    .hero h1 em {
+      font-style: italic;
+      color: #C8A882;
+    }
+    .hero-sub {
+      font-size: 15px;
+      color: rgba(255,252,247,.7);
+      line-height: 1.7;
+      max-width: 480px;
+      margin: 0 auto 28px;
+    }
+    .hero-guarantee {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(255,252,247,.06);
+      border: 1px solid rgba(255,252,247,.12);
+      border-radius: 10px;
+      padding: 10px 18px;
+      font-size: 13px;
+      color: rgba(255,252,247,.9);
+      font-weight: 500;
+    }
+    .hero-guarantee-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #4ade80;
+      flex-shrink: 0;
+    }
+
+    /* ── Page body ── */
+    .page-body {
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 0 20px 80px;
+    }
+
+    /* ── Results section ── */
+    .results-section {
+      padding: 48px 0 0;
+    }
+    .section-eyebrow {
+      text-align: center;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #C8A882;
+      margin-bottom: 8px;
+    }
+    .section-heading {
+      text-align: center;
+      font-family: 'Playfair Display', serif;
+      font-size: 26px;
+      font-weight: 700;
+      color: #1A1A1A;
+      margin: 0 0 28px;
+    }
+
+    .ba-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .ba-card {
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid #EDE8E0;
+      background: #fff;
+    }
+    .ba-images {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      height: 220px;
+      position: relative;
+    }
+    .ba-side {
+      position: relative;
+      overflow: hidden;
+      background: #EDE8E0;
+    }
+    .ba-side img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .ba-side-label {
+      position: absolute;
+      bottom: 7px;
+      left: 7px;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      background: rgba(255,255,255,.92);
+      color: #1A1A1A;
+      padding: 2px 7px;
+      border-radius: 20px;
+    }
+    .ba-divider {
+      position: absolute;
+      left: 50%;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background: #fff;
+      z-index: 2;
+      transform: translateX(-50%);
+    }
+    .ba-caption {
+      padding: 10px 12px;
+      font-size: 11.5px;
+      font-weight: 600;
+      color: #6B6560;
+      text-align: center;
+    }
+
+    .results-note {
+      text-align: center;
+      font-size: 12px;
+      color: #A09690;
+      margin: 0;
+    }
+
+    /* ── How it works ── */
+    .how-section {
+      padding-top: 48px;
+    }
+    .how-steps {
+      background: #fff;
+      border: 1px solid #EDE8E0;
+      border-radius: 16px;
+      padding: 28px;
+      display: grid;
+      gap: 20px;
+    }
+    .step {
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+    }
+    .step-num {
+      flex-shrink: 0;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: #1A1A1A;
+      color: #FFFCF7;
+      font-size: 12px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-top: 1px;
+    }
+    .step-text {
+      font-size: 14px;
+      color: #4A4440;
+      line-height: 1.55;
+    }
+    .step-text strong { color: #1A1A1A; }
+
+    /* ── Form card ── */
+    .form-section { padding-top: 40px; }
+
+    .card {
+      background: #fff;
+      border: 1px solid #EDE8E0;
+      border-radius: 16px;
+      padding: 32px;
+    }
+    .form-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 22px;
+      font-weight: 700;
+      margin: 0 0 6px;
+      color: #1A1A1A;
+    }
+    .form-subtitle {
+      font-size: 13.5px;
+      color: #6B6560;
+      margin: 0 0 28px;
+      line-height: 1.5;
+    }
+
+    .section-divider { height: 1px; background: #EDE8E0; margin: 24px 0; }
+    .section-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #C8A882;
+      margin-bottom: 16px;
+    }
+
     .form-group { margin-bottom: 16px; }
-    label { display: block; font-size: 12px; font-weight: 500; color: #a89880; margin-bottom: 6px; }
-    input[type="text"], input[type="email"] {
-      width: 100%; background: #171717; border: 1px solid #333; border-radius: 8px;
-      padding: 11px 13px; font-size: 14px; color: #FFF6EB; font-family: inherit; outline: none;
+    label {
+      display: block;
+      font-size: 12.5px;
+      font-weight: 600;
+      color: #4A4440;
+      margin-bottom: 7px;
     }
-    input:focus { border-color: #FFF6EB; box-shadow: 0 0 0 3px rgba(255,246,235,.08); }
+    input[type="text"],
+    input[type="email"] {
+      width: 100%;
+      background: #FFFCF7;
+      border: 1.5px solid #EDE8E0;
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-size: 14px;
+      color: #1A1A1A;
+      font-family: inherit;
+      outline: none;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    input[type="text"]:focus,
+    input[type="email"]:focus {
+      border-color: #1A1A1A;
+      box-shadow: 0 0 0 3px rgba(26,26,26,.06);
+      background: #fff;
+    }
     select {
-      width: 100%; background: #171717; border: 1px solid #333; border-radius: 8px;
-      padding: 11px 13px; font-size: 14px; color: #FFF6EB; font-family: inherit; outline: none;
-      -webkit-appearance: none; appearance: none;
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23a89880' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
-      background-repeat: no-repeat; background-position: right 14px center;
+      width: 100%;
+      background: #FFFCF7;
+      border: 1.5px solid #EDE8E0;
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-size: 14px;
+      color: #1A1A1A;
+      font-family: inherit;
+      outline: none;
+      -webkit-appearance: none;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%236B6560' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 14px center;
       cursor: pointer;
+      transition: border-color .15s;
     }
-    select:focus { border-color: #FFF6EB; box-shadow: 0 0 0 3px rgba(255,246,235,.08); }
-    select option { background: #171717; color: #FFF6EB; }
-    .photo-tips { background: rgba(255,246,235,.03); border: 1px solid rgba(255,246,235,.08); border-radius: 8px; padding: 12px 14px; margin-bottom: 10px; }
-    .photo-tips-title { font-size: 11.5px; font-weight: 600; color: #a89880; margin-bottom: 8px; }
+    select:focus { border-color: #1A1A1A; outline: none; }
+    select option { background: #fff; color: #1A1A1A; }
+    select.unset { color: #A09690; }
+
+    /* Photo tips */
+    .photo-tips {
+      background: #FFF8F0;
+      border: 1px solid #EDE8E0;
+      border-radius: 10px;
+      padding: 14px 16px;
+      margin-bottom: 12px;
+    }
+    .photo-tips-title { font-size: 12.5px; font-weight: 600; color: #1A1A1A; margin-bottom: 10px; }
     .photo-tips-list { margin: 0; padding-left: 16px; }
-    .photo-tips-list li { font-size: 12px; color: #665e52; line-height: 1.65; margin-bottom: 3px; }
+    .photo-tips-list li { font-size: 12.5px; color: #4A4440; line-height: 1.65; margin-bottom: 4px; }
     .photo-tips-list li:last-child { margin-bottom: 0; }
-    .photo-drop { background: #171717; border: 1.5px dashed #333; border-radius: 10px; padding: 28px 20px; text-align: center; cursor: pointer; transition: border-color .2s, background .2s; position: relative; }
-    .photo-drop:hover, .photo-drop.drag-over { border-color: #a89880; background: #1a1a1a; }
+
+    /* Drop zone */
+    .photo-drop {
+      background: #FFFCF7;
+      border: 1.5px dashed #C8A882;
+      border-radius: 10px;
+      padding: 32px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color .2s, background .2s;
+      position: relative;
+    }
+    .photo-drop:hover,
+    .photo-drop.drag-over { border-color: #1A1A1A; background: #fff; }
     .photo-drop input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
-    .photo-drop-icon { font-size: 24px; margin-bottom: 8px; }
-    .photo-drop-text { font-size: 13px; color: #a89880; }
-    .photo-drop-text strong { color: #FFF6EB; }
-    .photo-drop-hint { font-size: 11px; color: #665e52; margin-top: 4px; }
+    .photo-drop-icon { font-size: 28px; margin-bottom: 8px; }
+    .photo-drop-text { font-size: 13.5px; color: #4A4440; font-weight: 500; }
+    .photo-drop-text strong { color: #1A1A1A; }
+    .photo-drop-hint { font-size: 11.5px; color: #A09690; margin-top: 5px; }
+
     .photo-preview { display: none; margin-top: 10px; }
-    .photo-preview img { max-width: 100%; max-height: 180px; border-radius: 8px; object-fit: cover; }
-    .photo-preview-label { font-size: 11.5px; color: #4ade80; margin-bottom: 6px; }
-    .section-divider { height: 1px; background: #1e1e1e; margin: 20px 0; }
-    .section-label { font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: #665e52; margin-bottom: 14px; }
-    .btn { width: 100%; margin-top: 8px; padding: 13px; background: #FFF6EB; color: #0a0a0a; border: none; border-radius: 8px; font-size: 14.5px; font-weight: 600; font-family: inherit; cursor: pointer; transition: background .15s; }
-    .btn:hover:not(:disabled) { background: #fff; }
-    .btn:disabled { opacity: .6; cursor: not-allowed; }
-    .error { display: none; margin-top: 12px; padding: 10px 13px; background: rgba(248,113,113,.1); border: 1px solid rgba(248,113,113,.25); border-radius: 8px; font-size: 13px; color: #f87171; }
+    .photo-preview img { max-width: 100%; max-height: 200px; border-radius: 10px; object-fit: cover; }
+    .photo-preview-label { font-size: 12px; color: #2D7A4F; font-weight: 600; margin-bottom: 8px; }
+
+    /* Submit */
+    .btn {
+      width: 100%;
+      margin-top: 10px;
+      padding: 15px;
+      background: #1A1A1A;
+      color: #FFFCF7;
+      border: none;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: background .15s;
+      letter-spacing: 0.02em;
+    }
+    .btn:hover:not(:disabled) { background: #333; }
+    .btn:disabled { opacity: .5; cursor: not-allowed; }
+
+    .form-fine-print {
+      text-align: center;
+      font-size: 11.5px;
+      color: #A09690;
+      margin-top: 12px;
+      line-height: 1.5;
+    }
+
+    .error {
+      display: none;
+      margin-top: 12px;
+      padding: 11px 14px;
+      background: #FFF0F0;
+      border: 1px solid #FECACA;
+      border-radius: 8px;
+      font-size: 13px;
+      color: #DC2626;
+    }
     .error.show { display: block; }
-    .success-screen { display: none; text-align: center; padding: 20px 0; }
+
+    /* Success */
+    .success-screen { display: none; text-align: center; padding: 16px 0 8px; }
     .success-screen.show { display: block; }
-    .success-icon { font-size: 40px; margin-bottom: 16px; }
-    .success-screen h2 { font-size: 22px; font-weight: 700; margin: 0 0 12px; }
-    .success-screen p { font-size: 14px; color: #a89880; line-height: 1.65; margin: 0 0 10px; }
-    .spinner { display: none; width: 18px; height: 18px; border: 2px solid rgba(10,10,10,.3); border-top-color: #0a0a0a; border-radius: 50%; animation: spin .6s linear infinite; margin: 0 auto; }
+    .success-icon { font-size: 44px; margin-bottom: 14px; }
+    .success-screen h2 {
+      font-family: 'Playfair Display', serif;
+      font-size: 26px;
+      font-weight: 700;
+      margin: 0 0 12px;
+      color: #1A1A1A;
+    }
+    .success-screen p { font-size: 14px; color: #6B6560; line-height: 1.7; margin: 0 0 10px; }
+    .success-badge {
+      display: inline-block;
+      background: #F0FBF4;
+      color: #2D7A4F;
+      font-size: 12.5px;
+      font-weight: 600;
+      padding: 8px 18px;
+      border-radius: 20px;
+      margin-top: 8px;
+    }
+
+    .spinner {
+      display: none;
+      width: 18px;
+      height: 18px;
+      border: 2px solid rgba(255,252,247,.3);
+      border-top-color: #FFFCF7;
+      border-radius: 50%;
+      animation: spin .6s linear infinite;
+      margin: 0 auto;
+    }
     @keyframes spin { to { transform: rotate(360deg); } }
+
+    @media (max-width: 560px) {
+      .ba-grid { grid-template-columns: 1fr; gap: 10px; }
+      .ba-images { height: 180px; }
+      .hero { padding: 40px 20px 36px; }
+      .card { padding: 22px; }
+      .how-steps { padding: 20px; }
+    }
   </style>
 </head>
 <body>
-  <div class="container">
-    <div class="brand">The Bikini Line Co.</div>
 
+  <!-- Top bar -->
+  <div class="topbar">The Bikini Line Co.</div>
+
+  <!-- Hero -->
+  <div class="hero">
     <div class="hero-tag">$39.99 Full Refund Challenge</div>
-    <h1>Win Your <span>Money Back</span> Challenge</h1>
-    <p class="sub">Use our BBL Serum every night for 8 weeks, check in with photos every 2 weeks — and we'll refund your full $39.99. Here's your before and after, on us.</p>
-
-    <div class="how-it-works">
-      <div class="how-it-works-title">How it works</div>
-      <div class="step"><div class="step-num">1</div><div class="step-text"><strong>Sign up below</strong> with your order number and a <strong>before photo</strong> of the area you're treating. This is your Week 0 baseline.</div></div>
-      <div class="step"><div class="step-num">2</div><div class="step-text"><strong>Use your BBL Serum every night</strong> on your treatment area. Consistency is the whole game — don't skip nights.</div></div>
-      <div class="step"><div class="step-num">3</div><div class="step-text"><strong>Check in every 2 weeks</strong> — you'll get a unique link by email at weeks 2, 4, 6, and 8. Each check-in needs a progress photo from the same angle.</div></div>
-      <div class="step"><div class="step-num">4</div><div class="step-text"><strong>Complete all 4 check-ins</strong> and we'll process your full $39.99 refund. No catches, no gimmicks.</div></div>
-    </div>
-
-    <div class="card" id="form-card">
-      <p class="form-title">Enter the challenge</p>
-
-      <div id="signup-form-wrap">
-        <form id="signup-form" enctype="multipart/form-data">
-
-          <div class="section-label">Your info</div>
-
-          <div class="form-group">
-            <label for="name">Your name</label>
-            <input type="text" id="name" name="name" placeholder="Jane Smith" required>
-          </div>
-          <div class="form-group">
-            <label for="email">Email address</label>
-            <input type="email" id="email" name="email" placeholder="jane@example.com" required>
-          </div>
-          <div class="form-group">
-            <label for="order_number">Order number</label>
-            <input type="text" id="order_number" name="order_number" placeholder="e.g. 1234" required>
-          </div>
-          <div class="form-group">
-            <label for="body_part">Treatment area — where are you applying the serum?</label>
-            <select id="body_part" name="body_part" required>
-              <option value="" disabled selected>Select your treatment area</option>
-              <option value="Bikini line">Bikini line</option>
-              <option value="Inner thighs">Inner thighs</option>
-              <option value="Underarms">Underarms</option>
-              <option value="Stomach">Stomach / abdomen</option>
-              <option value="Other">Other area</option>
-            </select>
-          </div>
-
-          <div class="section-divider"></div>
-          <div class="section-label">Your before photo (Week 0)</div>
-
-          <div class="photo-tips">
-            <div class="photo-tips-title">📸 How to take a good before photo</div>
-            <ul class="photo-tips-list">
-              <li>Use natural light — stand near a window, not under overhead lighting</li>
-              <li>Get close enough that the treatment area fills most of the frame</li>
-              <li>No filters — we need to see real skin texture to verify progress</li>
-              <li>Remember this angle and distance — you'll need to match it at every check-in</li>
-            </ul>
-          </div>
-
-          <div class="form-group">
-            <label>Upload your before photo</label>
-            <div class="photo-drop" id="photo-drop">
-              <input type="file" id="photo" name="photo" accept=".jpg,.jpeg,.png,.webp,.heic" required>
-              <div class="photo-drop-icon">+</div>
-              <div class="photo-drop-text"><strong>Tap to upload your before photo</strong></div>
-              <div class="photo-drop-hint">JPG, PNG, WEBP or HEIC · Max 10 MB</div>
-            </div>
-            <div class="photo-preview" id="photo-preview">
-              <div class="photo-preview-label">Photo selected ✓</div>
-              <img id="preview-img" src="" alt="Before photo preview">
-            </div>
-          </div>
-
-          <div class="error" id="error-msg"></div>
-          <button type="submit" class="btn" id="submit-btn">
-            <span id="btn-text">Join the Challenge</span>
-            <div class="spinner" id="btn-spinner"></div>
-          </button>
-        </form>
-      </div>
-
-      <div class="success-screen" id="success-screen">
-        <div class="success-icon">✓</div>
-        <h2>You're in!</h2>
-        <p>Your before photo and entry are saved. Your first check-in link will arrive by email in 2 weeks.</p>
-        <p>Keep using your BBL Serum every night — don't skip. Consistency is what gets results <em>and</em> qualifies you for the refund.</p>
-      </div>
+    <h1>Real results.<br><em>Or your money back.</em></h1>
+    <p class="hero-sub">Use our BBL Serum every night for 8 weeks, check in with photos every 2 weeks — and we'll refund your full $39.99. No catches.</p>
+    <div class="hero-guarantee">
+      <span class="hero-guarantee-dot"></span>
+      Money-back guarantee · 8 weeks · 4 check-ins
     </div>
   </div>
+
+  <div class="page-body">
+
+    <!-- Results -->
+    <div class="results-section">
+      <div class="section-eyebrow">Real customer results</div>
+      <h2 class="section-heading">What 8 weeks looks like</h2>
+
+      <div class="ba-grid">
+        <!-- Before/After 1 — Legs/thighs -->
+        <!-- Replace src values with your hosted image URLs -->
+        <div class="ba-card">
+          <div class="ba-images">
+            <div class="ba-side">
+              <img src="https://drive.google.com/uc?export=view&id=1gDq8N4xoJCioH1zOYRZI0cwrIsRQAWaK" alt="Before — legs" onerror="this.style.display='none'">
+              <span class="ba-side-label">Before</span>
+            </div>
+            <div class="ba-divider"></div>
+            <div class="ba-side">
+              <img src="https://drive.google.com/uc?export=view&id=13FJFoJwvQ7GsTrEnm_50QFKORk4p-YGH" alt="After — legs" onerror="this.style.display='none'">
+              <span class="ba-side-label">After</span>
+            </div>
+          </div>
+          <div class="ba-caption">Inner thighs · 8 weeks</div>
+        </div>
+
+        <!-- Before/After 2 — Stomach -->
+        <div class="ba-card">
+          <div class="ba-images">
+            <div class="ba-side">
+              <img src="https://drive.google.com/uc?export=view&id=1SfkmPlspHI0xWzwJQIX-xFMPRxFJD9rK" alt="Before — stomach" onerror="this.style.display='none'">
+              <span class="ba-side-label">Before</span>
+            </div>
+            <div class="ba-divider"></div>
+            <div class="ba-side">
+              <img src="https://drive.google.com/uc?export=view&id=1LFiFnl-YLPBou9BheBbtVKSkZF0ffVaf" alt="After — stomach" onerror="this.style.display='none'">
+              <span class="ba-side-label">After</span>
+            </div>
+          </div>
+          <div class="ba-caption">Stomach · 8 weeks</div>
+        </div>
+
+        <!-- Before/After 3 — Bikini line -->
+        <div class="ba-card">
+          <div class="ba-images">
+            <div class="ba-side">
+              <img src="https://drive.google.com/uc?export=view&id=1R-Hbe3RNd-O_nabtVsNHrjWTBn8di9aG" alt="Before — bikini line" onerror="this.style.display='none'">
+              <span class="ba-side-label">Before</span>
+            </div>
+            <div class="ba-divider"></div>
+            <div class="ba-side">
+              <img src="https://drive.google.com/uc?export=view&id=1Qqp4TcCEugXV7NGrJXSGYqVwZnJQtU8t" alt="After — bikini line" onerror="this.style.display='none'">
+              <span class="ba-side-label">After</span>
+            </div>
+          </div>
+          <div class="ba-caption">Bikini line · 8 weeks</div>
+        </div>
+      </div>
+
+      <p class="results-note">Individual results may vary. Photos are from real customers who completed the full 8-week challenge.</p>
+    </div>
+
+    <!-- How it works -->
+    <div class="how-section">
+      <div class="section-eyebrow" style="text-align:left;margin-bottom:10px">How it works</div>
+      <div class="how-steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-text"><strong>Sign up below</strong> with your order number and a before photo of your treatment area. This is your Week 0 baseline.</div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-text"><strong>Use your BBL Serum every night.</strong> Consistency is everything — don't skip nights. The serum works while you sleep.</div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-text"><strong>Check in every 2 weeks</strong> — you'll get a unique link by email at weeks 2, 4, 6, and 8. Each check-in needs a progress photo from the same angle.</div>
+        </div>
+        <div class="step">
+          <div class="step-num">4</div>
+          <div class="step-text"><strong>Complete all 4 check-ins</strong> and we'll process your full $39.99 refund. No catches, no fine print, no gimmicks.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Form -->
+    <div class="form-section">
+      <div class="card" id="form-card">
+        <p class="form-title">Enter the challenge</p>
+        <p class="form-subtitle">Takes 2 minutes. We'll send your check-in links automatically.</p>
+
+        <div id="signup-form-wrap">
+          <form id="signup-form" enctype="multipart/form-data">
+
+            <div class="section-label">Your info</div>
+
+            <div class="form-group">
+              <label for="name">Your name</label>
+              <input type="text" id="name" name="name" placeholder="Jane Smith" required>
+            </div>
+            <div class="form-group">
+              <label for="email">Email address</label>
+              <input type="email" id="email" name="email" placeholder="jane@example.com" required>
+            </div>
+            <div class="form-group">
+              <label for="order_number">Order number</label>
+              <input type="text" id="order_number" name="order_number" placeholder="e.g. 1234" required>
+            </div>
+            <div class="form-group">
+              <label for="body_part">Where are you applying the serum?</label>
+              <select id="body_part" name="body_part" class="unset" required onchange="this.classList.remove('unset')">
+                <option value="" disabled selected>Select your treatment area</option>
+                <option value="Bikini line">Bikini line</option>
+                <option value="Inner thighs">Inner thighs</option>
+                <option value="Underarms">Underarms</option>
+                <option value="Stomach">Stomach / abdomen</option>
+                <option value="Other">Other area</option>
+              </select>
+            </div>
+
+            <div class="section-divider"></div>
+            <div class="section-label">Your before photo (Week 0)</div>
+
+            <div class="photo-tips">
+              <div class="photo-tips-title">📸 How to take a good before photo</div>
+              <ul class="photo-tips-list">
+                <li>Use natural light — stand near a window, not under overhead lighting</li>
+                <li>Get close enough that the treatment area fills most of the frame</li>
+                <li>No filters — we need to see real skin texture to verify progress</li>
+                <li>Remember this exact angle and distance — you'll need to match it at every check-in</li>
+              </ul>
+            </div>
+
+            <div class="form-group">
+              <label>Upload your before photo</label>
+              <div class="photo-drop" id="photo-drop">
+                <input type="file" id="photo" name="photo" accept=".jpg,.jpeg,.png,.webp,.heic" required>
+                <div class="photo-drop-icon">📷</div>
+                <div class="photo-drop-text"><strong>Tap to upload your before photo</strong></div>
+                <div class="photo-drop-hint">JPG, PNG, WEBP or HEIC · Max 10 MB</div>
+              </div>
+              <div class="photo-preview" id="photo-preview">
+                <div class="photo-preview-label">✓ Photo selected</div>
+                <img id="preview-img" src="" alt="Before photo preview">
+              </div>
+            </div>
+
+            <div class="error" id="error-msg"></div>
+            <button type="submit" class="btn" id="submit-btn">
+              <span id="btn-text">Join the Challenge</span>
+              <div class="spinner" id="btn-spinner"></div>
+            </button>
+            <p class="form-fine-print">By joining, you agree to complete all 4 check-ins to qualify for the refund. Refund processed within 5 business days of your Week 8 check-in.</p>
+          </form>
+        </div>
+
+        <div class="success-screen" id="success-screen">
+          <div class="success-icon">🎉</div>
+          <h2>You're officially in!</h2>
+          <p>Your before photo is saved and your challenge has started. Your first check-in link will arrive by email in 2 weeks.</p>
+          <p>Use your BBL Serum every single night — consistency is what gets results <em>and</em> what qualifies you for the full refund.</p>
+          <span class="success-badge">Week 2 check-in coming your way soon</span>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /page-body -->
 
   <script>
     // Photo preview
     const photoInput = document.getElementById('photo');
-    const preview = document.getElementById('photo-preview');
+    const preview    = document.getElementById('photo-preview');
     const previewImg = document.getElementById('preview-img');
-    const photoDrop = document.getElementById('photo-drop');
+    const photoDrop  = document.getElementById('photo-drop');
 
     photoInput.addEventListener('change', () => {
       const file = photoInput.files[0];
@@ -196,10 +637,10 @@
     // Form submit
     document.getElementById('signup-form').addEventListener('submit', async (e) => {
       e.preventDefault();
-      const btn = document.getElementById('submit-btn');
+      const btn     = document.getElementById('submit-btn');
       const btnText = document.getElementById('btn-text');
       const spinner = document.getElementById('btn-spinner');
-      const errEl = document.getElementById('error-msg');
+      const errEl   = document.getElementById('error-msg');
 
       errEl.classList.remove('show');
       btn.disabled = true;
@@ -207,9 +648,8 @@
       spinner.style.display = 'block';
 
       try {
-        const form = document.getElementById('signup-form');
-        const data = new FormData(form);
-        const res = await fetch('/api/challenge/signup', { method: 'POST', body: data });
+        const data = new FormData(document.getElementById('signup-form'));
+        const res  = await fetch('/api/challenge/signup', { method: 'POST', body: data });
         const json = await res.json();
         if (res.ok) {
           document.getElementById('signup-form-wrap').style.display = 'none';
