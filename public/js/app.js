@@ -11,7 +11,8 @@ const API = {
   support:     '/api/support',
   settings:    '/api/settings',
   tasks:       '/api/tasks',
-  ideas:       '/api/ideas'
+  ideas:           '/api/ideas',
+  contentCalendar: '/api/content-calendar'
 };
 
 const STATUSES = [
@@ -52,6 +53,8 @@ const state = {
   customIssueTypes:   [],
   tasks:              [],
   ideas:              [],
+  contentCalendar:    [],
+  calWeek:            null,
   monthlyGoal:        0,
   monthlyRevenue:     0,
   bfTab:              'overview'
@@ -594,8 +597,9 @@ function navigate(page) {
     review:       renderForReviewPage,
     finance:         renderFinancePage,
     'brand-finance': renderBrandFinancePage,
-    challenge:       renderChallengePage,
-    support:         renderSupportPage
+    challenge:          renderChallengePage,
+    support:            renderSupportPage,
+    'content-calendar': renderContentCalendarPage
   };
   if (renderers[page]) renderers[page]();
 }
@@ -6480,6 +6484,244 @@ async function deleteIdea(id) {
 }
 
 // ============================================================
+// CONTENT CALENDAR
+// ============================================================
+
+const CC_STATUSES = [
+  { key: 'idea',     label: 'Idea',     color: '#9ca3af' },
+  { key: 'scripted', label: 'Scripted', color: '#f59e0b' },
+  { key: 'filmed',   label: 'Filmed',   color: '#f97316' },
+  { key: 'edited',   label: 'Edited',   color: '#7c3aed' },
+  { key: 'posted',   label: 'Posted',   color: '#10b981' },
+];
+const CC_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+function ccWeekStart(dateStr) {
+  const d = new Date((dateStr || new Date().toISOString().split('T')[0]) + 'T12:00:00');
+  const day = d.getDay();
+  d.setDate(d.getDate() - (day === 0 ? 6 : day - 1));
+  return d.toISOString().split('T')[0];
+}
+
+function ccWeekLabel(weekStart) {
+  const s = new Date(weekStart + 'T12:00:00');
+  const e = new Date(weekStart + 'T12:00:00');
+  e.setDate(e.getDate() + 6);
+  const mo = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const endStr = s.getMonth() === e.getMonth()
+    ? String(e.getDate())
+    : `${mo[e.getMonth()]} ${e.getDate()}`;
+  return `${mo[s.getMonth()]} ${s.getDate()} – ${endStr}, ${e.getFullYear()}`;
+}
+
+function ccShiftWeek(weekStart, n) {
+  const d = new Date(weekStart + 'T12:00:00');
+  d.setDate(d.getDate() + n * 7);
+  return d.toISOString().split('T')[0];
+}
+
+function ccDayDate(weekStart, dayIdx) {
+  const d = new Date(weekStart + 'T12:00:00');
+  d.setDate(d.getDate() + dayIdx);
+  return d.getDate();
+}
+
+function ccStatusObj(key) {
+  return CC_STATUSES.find(s => s.key === key) || CC_STATUSES[0];
+}
+
+async function loadContentCalendar(week) {
+  const w = week || state.calWeek || ccWeekStart();
+  state.calWeek = w;
+  state.contentCalendar = await fetchAPI(`${API.contentCalendar}?week=${w}`);
+}
+
+function renderContentCalendarPage() {
+  if (!state.calWeek) state.calWeek = ccWeekStart();
+  const week    = state.calWeek;
+  const isThisWeek = week === ccWeekStart();
+
+  document.getElementById('page-content').innerHTML = `
+    <div class="cc-page">
+      <div class="cc-header">
+        <div class="cc-header-left">
+          <h1 class="page-title" style="margin-bottom:4px">Content Calendar</h1>
+          <p class="cc-subtitle">BLC TikTok — 7 posts per week</p>
+        </div>
+        <div class="cc-week-nav">
+          <button class="cc-week-btn" onclick="ccNavigateWeek(-1)">←</button>
+          <span class="cc-week-label">${ccWeekLabel(week)}</span>
+          <button class="cc-week-btn" onclick="ccNavigateWeek(1)">→</button>
+          ${!isThisWeek ? `<button class="btn btn-secondary btn-sm" onclick="ccGoToThisWeek()" style="margin-left:8px">This week</button>` : ''}
+        </div>
+      </div>
+
+      <div class="cc-grid">
+        ${CC_DAYS.map((day, i) => {
+          const entry   = state.contentCalendar.find(e => e.day_of_week === i);
+          const status  = ccStatusObj(entry?.status);
+          const dateNum = ccDayDate(week, i);
+          const hasContent = entry && (entry.title || entry.script_url);
+          return `
+          <div class="cc-day-card${hasContent ? '' : ' cc-day-empty'}" onclick="ccOpenDayModal(${i})">
+            <div class="cc-day-header">
+              <span class="cc-day-name">${day}</span>
+              <span class="cc-day-date">${dateNum}</span>
+            </div>
+            ${hasContent ? `
+              <div class="cc-day-body">
+                <div class="cc-day-title">${esc(entry.title || 'Untitled')}</div>
+                <div class="cc-day-status" style="background:${status.color}20;color:${status.color}">
+                  ${status.label}
+                </div>
+                ${entry.script_url ? `<a class="cc-day-doc-link" href="${esc(entry.script_url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">📄 Script ↗</a>` : ''}
+              </div>
+            ` : `
+              <div class="cc-day-add">+ Add post</div>
+            `}
+          </div>`;
+        }).join('')}
+      </div>
+
+      <div class="cc-progress-bar">
+        ${CC_STATUSES.map(s => {
+          const count = state.contentCalendar.filter(e => e.status === s.key).length;
+          return count > 0 ? `<span class="cc-progress-pill" style="background:${s.color}20;color:${s.color}">${count} ${s.label}</span>` : '';
+        }).join('')}
+        ${state.contentCalendar.filter(e => e.status === 'posted').length === 7
+          ? `<span class="cc-progress-pill" style="background:#10b98120;color:#10b981">✓ Full week posted!</span>`
+          : ''}
+      </div>
+    </div>
+  `;
+}
+
+async function ccNavigateWeek(dir) {
+  const newWeek = ccShiftWeek(state.calWeek, dir);
+  state.calWeek = newWeek;
+  await loadContentCalendar(newWeek);
+  renderContentCalendarPage();
+}
+
+function ccGoToThisWeek() {
+  const w = ccWeekStart();
+  state.calWeek = w;
+  loadContentCalendar(w).then(() => renderContentCalendarPage());
+}
+
+function ccOpenDayModal(dayIdx) {
+  const week   = state.calWeek;
+  const entry  = state.contentCalendar.find(e => e.day_of_week === dayIdx);
+  const dayName = CC_DAYS[dayIdx];
+  const dateNum = ccDayDate(week, dayIdx);
+
+  openModal(`${dayName} — ${ccWeekLabel(week).split('–')[0].trim()} ${dateNum}`, `
+    <div class="cc-modal">
+      <div class="cc-form-row">
+        <label class="cc-label">Post Title</label>
+        <input type="text" class="dp-input" id="cc-title" value="${esc(entry?.title || '')}" placeholder="What's this post about?">
+      </div>
+
+      <div class="cc-form-row">
+        <label class="cc-label">Status</label>
+        <div class="cc-status-pills">
+          ${CC_STATUSES.map(s => `
+            <button class="cc-status-pill${(entry?.status || 'idea') === s.key ? ' cc-status-active' : ''}"
+              style="${(entry?.status || 'idea') === s.key ? `background:${s.color};color:#fff;border-color:${s.color}` : `border-color:${s.color}20;color:${s.color}`}"
+              data-status="${s.key}"
+              onclick="ccSelectStatus(this, '${s.key}', '${s.color}')">
+              ${s.label}
+            </button>
+          `).join('')}
+        </div>
+      </div>
+
+      <div class="cc-form-row">
+        <label class="cc-label">Script / Google Doc URL</label>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input type="url" class="dp-input" id="cc-script-url" value="${esc(entry?.script_url || '')}" placeholder="Paste Google Doc link…" style="flex:1">
+          <button class="btn btn-secondary btn-sm" onclick="ccOpenDoc()">Open ↗</button>
+        </div>
+      </div>
+
+      <div class="cc-form-row">
+        <label class="cc-label">Notes</label>
+        <textarea class="dp-input" id="cc-notes" rows="3" placeholder="Hooks, angles, references…" style="resize:vertical">${esc(entry?.notes || '')}</textarea>
+      </div>
+
+      <div class="cc-modal-actions">
+        <button class="btn btn-primary" onclick="ccSaveDay('${week}', ${dayIdx}, '${entry?.id || ''}')">Save</button>
+        ${entry ? `<button class="btn btn-secondary" onclick="ccClearDay('${entry.id}')">Clear Post</button>` : ''}
+      </div>
+    </div>
+  `);
+}
+
+let ccSelectedStatus = null;
+function ccSelectStatus(btn, key, color) {
+  ccSelectedStatus = key;
+  document.querySelectorAll('.cc-status-pill').forEach(b => {
+    const bKey   = b.dataset.status;
+    const bColor = CC_STATUSES.find(s => s.key === bKey)?.color || '#9ca3af';
+    b.classList.remove('cc-status-active');
+    b.style.background   = 'transparent';
+    b.style.color        = bColor;
+    b.style.borderColor  = bColor + '40';
+  });
+  btn.classList.add('cc-status-active');
+  btn.style.background  = color;
+  btn.style.color       = '#fff';
+  btn.style.borderColor = color;
+}
+
+function ccOpenDoc() {
+  const url = document.getElementById('cc-script-url')?.value?.trim();
+  if (url) window.open(url, '_blank', 'noopener');
+  else showToast('Paste a Google Doc URL first', 'error');
+}
+
+async function ccSaveDay(week, dayIdx, existingId) {
+  const title      = document.getElementById('cc-title')?.value?.trim() || '';
+  const script_url = document.getElementById('cc-script-url')?.value?.trim() || '';
+  const notes      = document.getElementById('cc-notes')?.value?.trim() || '';
+  const status     = ccSelectedStatus || document.querySelector('.cc-status-pill.cc-status-active')?.dataset?.status || 'idea';
+
+  try {
+    let updated;
+    if (existingId) {
+      updated = await fetchAPI(`${API.contentCalendar}/${existingId}`, {
+        method: 'PUT',
+        body: JSON.stringify({ title, script_url, notes, status })
+      });
+      const idx = state.contentCalendar.findIndex(e => e.id === existingId);
+      if (idx !== -1) state.contentCalendar[idx] = updated;
+    } else {
+      updated = await fetchAPI(API.contentCalendar, {
+        method: 'POST',
+        body: JSON.stringify({ week_start: week, day_of_week: dayIdx, title, script_url, notes, status })
+      });
+      state.contentCalendar.push(updated);
+    }
+    ccSelectedStatus = null;
+    closeModal();
+    renderContentCalendarPage();
+    showToast('Saved');
+  } catch (err) { showToast(err.message, 'error'); }
+}
+
+async function ccClearDay(id) {
+  if (!confirm('Remove this post?')) return;
+  try {
+    await fetchAPI(`${API.contentCalendar}/${id}`, { method: 'DELETE' });
+    state.contentCalendar = state.contentCalendar.filter(e => e.id !== id);
+    ccSelectedStatus = null;
+    closeModal();
+    renderContentCalendarPage();
+    showToast('Post cleared');
+  } catch (err) { showToast(err.message, 'error'); }
+}
+
+// ============================================================
 // SIDEBAR COLLAPSE
 // ============================================================
 
@@ -6547,6 +6789,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     loadTasks().catch(() => {}),
     loadHomeSettings().catch(() => {}),
     loadIdeas().catch(() => {}),
+    loadContentCalendar().catch(() => {}),
     checkTikTokStatus().catch(() => {})
   ]);
 
