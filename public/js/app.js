@@ -133,6 +133,13 @@ function timerSetPreset(mode, mins) {
   tmr.remaining = _tmrTotal();
   _tmrRender();
 }
+function timerSetCustom() {
+  const el  = document.getElementById('tmr-custom');
+  const val = parseInt(el?.value);
+  if (!val || val < 1 || val > 360) { el?.focus(); return; }
+  el.value = '';
+  timerSetPreset(tmr.mode, val);
+}
 function _tmrRender() {
   const arc  = document.getElementById('tmr-arc');
   if (!arc) return;
@@ -195,6 +202,10 @@ function _tmrHTML() {
         <span class="tmr-sep">·</span>
         <button class="tmr-preset${tmr.mode==='break'&&tmr.breakMins===5?' tmr-preset-active':''}" data-mode="break" data-mins="5" onclick="timerSetPreset('break',5)">5m break</button>
         <button class="tmr-preset${tmr.mode==='break'&&tmr.breakMins===10?' tmr-preset-active':''}" data-mode="break" data-mins="10" onclick="timerSetPreset('break',10)">10m break</button>
+        <span class="tmr-sep">·</span>
+        <input type="number" id="tmr-custom" class="tmr-custom-input" min="1" max="360" placeholder="min"
+          onkeydown="if(event.key==='Enter')timerSetCustom()" title="Custom duration in minutes">
+        <button class="tmr-preset" onclick="timerSetCustom()">Set</button>
       </div>
       <div class="tmr-sessions-row" id="tmr-sessions-row">
         ${tmr.sessions===0?'No sessions yet today':`${tmr.sessions} focus session${tmr.sessions!==1?'s':''} completed`}
