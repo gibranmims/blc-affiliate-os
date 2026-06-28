@@ -72,6 +72,137 @@ const nbState = {
   polling:        null
 };
 
+// ── Focus Timer state (persists across home re-renders) ───────────
+const tmr = {
+  mode:      'focus',   // 'focus' | 'break'
+  focusMins: 25,
+  breakMins: 5,
+  remaining: 25 * 60,
+  running:   false,
+  sessions:  0,
+  _iv:       null,
+};
+function _tmrTotal()  { return (tmr.mode === 'focus' ? tmr.focusMins : tmr.breakMins) * 60; }
+function _tmrFmt(s)   { return `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`; }
+function _tmrColor()  {
+  if (tmr.mode === 'break') return '#00c853';
+  return tmr.remaining < 60 ? '#e91e8c' : tmr.remaining < 300 ? '#ff6b00' : '#0055ff';
+}
+function _tmrOffset() {
+  const circ = +(2 * Math.PI * 52).toFixed(2);
+  const pct  = _tmrTotal() > 0 ? tmr.remaining / _tmrTotal() : 1;
+  return +(circ * (1 - pct)).toFixed(2);
+}
+
+function timerToggle() {
+  if (tmr.running) {
+    clearInterval(tmr._iv); tmr.running = false;
+  } else {
+    tmr.running = true;
+    tmr._iv = setInterval(timerTick, 1000);
+  }
+  _tmrRender();
+}
+function timerReset() {
+  clearInterval(tmr._iv); tmr.running = false;
+  tmr.remaining = _tmrTotal();
+  _tmrRender();
+}
+function timerTick() {
+  if (tmr.remaining <= 0) {
+    clearInterval(tmr._iv); tmr.running = false;
+    if (tmr.mode === 'focus') { tmr.sessions++; tmr.mode = 'break'; }
+    else { tmr.mode = 'focus'; }
+    tmr.remaining = _tmrTotal();
+    _tmrRender();
+    showToast(tmr.mode === 'break' ? '✓ Focus session done — take a break!' : '☕ Break over — time to focus!');
+    return;
+  }
+  tmr.remaining--;
+  _tmrRender();
+}
+function timerSetMode(mode) {
+  clearInterval(tmr._iv); tmr.running = false;
+  tmr.mode = mode; tmr.remaining = _tmrTotal();
+  _tmrRender();
+}
+function timerSetPreset(mode, mins) {
+  clearInterval(tmr._iv); tmr.running = false;
+  tmr.mode = mode;
+  if (mode === 'focus') tmr.focusMins = mins; else tmr.breakMins = mins;
+  tmr.remaining = _tmrTotal();
+  _tmrRender();
+}
+function _tmrRender() {
+  const arc  = document.getElementById('tmr-arc');
+  if (!arc) return;
+  const circ = +(2 * Math.PI * 52).toFixed(2);
+  arc.setAttribute('stroke-dashoffset', _tmrOffset());
+  arc.setAttribute('stroke', _tmrColor());
+  document.getElementById('tmr-display').textContent   = _tmrFmt(tmr.remaining);
+  document.getElementById('tmr-mode-label').textContent = tmr.mode === 'focus' ? 'Focus' : 'Break';
+  const btn = document.getElementById('tmr-start');
+  const isStart = !tmr.running && tmr.remaining === _tmrTotal();
+  btn.textContent = tmr.running ? 'Pause' : isStart ? 'Start' : 'Resume';
+  btn.className   = 'tmr-start-btn' + (tmr.running ? ' tmr-running' : '');
+  document.getElementById('tmr-sessions-row').textContent =
+    tmr.sessions === 0 ? 'No sessions yet today' :
+    `${tmr.sessions} focus session${tmr.sessions !== 1 ? 's' : ''} completed`;
+  document.querySelectorAll('.tmr-tab').forEach(b =>
+    b.classList.toggle('tmr-tab-active', b.dataset.mode === tmr.mode));
+  document.querySelectorAll('.tmr-preset').forEach(b => {
+    const active = b.dataset.mode === tmr.mode &&
+      +b.dataset.mins === (tmr.mode === 'focus' ? tmr.focusMins : tmr.breakMins);
+    b.classList.toggle('tmr-preset-active', active);
+  });
+  document.title = tmr.running
+    ? `${_tmrFmt(tmr.remaining)} — ${tmr.mode === 'focus' ? '🎯 Focus' : '☕ Break'}`
+    : 'BLC OS';
+}
+function _tmrHTML() {
+  const circ = +(2 * Math.PI * 52).toFixed(2);
+  return `
+  <div class="home-timer-section">
+    <div class="home-section-label">Focus Timer</div>
+    <div class="home-timer-card">
+      <div class="tmr-tabs">
+        <button class="tmr-tab${tmr.mode==='focus'?' tmr-tab-active':''}" data-mode="focus" onclick="timerSetMode('focus')">🎯 Focus</button>
+        <button class="tmr-tab${tmr.mode==='break'?' tmr-tab-active':''}" data-mode="break" onclick="timerSetMode('break')">☕ Break</button>
+      </div>
+      <div class="tmr-ring-wrap">
+        <svg class="tmr-svg" viewBox="0 0 120 120">
+          <circle cx="60" cy="60" r="52" fill="none" stroke="rgba(0,0,0,0.06)" stroke-width="8"/>
+          <circle id="tmr-arc" cx="60" cy="60" r="52" fill="none"
+            stroke="${_tmrColor()}" stroke-width="8"
+            stroke-dasharray="${circ}" stroke-dashoffset="${_tmrOffset()}"
+            stroke-linecap="round" transform="rotate(-90 60 60)"
+            style="transition:stroke-dashoffset 0.8s linear,stroke 0.3s"/>
+        </svg>
+        <div class="tmr-center">
+          <div class="tmr-display" id="tmr-display">${_tmrFmt(tmr.remaining)}</div>
+          <div class="tmr-mode-label" id="tmr-mode-label">${tmr.mode==='focus'?'Focus':'Break'}</div>
+        </div>
+      </div>
+      <div class="tmr-controls">
+        <button id="tmr-start" class="tmr-start-btn${tmr.running?' tmr-running':''}" onclick="timerToggle()">
+          ${tmr.running ? 'Pause' : tmr.remaining === _tmrTotal() ? 'Start' : 'Resume'}
+        </button>
+        <button class="tmr-reset-btn" onclick="timerReset()">Reset</button>
+      </div>
+      <div class="tmr-presets">
+        <button class="tmr-preset${tmr.mode==='focus'&&tmr.focusMins===25?' tmr-preset-active':''}" data-mode="focus" data-mins="25" onclick="timerSetPreset('focus',25)">25m</button>
+        <button class="tmr-preset${tmr.mode==='focus'&&tmr.focusMins===50?' tmr-preset-active':''}" data-mode="focus" data-mins="50" onclick="timerSetPreset('focus',50)">50m</button>
+        <span class="tmr-sep">·</span>
+        <button class="tmr-preset${tmr.mode==='break'&&tmr.breakMins===5?' tmr-preset-active':''}" data-mode="break" data-mins="5" onclick="timerSetPreset('break',5)">5m break</button>
+        <button class="tmr-preset${tmr.mode==='break'&&tmr.breakMins===10?' tmr-preset-active':''}" data-mode="break" data-mins="10" onclick="timerSetPreset('break',10)">10m break</button>
+      </div>
+      <div class="tmr-sessions-row" id="tmr-sessions-row">
+        ${tmr.sessions===0?'No sessions yet today':`${tmr.sessions} focus session${tmr.sessions!==1?'s':''} completed`}
+      </div>
+    </div>
+  </div>`;
+}
+
 // ============================================================
 // UTILITIES
 // ============================================================
@@ -6296,6 +6427,8 @@ function renderHomePage() {
           </button>
         </div>
       </div>
+
+      ${_tmrHTML()}
 
     </div>
   `;
