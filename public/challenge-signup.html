@@ -94,9 +94,13 @@
 
     /* ── Page body ── */
     .page-body {
-      max-width: 720px;
+      max-width: 920px;
       margin: 0 auto;
       padding: 0 clamp(1.25rem, 6vw, 2rem) clamp(4rem, 8vw, 7rem);
+    }
+    .form-inner {
+      max-width: 680px;
+      margin: 0 auto;
     }
 
     /* ── Eyebrow ── */
@@ -144,7 +148,7 @@
     .ba-images {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      height: 240px;
+      aspect-ratio: 4/5;
       position: relative;
     }
     .ba-side {
@@ -434,7 +438,7 @@
 
     @media (max-width: 749px) {
       .ba-grid { grid-template-columns: 1fr; gap: 0.75rem; }
-      .ba-images { height: 200px; }
+      .ba-images { aspect-ratio: 4/5; }
       .card { padding: 1.5rem; }
       .how-steps { padding: 1.25rem; }
     }
