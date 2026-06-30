@@ -3025,9 +3025,21 @@ function renderRosterPage() {
   const isPaid   = state.rosterTab === 'paid';
   const allPaid  = state.roster.filter(r => r.affiliate_type !== 'free');
   const allFree  = state.roster.filter(r => r.affiliate_type === 'free');
-  // For paid tab: filter by month (creators with no contract_month show in all months)
+  // For paid tab: filter by month
+  // If contract_month is set, use it directly.
+  // Otherwise derive from start_date: show if they started this month,
+  // or started before this month and still have videos remaining (deal ongoing).
   const list = isPaid
-    ? allPaid.filter(r => !r.contract_month || r.contract_month === state.rosterMonth)
+    ? allPaid.filter(r => {
+        if (r.contract_month) return r.contract_month === state.rosterMonth;
+        const startMonth = r.start_date ? r.start_date.slice(0, 7) : null;
+        if (!startMonth) return true;
+        const total     = parseInt(r.video_count) || 0;
+        const made      = parseInt(r.content_submitted) || 0;
+        const remaining = total > 0 ? Math.max(0, total - made) : null;
+        const dealOngoing = remaining === null || remaining > 0;
+        return startMonth === state.rosterMonth || (startMonth < state.rosterMonth && dealOngoing);
+      })
     : allFree;
   const active  = list.filter(r => r.status === 'active').length;
   const totalGMV   = list.reduce((s, r) => s + (parseFloat(r.gmv) || 0), 0);
