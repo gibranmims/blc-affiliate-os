@@ -309,24 +309,44 @@
     #fp { display: none; }
 
     .upload-lbl {
-      display: block;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.5rem;
       width: 100%;
-      padding: 1.125rem 1rem;
-      border: 1.5px dashed rgba(255, 246, 235, 0.18);
-      border-radius: 10px;
+      padding: 1.75rem 1rem;
+      border: 1.5px dashed rgba(255, 246, 235, 0.22);
+      border-radius: 12px;
       text-align: center;
-      font-family: 'Poppins', sans-serif;
-      font-size: 0.875rem;
       color: #FFF6EB;
-      opacity: 0.45;
       cursor: pointer;
       margin-bottom: 1rem;
-      transition: opacity 0.2s, border-color 0.2s;
+      transition: border-color 0.2s;
       text-transform: none;
     }
 
-    .upload-lbl:hover { opacity: 0.75; border-color: rgba(255, 246, 235, 0.35); }
-    .upload-lbl.has-file { opacity: 0.8; border-color: rgba(255, 246, 235, 0.35); }
+    .upload-icon { opacity: 0.4; }
+
+    .upload-main {
+      display: block;
+      font-family: 'Poppins', sans-serif;
+      font-size: 0.9375rem;
+      font-weight: 500;
+      color: #FFF6EB;
+      opacity: 0.75;
+    }
+
+    .upload-sub {
+      display: block;
+      font-family: 'Poppins', sans-serif;
+      font-size: 0.75rem;
+      color: #FFF6EB;
+      opacity: 0.35;
+    }
+
+    .upload-lbl:hover { border-color: rgba(255, 246, 235, 0.4); }
+    .upload-lbl.has-file { border-color: rgba(255, 246, 235, 0.4); }
+    .upload-lbl.has-file .upload-main { opacity: 0.9; }
 
     .form-err {
       background: rgba(255, 80, 80, 0.08);
@@ -585,7 +605,14 @@
         </div>
 
         <input type="file" id="fp" accept="image/*" capture="environment">
-        <label class="upload-lbl" for="fp" id="uplbl">Tap to upload your Week Zero photo</label>
+        <label class="upload-lbl" for="fp" id="uplbl">
+          <svg class="upload-icon" width="28" height="26" viewBox="0 0 24 22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V7a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/>
+            <circle cx="12" cy="13" r="4"/>
+          </svg>
+          <span class="upload-main">Upload your Week Zero photo</span>
+          <span class="upload-sub">Tap here to choose a photo from your camera roll</span>
+        </label>
 
         <button class="btn" id="sbmt" onclick="submitForm()" style="max-width:100%; margin-top:0.125rem;">Join the challenge</button>
         <p class="fine-print">By joining you agree to complete your check-ins to qualify for the refund. Refund processed within five business days of your Week 8 check-in.</p>
@@ -716,7 +743,7 @@
   document.getElementById('fp').addEventListener('change', function() {
     const lbl = document.getElementById('uplbl');
     if (this.files[0]) {
-      lbl.textContent = '✓ ' + this.files[0].name;
+      lbl.innerHTML = '<span class="upload-main">Photo added</span><span class="upload-sub">' + this.files[0].name + '</span>';
       lbl.classList.add('has-file');
     }
   });
