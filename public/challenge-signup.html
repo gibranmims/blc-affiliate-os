@@ -337,6 +337,29 @@
       text-transform: lowercase;
     }
 
+    /* ── back button ── */
+    #back-btn {
+      position: fixed;
+      top: 1.25rem;
+      left: 1.25rem;
+      background: none;
+      border: none;
+      color: #FFF6EB;
+      font-family: 'Poppins', sans-serif;
+      font-size: 0.75rem;
+      font-weight: 400;
+      cursor: pointer;
+      padding: 0.5rem 0.625rem;
+      z-index: 100;
+      text-transform: lowercase;
+      letter-spacing: 0.03em;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s;
+    }
+    #back-btn.visible { opacity: 0.35; pointer-events: auto; }
+    #back-btn.visible:hover { opacity: 0.75; }
+
     /* ── animation base ── */
     .el {
       opacity: 0;
@@ -345,6 +368,7 @@
   </style>
 </head>
 <body>
+<button id="back-btn" onclick="goBack()">← back</button>
 <div id="app">
 
   <!-- ── SCREEN 1: THE HOOK ── -->
@@ -383,6 +407,7 @@
       <div class="gap-md"></div>
       <p class="lbl el">the win your money back challenge</p>
       <h1 class="el">here's what you do.</h1>
+      <p class="sub el" style="margin-bottom:1rem; opacity:0.5; font-style:italic;">don't worry — you buy it, use it, then we give every dollar back. that's literally the deal.</p>
       <ul class="steps el">
         <li>buy one bottle of bbl serum.</li>
         <li>use it every night on clean dry skin for 8 weeks.</li>
@@ -562,11 +587,14 @@
     });
   }
 
+  function goBack() { if (cur > 1) go(cur - 1); }
+
   function go(n) {
     if (n === cur) return;
     const from = document.getElementById('s' + cur);
     const to   = document.getElementById('s' + n);
     if (!to) return;
+    document.getElementById('back-btn').classList.toggle('visible', n > 1);
 
     from.style.transition = 'opacity 0.28s ease';
     from.style.opacity = '0';
