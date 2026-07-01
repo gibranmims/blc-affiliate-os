@@ -7113,18 +7113,18 @@ textarea:focus {
    CONTENT CALENDAR
    ============================================================ */
 
+/* ── Content Calendar Page ─────────────────────────────────── */
 .cc-page {
-  padding: 32px 36px;
-  max-width: 1100px;
+  padding: 32px 28px;
+  max-width: 100%;
 }
 
 .cc-header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: flex-end;
   margin-bottom: 28px;
   gap: 16px;
-  flex-wrap: wrap;
 }
 
 .cc-subtitle {
@@ -7142,150 +7142,240 @@ textarea:focus {
 .cc-week-label {
   font-size: 14px;
   font-weight: 600;
+  letter-spacing: -0.01em;
   color: var(--text-primary);
-  min-width: 180px;
+  min-width: 190px;
   text-align: center;
 }
 
 .cc-week-btn {
-  background: var(--bg-elevated);
+  background: rgba(255,255,255,0.88);
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border-radius: 9px;
   color: var(--text-primary);
-  width: 30px;
-  height: 30px;
+  width: 32px;
+  height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   font-size: 15px;
-  transition: background 0.15s;
+  transition: background 0.12s;
 }
-.cc-week-btn:hover { background: var(--bg-tertiary); }
+.cc-week-btn:hover { background: var(--bg-elevated); box-shadow: var(--shadow-sm); }
 
-.cc-grid {
+/* ── Board: header row + platform rows ─────────────────────── */
+.cc-board {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cc-col-headers,
+.cc-platform-row {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 10px;
-  margin-bottom: 20px;
+  grid-template-columns: 142px repeat(7, 1fr);
+  gap: 4px;
 }
 
-.cc-day-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 14px 12px;
-  cursor: pointer;
-  transition: border-color 0.15s, box-shadow 0.15s;
-  min-height: 140px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.cc-day-card:hover {
-  border-color: var(--primary);
-  box-shadow: 0 0 0 1px var(--primary);
-}
-.cc-day-card.cc-day-empty {
-  border-style: dashed;
-  border-color: var(--border-light);
-}
-.cc-day-card.cc-day-empty:hover {
-  border-style: solid;
-  border-color: var(--primary);
+.cc-platform-stub {
+  /* empty corner */
 }
 
-.cc-day-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.cc-day-name {
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--text-secondary);
-}
-
-.cc-day-date {
-  font-size: 11px;
-  color: var(--text-muted);
-  font-weight: 500;
-}
-
-.cc-day-body {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  flex: 1;
-}
-
-.cc-day-title {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-primary);
-  line-height: 1.4;
-  overflow: hidden;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-}
-
-.cc-day-status {
-  display: inline-flex;
-  align-items: center;
-  font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  padding: 2px 7px;
-  border-radius: 20px;
-  width: fit-content;
-}
-
-.cc-day-doc-link {
-  font-size: 11px;
-  color: var(--primary);
-  text-decoration: none;
-  font-weight: 500;
-  margin-top: auto;
-}
-.cc-day-doc-link:hover { text-decoration: underline; }
-
-.cc-day-add {
-  font-size: 12px;
-  color: var(--text-muted);
-  margin: auto 0;
+.cc-col-head {
+  padding: 8px 10px 12px;
   text-align: center;
 }
 
-.cc-progress-bar {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
+.cc-col-day {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
+.cc-col-date {
+  display: block;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  color: var(--text-primary);
+  line-height: 1.15;
+  margin-top: 3px;
+}
+
+.cc-col-today .cc-col-day { color: var(--text-primary); }
+
+.cc-col-date-today {
+  background: var(--black);
+  color: #ffffff !important;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: inline-flex !important;
   align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  margin-top: 4px;
 }
 
-.cc-progress-pill {
-  font-size: 11px;
+/* ── Platform label column ─────────────────────────────────── */
+.cc-platform-label {
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  min-height: 96px;
+}
+
+.cc-platform-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  letter-spacing: 0.01em;
+  line-height: 1.3;
+}
+
+/* ── Cells ──────────────────────────────────────────────────── */
+.cc-cell {
+  min-height: 96px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.13s;
+  padding: 11px 12px;
+  position: relative;
+}
+
+.cc-cell-empty {
+  background: rgba(255,255,255,0.38);
+  border: 1.5px dashed rgba(0,0,0,0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cc-cell-empty:hover {
+  background: rgba(255,255,255,0.72);
+  border-color: rgba(0,0,0,0.16);
+}
+
+.cc-cell-add {
+  font-size: 11.5px;
+  color: rgba(0,0,0,0.2);
+  font-weight: 500;
+  transition: color 0.12s;
+}
+
+.cc-cell-empty:hover .cc-cell-add { color: rgba(0,0,0,0.42); }
+
+.cc-cell-filled {
+  background: rgba(255,255,255,0.9);
+  border: 1px solid rgba(0,0,0,0.06);
+  border-top-color: rgba(255,255,255,0.95);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  display: flex;
+  flex-direction: column;
+}
+
+.cc-cell-filled:hover {
+  box-shadow: 0 4px 14px rgba(0,0,0,0.09);
+  transform: translateY(-1px);
+}
+
+.cc-cell-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 7px;
+}
+
+.cc-cell-type {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.cc-cell-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.cc-cell-title {
+  font-size: 12.5px;
   font-weight: 600;
-  padding: 3px 10px;
-  border-radius: 20px;
+  color: var(--text-primary);
+  line-height: 1.35;
+  margin-bottom: 5px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
-/* Modal */
-.cc-modal { display: flex; flex-direction: column; gap: 18px; }
+.cc-cell-preview {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-family: var(--font-mono);
+}
 
-.cc-form-row { display: flex; flex-direction: column; gap: 6px; }
+/* ── Drawer form ─────────────────────────────────────────────── */
+.cc-drawer {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding-bottom: 24px;
+}
+
+.cc-form-row {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin-bottom: 20px;
+}
 
 .cc-label {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.07em;
+}
+
+.cc-type-pills {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.cc-type-pill {
+  padding: 5px 13px;
+  border-radius: 99px;
+  border: 1.5px solid rgba(0,0,0,0.1);
+  background: transparent;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.12s;
+}
+
+.cc-type-pill:hover { border-color: rgba(0,0,0,0.2); }
+
+.cc-type-pill.cc-type-active {
+  background: var(--black);
+  color: #ffffff;
+  border-color: var(--black);
 }
 
 .cc-status-pills {
@@ -7295,29 +7385,33 @@ textarea:focus {
 }
 
 .cc-status-pill {
-  padding: 5px 14px;
-  border-radius: 20px;
-  border: 1px solid;
-  font-size: 12px;
+  padding: 5px 13px;
+  border-radius: 99px;
+  border: 1.5px solid;
+  font-size: 12.5px;
   font-weight: 600;
   cursor: pointer;
   background: transparent;
-  transition: all 0.15s;
+  transition: all 0.12s;
+  font-family: inherit;
 }
+
 .cc-status-pill:hover { opacity: 0.85; }
 
-.cc-modal-actions {
-  display: flex;
-  gap: 10px;
-  padding-top: 4px;
+.cc-script-input {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.75;
+  resize: vertical;
+  min-height: 220px;
 }
 
-@media (max-width: 860px) {
-  .cc-grid { grid-template-columns: repeat(4, 1fr); }
-}
-@media (max-width: 580px) {
-  .cc-grid { grid-template-columns: repeat(2, 1fr); }
-  .cc-page { padding: 20px 16px; }
+.cc-drawer-actions {
+  display: flex;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
 }
 
 /* ── Focus Timer ─────────────────────────────────────────────────── */

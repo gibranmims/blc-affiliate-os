@@ -20,17 +20,30 @@ router.get('/', async (req, res) => {
   }
 });
 
-// POST /api/content-calendar  (upsert by week_start + day_of_week)
+// POST /api/content-calendar
 router.post('/', async (req, res) => {
   try {
-    const { week_start, day_of_week, title, script_url, status, notes } = req.body;
+    const {
+      week_start, day_of_week, platform = 'tiktok_blc',
+      title, script_text, script_url, content_type = 'script', status, notes
+    } = req.body;
     if (!week_start || day_of_week === undefined)
       return res.status(400).json({ error: 'week_start and day_of_week required' });
     const { data, error } = await sb()
       .from('content_calendar')
       .upsert(
-        { week_start, day_of_week: parseInt(day_of_week), title: title || null, script_url: script_url || null, status: status || 'idea', notes: notes || null },
-        { onConflict: 'week_start,day_of_week' }
+        {
+          week_start,
+          day_of_week: parseInt(day_of_week),
+          platform,
+          title:        title        || null,
+          script_text:  script_text  || null,
+          script_url:   script_url   || null,
+          content_type: content_type || 'script',
+          status:       status       || 'idea',
+          notes:        notes        || null,
+        },
+        { onConflict: 'week_start,day_of_week,platform' }
       )
       .select()
       .single();
@@ -45,7 +58,7 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const updates = {};
-    for (const f of ['title', 'script_url', 'status', 'notes']) {
+    for (const f of ['title', 'script_text', 'script_url', 'content_type', 'status', 'notes']) {
       if (req.body[f] !== undefined) updates[f] = req.body[f] || null;
     }
     const { data, error } = await sb()

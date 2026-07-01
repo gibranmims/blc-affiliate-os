@@ -6670,6 +6670,20 @@ const CC_STATUSES = [
 ];
 const CC_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
+const CC_PLATFORMS = [
+  { key: 'instagram',    label: 'Instagram',    abbr: 'IG' },
+  { key: 'tiktok_blc',  label: 'BLC TikTok',   abbr: 'TT' },
+  { key: 'tamar',       label: 'Tamar',         abbr: 'TM' },
+  { key: 'glow_like_tt', label: 'Glow Like TT', abbr: 'GL' },
+];
+
+const CC_CONTENT_TYPES = [
+  { key: 'script',        label: 'Script' },
+  { key: 'comment_reply', label: 'Comment Reply' },
+  { key: 'green_screen',  label: 'Green Screen' },
+  { key: 'raw_idea',      label: 'Raw Idea' },
+];
+
 function ccWeekStart(dateStr) {
   const d = new Date((dateStr || new Date().toISOString().split('T')[0]) + 'T12:00:00');
   const day = d.getDay();
@@ -6712,15 +6726,16 @@ async function loadContentCalendar(week) {
 
 function renderContentCalendarPage() {
   if (!state.calWeek) state.calWeek = ccWeekStart();
-  const week    = state.calWeek;
+  const week = state.calWeek;
   const isThisWeek = week === ccWeekStart();
+  const today = new Date();
 
   document.getElementById('page-content').innerHTML = `
     <div class="cc-page">
       <div class="cc-header">
         <div class="cc-header-left">
           <h1 class="page-title" style="margin-bottom:4px">Content Calendar</h1>
-          <p class="cc-subtitle">BLC TikTok — 7 posts per week</p>
+          <p class="cc-subtitle">4 channels · plan, script, and track every post</p>
         </div>
         <div class="cc-week-nav">
           <button class="cc-week-btn" onclick="ccNavigateWeek(-1)">←</button>
@@ -6730,41 +6745,49 @@ function renderContentCalendarPage() {
         </div>
       </div>
 
-      <div class="cc-grid">
-        ${CC_DAYS.map((day, i) => {
-          const entry   = state.contentCalendar.find(e => e.day_of_week === i);
-          const status  = ccStatusObj(entry?.status);
-          const dateNum = ccDayDate(week, i);
-          const hasContent = entry && (entry.title || entry.script_url);
-          return `
-          <div class="cc-day-card${hasContent ? '' : ' cc-day-empty'}" onclick="ccOpenDayModal(${i})">
-            <div class="cc-day-header">
-              <span class="cc-day-name">${day}</span>
-              <span class="cc-day-date">${dateNum}</span>
-            </div>
-            ${hasContent ? `
-              <div class="cc-day-body">
-                <div class="cc-day-title">${esc(entry.title || 'Untitled')}</div>
-                <div class="cc-day-status" style="background:${status.color}20;color:${status.color}">
-                  ${status.label}
-                </div>
-                ${entry.script_url ? `<a class="cc-day-doc-link" href="${esc(entry.script_url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">📄 Script ↗</a>` : ''}
-              </div>
-            ` : `
-              <div class="cc-day-add">+ Add post</div>
-            `}
-          </div>`;
-        }).join('')}
-      </div>
+      <div class="cc-board">
+        <div class="cc-col-headers">
+          <div class="cc-platform-stub"></div>
+          ${CC_DAYS.map((day, i) => {
+            const d = new Date(week + 'T12:00:00');
+            d.setDate(d.getDate() + i);
+            const isToday = d.getDate() === today.getDate() && d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear();
+            return `<div class="cc-col-head${isToday ? ' cc-col-today' : ''}">
+              <span class="cc-col-day">${day}</span>
+              <span class="cc-col-date${isToday ? ' cc-col-date-today' : ''}">${d.getDate()}</span>
+            </div>`;
+          }).join('')}
+        </div>
 
-      <div class="cc-progress-bar">
-        ${CC_STATUSES.map(s => {
-          const count = state.contentCalendar.filter(e => e.status === s.key).length;
-          return count > 0 ? `<span class="cc-progress-pill" style="background:${s.color}20;color:${s.color}">${count} ${s.label}</span>` : '';
-        }).join('')}
-        ${state.contentCalendar.filter(e => e.status === 'posted').length === 7
-          ? `<span class="cc-progress-pill" style="background:#10b98120;color:#10b981">✓ Full week posted!</span>`
-          : ''}
+        ${CC_PLATFORMS.map(platform => `
+          <div class="cc-platform-row">
+            <div class="cc-platform-label">
+              <span class="cc-platform-name">${platform.label}</span>
+            </div>
+            ${CC_DAYS.map((day, i) => {
+              const entry = state.contentCalendar.find(e =>
+                (e.platform || 'tiktok_blc') === platform.key && e.day_of_week === i
+              );
+              if (entry && (entry.title || entry.script_text || entry.script_url)) {
+                const status = ccStatusObj(entry.status);
+                const typeObj = CC_CONTENT_TYPES.find(t => t.key === (entry.content_type || 'script'));
+                const typeLabel = typeObj?.label || 'Script';
+                const preview = entry.script_text ? entry.script_text.slice(0, 100).replace(/\n/g, ' ') : '';
+                return `<div class="cc-cell cc-cell-filled" onclick="ccOpenPostDrawer('${platform.key}', ${i})">
+                  <div class="cc-cell-top">
+                    <span class="cc-cell-type">${typeLabel}</span>
+                    <span class="cc-cell-dot" style="background:${status.color}" title="${status.label}"></span>
+                  </div>
+                  ${entry.title ? `<div class="cc-cell-title">${esc(entry.title)}</div>` : ''}
+                  ${preview ? `<div class="cc-cell-preview">${esc(preview)}${entry.script_text?.length > 100 ? '…' : ''}</div>` : ''}
+                </div>`;
+              }
+              return `<div class="cc-cell cc-cell-empty" onclick="ccOpenPostDrawer('${platform.key}', ${i})">
+                <span class="cc-cell-add">+ Add</span>
+              </div>`;
+            }).join('')}
+          </div>
+        `).join('')}
       </div>
     </div>
   `;
@@ -6783,29 +6806,51 @@ function ccGoToThisWeek() {
   loadContentCalendar(w).then(() => renderContentCalendarPage());
 }
 
-function ccOpenDayModal(dayIdx) {
-  const week   = state.calWeek;
-  const entry  = state.contentCalendar.find(e => e.day_of_week === dayIdx);
+function ccOpenPostDrawer(platformKey, dayIdx) {
+  const week = state.calWeek;
+  const entry = state.contentCalendar.find(e =>
+    (e.platform || 'tiktok_blc') === platformKey && e.day_of_week === dayIdx
+  );
+  const platformObj = CC_PLATFORMS.find(p => p.key === platformKey);
   const dayName = CC_DAYS[dayIdx];
-  const dateNum = ccDayDate(week, dayIdx);
+  const d = new Date(week + 'T12:00:00');
+  d.setDate(d.getDate() + dayIdx);
+  const mo = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const dateLabel = `${mo[d.getMonth()]} ${d.getDate()}`;
+  const curStatus = entry?.status || 'idea';
+  const curType   = entry?.content_type || 'script';
 
-  const _mo = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  const _d  = new Date(week + 'T12:00:00'); _d.setDate(_d.getDate() + dayIdx);
-  openModal(`${dayName} — ${_mo[_d.getMonth()]} ${_d.getDate()}`, `
-    <div class="cc-modal">
+  ccSelectedStatus = null;
+  ccSelectedType   = null;
+
+  document.getElementById('detail-drawer-title').textContent = `${platformObj.label} · ${dayName} ${dateLabel}`;
+  document.getElementById('detail-drawer-body').innerHTML = `
+    <div class="cc-drawer">
       <div class="cc-form-row">
-        <label class="cc-label">Post Title</label>
-        <input type="text" class="dp-input" id="cc-title" value="${esc(entry?.title || '')}" placeholder="What's this post about?">
+        <label class="cc-label">Content Type</label>
+        <div class="cc-type-pills">
+          ${CC_CONTENT_TYPES.map(t => `
+            <button class="cc-type-pill${curType === t.key ? ' cc-type-active' : ''}"
+              data-type="${t.key}" onclick="ccSelectType(this,'${t.key}')">${t.label}</button>
+          `).join('')}
+        </div>
+      </div>
+
+      <div class="cc-form-row">
+        <label class="cc-label">Title <span style="font-weight:400;opacity:0.55">(optional)</span></label>
+        <input type="text" class="dp-input" id="cc-title"
+          value="${esc(entry?.title || '')}" placeholder="Hook, angle, or topic…">
       </div>
 
       <div class="cc-form-row">
         <label class="cc-label">Status</label>
         <div class="cc-status-pills">
           ${CC_STATUSES.map(s => `
-            <button class="cc-status-pill${(entry?.status || 'idea') === s.key ? ' cc-status-active' : ''}"
-              style="${(entry?.status || 'idea') === s.key ? `background:${s.color};color:#fff;border-color:${s.color}` : `border-color:${s.color}20;color:${s.color}`}"
-              data-status="${s.key}"
-              onclick="ccSelectStatus(this, '${s.key}', '${s.color}')">
+            <button class="cc-status-pill${curStatus === s.key ? ' cc-status-active' : ''}"
+              style="${curStatus === s.key
+                ? `background:${s.color};color:#fff;border-color:${s.color}`
+                : `color:${s.color};border-color:${s.color}40`}"
+              data-status="${s.key}" onclick="ccSelectStatus(this,'${s.key}','${s.color}')">
               ${s.label}
             </button>
           `).join('')}
@@ -6813,41 +6858,61 @@ function ccOpenDayModal(dayIdx) {
       </div>
 
       <div class="cc-form-row">
-        <label class="cc-label">Script / Google Doc URL</label>
+        <label class="cc-label">Script</label>
+        <textarea class="dp-input cc-script-input" id="cc-script-text" rows="12"
+          placeholder="Type or paste the full script here…">${esc(entry?.script_text || '')}</textarea>
+      </div>
+
+      <div class="cc-form-row">
+        <label class="cc-label">Google Doc <span style="font-weight:400;opacity:0.55">(optional)</span></label>
         <div style="display:flex;gap:8px;align-items:center">
-          <input type="url" class="dp-input" id="cc-script-url" value="${esc(entry?.script_url || '')}" placeholder="Paste Google Doc link…" style="flex:1">
+          <input type="url" class="dp-input" id="cc-script-url"
+            value="${esc(entry?.script_url || '')}" placeholder="Paste Google Doc URL…" style="flex:1">
           <button class="btn btn-secondary btn-sm" onclick="ccOpenDoc()">Open ↗</button>
         </div>
       </div>
 
       <div class="cc-form-row">
         <label class="cc-label">Notes</label>
-        <textarea class="dp-input" id="cc-notes" rows="3" placeholder="Hooks, angles, references…" style="resize:vertical">${esc(entry?.notes || '')}</textarea>
+        <textarea class="dp-input" id="cc-notes" rows="3"
+          placeholder="References, comment to reply to, context…" style="resize:vertical">${esc(entry?.notes || '')}</textarea>
       </div>
 
-      <div class="cc-modal-actions">
-        <button class="btn btn-primary" onclick="ccSaveDay('${week}', ${dayIdx}, '${entry?.id || ''}')">Save</button>
-        ${entry ? `<button class="btn btn-secondary" onclick="ccClearDay('${entry.id}')">Clear Post</button>` : ''}
+      <div class="cc-drawer-actions">
+        <button class="btn btn-primary"
+          onclick="ccSavePost('${week}','${platformKey}',${dayIdx},'${entry?.id || ''}')">
+          ${entry ? 'Save Changes' : 'Add Post'}
+        </button>
+        ${entry ? `<button class="btn btn-secondary" onclick="ccClearPost('${entry.id}')">Remove</button>` : ''}
       </div>
     </div>
-  `);
+  `;
+  document.getElementById('detail-panel').style.display = 'flex';
 }
 
 let ccSelectedStatus = null;
+let ccSelectedType   = null;
+
 function ccSelectStatus(btn, key, color) {
   ccSelectedStatus = key;
   document.querySelectorAll('.cc-status-pill').forEach(b => {
     const bKey   = b.dataset.status;
     const bColor = CC_STATUSES.find(s => s.key === bKey)?.color || '#9ca3af';
     b.classList.remove('cc-status-active');
-    b.style.background   = 'transparent';
-    b.style.color        = bColor;
-    b.style.borderColor  = bColor + '40';
+    b.style.background  = 'transparent';
+    b.style.color       = bColor;
+    b.style.borderColor = bColor + '40';
   });
   btn.classList.add('cc-status-active');
   btn.style.background  = color;
   btn.style.color       = '#fff';
   btn.style.borderColor = color;
+}
+
+function ccSelectType(btn, key) {
+  ccSelectedType = key;
+  document.querySelectorAll('.cc-type-pill').forEach(b => b.classList.remove('cc-type-active'));
+  btn.classList.add('cc-type-active');
 }
 
 function ccOpenDoc() {
@@ -6856,44 +6921,53 @@ function ccOpenDoc() {
   else showToast('Paste a Google Doc URL first', 'error');
 }
 
-async function ccSaveDay(week, dayIdx, existingId) {
-  const title      = document.getElementById('cc-title')?.value?.trim() || '';
-  const script_url = document.getElementById('cc-script-url')?.value?.trim() || '';
-  const notes      = document.getElementById('cc-notes')?.value?.trim() || '';
-  const status     = ccSelectedStatus || document.querySelector('.cc-status-pill.cc-status-active')?.dataset?.status || 'idea';
+async function ccSavePost(week, platformKey, dayIdx, existingId) {
+  const title        = document.getElementById('cc-title')?.value?.trim()       || '';
+  const script_text  = document.getElementById('cc-script-text')?.value?.trim() || '';
+  const script_url   = document.getElementById('cc-script-url')?.value?.trim()  || '';
+  const notes        = document.getElementById('cc-notes')?.value?.trim()        || '';
+  const status       = ccSelectedStatus
+    || document.querySelector('.cc-status-pill.cc-status-active')?.dataset?.status || 'idea';
+  const content_type = ccSelectedType
+    || document.querySelector('.cc-type-pill.cc-type-active')?.dataset?.type       || 'script';
 
   try {
     let updated;
     if (existingId) {
       updated = await fetchAPI(`${API.contentCalendar}/${existingId}`, {
         method: 'PUT',
-        body: JSON.stringify({ title, script_url, notes, status })
+        body: JSON.stringify({ title, script_text, script_url, notes, status, content_type })
       });
       const idx = state.contentCalendar.findIndex(e => e.id === existingId);
       if (idx !== -1) state.contentCalendar[idx] = updated;
     } else {
       updated = await fetchAPI(API.contentCalendar, {
         method: 'POST',
-        body: JSON.stringify({ week_start: week, day_of_week: dayIdx, title, script_url, notes, status })
+        body: JSON.stringify({
+          week_start: week, day_of_week: dayIdx, platform: platformKey,
+          title, script_text, script_url, notes, status, content_type
+        })
       });
       state.contentCalendar.push(updated);
     }
     ccSelectedStatus = null;
-    closeModal();
+    ccSelectedType   = null;
+    closeDetailPanel();
     renderContentCalendarPage();
     showToast('Saved');
   } catch (err) { showToast(err.message, 'error'); }
 }
 
-async function ccClearDay(id) {
+async function ccClearPost(id) {
   if (!confirm('Remove this post?')) return;
   try {
     await fetchAPI(`${API.contentCalendar}/${id}`, { method: 'DELETE' });
     state.contentCalendar = state.contentCalendar.filter(e => e.id !== id);
     ccSelectedStatus = null;
-    closeModal();
+    ccSelectedType   = null;
+    closeDetailPanel();
     renderContentCalendarPage();
-    showToast('Post cleared');
+    showToast('Post removed');
   } catch (err) { showToast(err.message, 'error'); }
 }
 
