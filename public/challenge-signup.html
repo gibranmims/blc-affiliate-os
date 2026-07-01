@@ -17,9 +17,16 @@
       color: #FFF6EB;
       font-family: 'Poppins', sans-serif;
       -webkit-font-smoothing: antialiased;
+      -webkit-tap-highlight-color: transparent;
+      overscroll-behavior: none;
     }
 
-    #app { position: fixed; inset: 0; }
+    #app {
+      position: fixed;
+      inset: 0;
+      height: 100vh;
+      height: 100dvh;
+    }
 
     /* ── screens ── */
     .screen {
@@ -40,7 +47,7 @@
       min-height: 100%;
       max-width: 440px;
       margin: 0 auto;
-      padding: clamp(2rem, 7vh, 3.5rem) 1.875rem clamp(2.5rem, 6vh, 3.5rem);
+      padding: clamp(2rem, 7vh, 3.5rem) 1.875rem calc(clamp(2.5rem, 6vh, 3.5rem) + env(safe-area-inset-bottom, 0px));
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -116,7 +123,7 @@
       border: none;
       border-radius: 999px;
       font-family: 'Poppins', sans-serif;
-      font-size: 0.9375rem;
+      font-size: 1rem;
       font-weight: 500;
       letter-spacing: -0.01em;
       cursor: pointer;
@@ -127,6 +134,8 @@
       flex-shrink: 0;
       -webkit-appearance: none;
       text-transform: none;
+      touch-action: manipulation;
+      min-height: 52px;
     }
 
     .btn:hover { background: #F5EAD8; }
@@ -137,15 +146,16 @@
       border: none;
       color: #FFF6EB;
       font-family: 'Poppins', sans-serif;
-      font-size: 0.875rem;
+      font-size: 0.9375rem;
       font-weight: 400;
       cursor: pointer;
       text-decoration: underline;
       opacity: 0.4;
       margin-top: 1.125rem;
       transition: opacity 0.2s ease;
-      padding: 0.25rem;
+      padding: 0.625rem;
       text-transform: none;
+      touch-action: manipulation;
     }
 
     .btn-ghost:hover { opacity: 0.8; }
@@ -209,12 +219,13 @@
       border-radius: 10px;
       color: #FFF6EB;
       font-family: 'Poppins', sans-serif;
-      font-size: 0.9375rem;
+      font-size: 16px;
       outline: none;
       transition: border-color 0.2s;
       -webkit-appearance: none;
       appearance: none;
       text-transform: none;
+      touch-action: manipulation;
     }
 
     .field input::placeholder { color: #FFF6EB; opacity: 0.2; }
