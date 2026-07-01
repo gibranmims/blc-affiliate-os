@@ -506,14 +506,23 @@
     <div class="inner">
       <div class="logo el">The Bikini Line Co.</div>
       <div class="gap-lg"></div>
-      <h1 class="el">One thing first.</h1>
-      <div class="body el">
-        <p>You'll need your BBL Serum order number to sign up.</p>
-        <p>Grab your bottle, then come right back.</p>
+
+      <div id="s6-default" style="width:100%;display:flex;flex-direction:column;align-items:center;text-align:center;">
+        <h1 class="el">One thing first.</h1>
+        <div class="body el">
+          <p>You need BBL Serum to join the challenge.</p>
+          <p>We'll open checkout in a new tab — you won't lose your place here.</p>
+        </div>
+        <button class="btn el" id="buy-btn" onclick="buySerum()">Get BBL Serum — Free Shipping</button>
+        <button class="btn-ghost el" onclick="go(7)">Already have your order number?</button>
       </div>
-      <a class="btn el" href="https://thebikiniline.co/products/bbl-serum" target="_blank" rel="noopener noreferrer">Get BBL Serum — Free Shipping</a>
-      <button class="btn-ghost el" onclick="go(7)">Already have your order number?</button>
-      <button class="btn el" onclick="go(7)" style="margin-top:0.625rem;">I have my order number</button>
+
+      <div id="s6-sent" style="width:100%;display:none;flex-direction:column;align-items:center;text-align:center;opacity:0;transition:opacity 0.35s ease;">
+        <h1 style="font-size:clamp(1.875rem,7.5vw,2.875rem);font-weight:700;letter-spacing:-0.025em;line-height:1.1;color:#FFF6EB;margin-bottom:1.375rem;">Checkout is open.</h1>
+        <p style="font-size:clamp(0.9375rem,4vw,1rem);line-height:1.8;color:#FFF6EB;opacity:0.75;margin-bottom:1.75rem;">Finish your purchase in the new tab.<br>Your order number will be in the confirmation email.</p>
+        <button class="btn" onclick="go(7)">I have my order number</button>
+      </div>
+
       <div class="gap-md"></div>
     </div>
   </div>
@@ -651,6 +660,45 @@
         });
       });
     }, 260);
+  }
+
+  async function buySerum() {
+    const btn = document.getElementById('buy-btn');
+    btn.textContent = 'Opening checkout…';
+    btn.disabled = true;
+
+    try {
+      const res = await fetch('https://dxjw2e-fq.myshopify.com/api/2024-01/graphql.json', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Shopify-Storefront-Access-Token': '56a4b7f171abd31897b35221e25a29b4'
+        },
+        body: JSON.stringify({
+          query: `mutation { cartCreate(input: { lines: [{ merchandiseId: "gid://shopify/ProductVariant/44456697921615", quantity: 1 }] }) { cart { checkoutUrl } } }`
+        })
+      });
+      const data = await res.json();
+      const url = data.data.cartCreate.cart.checkoutUrl;
+      window.open(url, '_blank');
+
+      // Transition to sent state
+      const def = document.getElementById('s6-default');
+      const sent = document.getElementById('s6-sent');
+      def.style.transition = 'opacity 0.28s ease';
+      def.style.opacity = '0';
+      setTimeout(() => {
+        def.style.display = 'none';
+        sent.style.display = 'flex';
+        requestAnimationFrame(() => requestAnimationFrame(() => { sent.style.opacity = '1'; }));
+      }, 300);
+
+    } catch (e) {
+      // Fallback: open product page in new tab
+      window.open('https://thebikiniline.co/products/bright-bikini-line-serum-ingrown-hairs-discoloration', '_blank');
+      btn.textContent = 'Get BBL Serum — Free Shipping';
+      btn.disabled = false;
+    }
   }
 
   document.getElementById('fp').addEventListener('change', function() {
