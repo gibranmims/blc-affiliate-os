@@ -6322,13 +6322,21 @@ function renderHomePage() {
   document.getElementById('page-content').innerHTML = `
     <div class="home-page">
 
-      <!-- Hero -->
-      <div class="home-hero">
-        <div class="home-greeting">${greeting}, team.</div>
-        <div class="home-date">${dateStr}</div>
+      <!-- Header row: greeting + action buttons -->
+      <div class="home-header-row">
+        <div class="home-hero">
+          <div class="home-greeting">${greeting}, team.</div>
+          <div class="home-date">${dateStr}</div>
+        </div>
+        <div class="home-header-actions">
+          <button class="btn btn-secondary btn-icon" onclick="navigate('tasks')" title="Team Tasks">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+          </button>
+          <button class="btn btn-primary" onclick="navigate('tasks')">+ New Task</button>
+        </div>
       </div>
 
-      <!-- Goal banner — active affiliates + signed + revenue in one place -->
+      <!-- Goal banner — full width dark card -->
       <div class="home-goal-row">
         <div class="home-goal-ring-wrap">
           <svg width="88" height="88" viewBox="0 0 88 88">
@@ -6353,7 +6361,6 @@ function renderHomePage() {
             <span class="home-goal-headline-unit"> active affiliates</span>
           </div>
           <div class="home-goal-status">${goal > 0 ? (goalPct >= 1 ? 'Goal reached!' : `${goal - activeAffiliates} away from your goal`) : 'No monthly goal set'}</div>
-          <!-- Signed + Revenue chips — unique data not shown in QA cards -->
           <div class="home-goal-chips">
             <span class="home-goal-chip home-goal-chip-green">
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
@@ -6387,71 +6394,82 @@ function renderHomePage() {
         </div>` : ''}
       </div>
 
-      ${urgentTasks.length > 0 ? `
-      <!-- Urgent tasks -->
-      <div class="home-urgent-section">
-        <div class="home-section-label home-section-label-urgent">Urgent</div>
-        <div class="home-urgent-list">
-          ${urgentTasks.map(t => {
-            const dl = fmtDeadline(t.deadline);
-            const aMap = {
-              founder:      { lbl: 'G', name: 'Gibran',     cls: 'ua-gibran'  },
-              lu:           { lbl: 'L', name: 'Lu',         cls: 'ua-lu'      },
-              'for-founder':{ lbl: 'F', name: 'For Review', cls: 'ua-founder' }
-            };
-            const av = aMap[t.assignee] || { lbl: '?', name: 'Unknown', cls: '' };
-            return `<div class="home-urgent-item" onclick="navigate('tasks')">
-              <div class="home-urgent-who">
-                <span class="home-urgent-avatar ${av.cls}">${av.lbl}</span>
-                <span class="home-urgent-name">${av.name}</span>
-              </div>
-              <span class="home-urgent-title">${esc(t.title)}</span>
-              ${dl ? `<span class="task-deadline ${dl.cls}">${dl.text}</span>` : ''}
-            </div>`;
-          }).join('')}
-        </div>
-      </div>` : ''}
+      <!-- Two-column: urgent+QA on left, timer sticky right -->
+      <div class="home-two-col">
+        <div class="home-left-col">
 
-      <!-- Quick Actions — 4-across, each card shows unique data -->
-      <div class="home-qa-section">
-        <div class="home-section-label">Quick Actions</div>
-        <div class="home-qa-grid home-qa-grid-4">
-          <button class="home-qa-card" onclick="navigate('outreach')">
-            <div class="home-qa-icon">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+          ${urgentTasks.length > 0 ? `
+          <div class="home-urgent-section">
+            <div class="home-section-heading-lg">
+              <span class="home-urgent-marker"></span>
+              Urgent Action Required
             </div>
-            <div class="home-qa-name">Affiliate Outreach</div>
-            <div class="home-qa-stat">${inPipeline}</div>
-            <div class="home-qa-sub">in pipeline${needsReply > 0 ? `&nbsp;· <span class="qa-alert">${needsReply} need reply</span>` : ''}</div>
-          </button>
-          <button class="home-qa-card" onclick="navigate('roster')">
-            <div class="home-qa-icon">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+            <div class="home-urgent-card">
+              <div class="home-urgent-list">
+                ${urgentTasks.map(t => {
+                  const dl = fmtDeadline(t.deadline);
+                  const aMap = {
+                    founder:      { lbl: 'G', name: 'Gibran',     cls: 'ua-gibran'  },
+                    lu:           { lbl: 'L', name: 'Lu',         cls: 'ua-lu'      },
+                    'for-founder':{ lbl: 'F', name: 'For Review', cls: 'ua-founder' }
+                  };
+                  const av = aMap[t.assignee] || { lbl: '?', name: 'Unknown', cls: '' };
+                  return `<div class="home-urgent-item" onclick="navigate('tasks')">
+                    <div class="home-urgent-who">
+                      <span class="home-urgent-avatar ${av.cls}">${av.lbl}</span>
+                      <span class="home-urgent-name">${av.name}</span>
+                    </div>
+                    <span class="home-urgent-title">${esc(t.title)}</span>
+                    ${dl ? `<span class="task-deadline ${dl.cls}">${dl.text}</span>` : ''}
+                  </div>`;
+                }).join('')}
+              </div>
             </div>
-            <div class="home-qa-name">Affiliate Roster</div>
-            <div class="home-qa-stat">${activeAffiliates}</div>
-            <div class="home-qa-sub">active affiliates</div>
-          </button>
-          <button class="home-qa-card" onclick="navigate('support');setTimeout(openLogIssueModal,150)">
-            <div class="home-qa-icon">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+          </div>` : ''}
+
+          <div class="home-qa-section">
+            <div class="home-section-heading-lg">Quick Actions</div>
+            <div class="home-qa-grid home-qa-grid-4">
+              <button class="home-qa-card" onclick="navigate('outreach')">
+                <div class="home-qa-icon">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                </div>
+                <div class="home-qa-name">Affiliate Outreach</div>
+                <div class="home-qa-stat">${inPipeline}</div>
+                <div class="home-qa-sub">in pipeline${needsReply > 0 ? `&nbsp;· <span class="qa-alert">${needsReply} need reply</span>` : ''}</div>
+              </button>
+              <button class="home-qa-card" onclick="navigate('roster')">
+                <div class="home-qa-icon">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+                </div>
+                <div class="home-qa-name">Affiliate Roster</div>
+                <div class="home-qa-stat">${activeAffiliates}</div>
+                <div class="home-qa-sub">active affiliates</div>
+              </button>
+              <button class="home-qa-card" onclick="navigate('support');setTimeout(openLogIssueModal,150)">
+                <div class="home-qa-icon">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+                </div>
+                <div class="home-qa-name">Log Support Issue</div>
+                <div class="home-qa-stat">${supportThisMonth}</div>
+                <div class="home-qa-sub">issues this month</div>
+              </button>
+              <button class="home-qa-card" onclick="navigate('challenge')">
+                <div class="home-qa-icon">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                </div>
+                <div class="home-qa-name">Before &amp; Afters</div>
+                <div class="home-qa-stat">${challengers}</div>
+                <div class="home-qa-sub">challengers enrolled</div>
+              </button>
             </div>
-            <div class="home-qa-name">Log Support Issue</div>
-            <div class="home-qa-stat">${supportThisMonth}</div>
-            <div class="home-qa-sub">issues this month</div>
-          </button>
-          <button class="home-qa-card" onclick="navigate('challenge')">
-            <div class="home-qa-icon">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-            </div>
-            <div class="home-qa-name">Before &amp; Afters</div>
-            <div class="home-qa-stat">${challengers}</div>
-            <div class="home-qa-sub">challengers enrolled</div>
-          </button>
+          </div>
+
+        </div>
+        <div class="home-right-col">
+          ${_tmrHTML()}
         </div>
       </div>
-
-      ${_tmrHTML()}
 
     </div>
   `;

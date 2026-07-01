@@ -6,6 +6,7 @@
   <title>BLC OS</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Poppins:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
   <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
@@ -23,16 +24,16 @@
 
       <nav class="sidebar-nav">
         <a href="#" class="nav-item" data-page="home">
-          <span class="nav-dot"></span>
+          <i class="fa-solid fa-house nav-icon"></i>
           <span>Home</span>
         </a>
         <a href="#" class="nav-item" data-page="tasks">
-          <span class="nav-dot"></span>
+          <i class="fa-solid fa-list-check nav-icon"></i>
           <span>Team Tasks</span>
           <span class="nav-review-badge" id="tasks-nav-badge" style="display:none">0</span>
         </a>
         <a href="#" class="nav-item" data-page="ideas">
-          <span class="nav-dot"></span>
+          <i class="fa-regular fa-lightbulb nav-icon"></i>
           <span>Idea Board</span>
         </a>
 
@@ -41,7 +42,7 @@
         <div class="nav-section-label nav-section-toggle" onclick="toggleNavSection('brand')">BRAND <svg class="nav-section-chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg></div>
         <div class="nav-section-body" id="nav-section-brand">
           <a href="#" class="nav-item" data-page="content-calendar">
-            <span class="nav-dot"></span>
+            <i class="fa-regular fa-calendar nav-icon"></i>
             <span>Content Calendar</span>
           </a>
         </div>
@@ -51,12 +52,12 @@
         <div class="nav-section-label nav-section-toggle" onclick="toggleNavSection('workspace')">WORKSPACE <svg class="nav-section-chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg></div>
         <div class="nav-section-body" id="nav-section-workspace">
           <a href="#" class="nav-item" data-page="outreach">
-            <span class="nav-dot"></span>
+            <i class="fa-solid fa-paper-plane nav-icon"></i>
             <span>Affiliate Outreach</span>
           </a>
           <div class="nav-group" id="nav-group-roster">
             <a href="#" class="nav-item nav-group-trigger" data-page="roster">
-              <span class="nav-dot"></span>
+              <i class="fa-solid fa-users nav-icon"></i>
               <span>Affiliate Roster</span>
               <span class="nav-chevron">
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
@@ -68,20 +69,20 @@
             </div>
           </div>
           <a href="#" class="nav-item" data-page="review">
-            <span class="nav-dot"></span>
+            <i class="fa-regular fa-eye nav-icon"></i>
             <span>For Review</span>
             <span class="nav-review-badge" id="review-badge" style="display:none">0</span>
           </a>
           <a href="#" class="nav-item" data-page="finance">
-            <span class="nav-dot"></span>
+            <i class="fa-solid fa-dollar-sign nav-icon"></i>
             <span>Finance</span>
           </a>
           <a href="#" class="nav-item" data-page="brand-finance">
-            <span class="nav-dot"></span>
+            <i class="fa-solid fa-chart-line nav-icon"></i>
             <span>BLC Tracker</span>
           </a>
           <a href="#" class="nav-item" data-page="support">
-            <span class="nav-dot"></span>
+            <i class="fa-solid fa-headset nav-icon"></i>
             <span>Customer Support</span>
             <span class="nav-support-badge" id="support-badge" style="display:none">0</span>
           </a>
@@ -90,26 +91,26 @@
         <div class="nav-section-label nav-section-toggle" style="margin-top:12px" onclick="toggleNavSection('creative')">CREATIVE LAB <svg class="nav-section-chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg></div>
         <div class="nav-section-body" id="nav-section-creative">
           <a href="#" class="nav-item nav-cl-item" data-scripts-tab="creators">
-            <span class="nav-dot"></span>
+            <i class="fa-solid fa-flask nav-icon"></i>
             <span>Content Lab</span>
           </a>
           <a href="#" class="nav-item nav-cl-item" data-scripts-tab="write">
-            <span class="nav-dot"></span>
+            <i class="fa-regular fa-pen-to-square nav-icon"></i>
             <span>Write Script</span>
             <span class="nav-badge">AI</span>
           </a>
           <a href="#" class="nav-item nav-cl-item" data-scripts-tab="rewrite">
-            <span class="nav-dot"></span>
+            <i class="fa-solid fa-rotate nav-icon"></i>
             <span>Rewrite Script</span>
             <span class="nav-badge">AI</span>
           </a>
           <a href="#" class="nav-item nav-cl-item" data-scripts-tab="analyzer">
-            <span class="nav-dot"></span>
+            <i class="fa-solid fa-chart-bar nav-icon"></i>
             <span>Script Analyzer</span>
             <span class="nav-badge">AI</span>
           </a>
           <a href="#" class="nav-item nav-cl-item" data-scripts-tab="library">
-            <span class="nav-dot"></span>
+            <i class="fa-solid fa-book nav-icon"></i>
             <span>Script Library</span>
           </a>
         </div>
@@ -117,19 +118,21 @@
         <div class="nav-section-label nav-section-toggle" style="margin-top:12px" onclick="toggleNavSection('bbl')">BBL CHALLENGE <svg class="nav-section-chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg></div>
         <div class="nav-section-body" id="nav-section-bbl">
           <a href="#" class="nav-item" data-page="challenge">
-            <span class="nav-dot"></span>
+            <i class="fa-regular fa-images nav-icon"></i>
             <span>Before & Afters</span>
           </a>
         </div>
       </nav>
 
       <div class="sidebar-footer">
-        <div class="sidebar-footer-row">
-          <div class="sidebar-footer-text">The Bikini Line Co.</div>
-          <button class="sidebar-settings-btn" onclick="openSettingsModal()" title="App Settings">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
-          </button>
-        </div>
+        <button class="sidebar-user-row" onclick="openSettingsModal()">
+          <div class="sidebar-user-avatar">G</div>
+          <div class="sidebar-user-info">
+            <div class="sidebar-user-name">Gibran</div>
+            <div class="sidebar-user-sub">Settings</div>
+          </div>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="2" style="flex-shrink:0"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+        </button>
         <button class="sidebar-collapse-bar" onclick="toggleSidebar()" id="sidebar-collapse-btn">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
           <span>Hide sidebar</span>
