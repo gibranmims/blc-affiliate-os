@@ -85,8 +85,8 @@ const tmr = {
 function _tmrTotal()  { return (tmr.mode === 'focus' ? tmr.focusMins : tmr.breakMins) * 60; }
 function _tmrFmt(s)   { return `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`; }
 function _tmrColor()  {
-  if (tmr.mode === 'break') return '#00c853';
-  return tmr.remaining < 60 ? '#e91e8c' : tmr.remaining < 300 ? '#ff6b00' : '#0055ff';
+  if (tmr.mode === 'break') return 'rgba(255,255,255,0.65)';
+  return tmr.remaining < 60 ? 'rgba(255,255,255,0.45)' : tmr.remaining < 300 ? 'rgba(255,255,255,0.65)' : '#ffffff';
 }
 function _tmrOffset() {
   const circ = +(2 * Math.PI * 52).toFixed(2);
@@ -163,7 +163,7 @@ function _tmrRender() {
     b.classList.toggle('tmr-preset-active', active);
   });
   document.title = tmr.running
-    ? `${_tmrFmt(tmr.remaining)} — ${tmr.mode === 'focus' ? '🎯 Focus' : '☕ Break'}`
+    ? `${_tmrFmt(tmr.remaining)} — ${tmr.mode === 'focus' ? 'Focus' : 'Break'}`
     : 'BLC OS';
 }
 function _tmrHTML() {
@@ -173,12 +173,12 @@ function _tmrHTML() {
     <div class="home-section-label">Focus Timer</div>
     <div class="home-timer-card">
       <div class="tmr-tabs">
-        <button class="tmr-tab${tmr.mode==='focus'?' tmr-tab-active':''}" data-mode="focus" onclick="timerSetMode('focus')">🎯 Focus</button>
-        <button class="tmr-tab${tmr.mode==='break'?' tmr-tab-active':''}" data-mode="break" onclick="timerSetMode('break')">☕ Break</button>
+        <button class="tmr-tab${tmr.mode==='focus'?' tmr-tab-active':''}" data-mode="focus" onclick="timerSetMode('focus')">Focus</button>
+        <button class="tmr-tab${tmr.mode==='break'?' tmr-tab-active':''}" data-mode="break" onclick="timerSetMode('break')">Break</button>
       </div>
       <div class="tmr-ring-wrap">
         <svg class="tmr-svg" viewBox="0 0 120 120">
-          <circle cx="60" cy="60" r="52" fill="none" stroke="rgba(0,0,0,0.06)" stroke-width="8"/>
+          <circle cx="60" cy="60" r="52" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="8"/>
           <circle id="tmr-arc" cx="60" cy="60" r="52" fill="none"
             stroke="${_tmrColor()}" stroke-width="8"
             stroke-dasharray="${circ}" stroke-dashoffset="${_tmrOffset()}"
@@ -7778,11 +7778,11 @@ function renderBrandFinancePage(tab) {
   Object.keys(bf_charts).forEach(bf_destroyChart);
 
   const tabs = [
-    { id: 'overview',  label: '📊 Overview' },
-    { id: 'weekly',    label: '📅 Weekly Log' },
-    { id: 'inventory', label: '📦 Inventory' },
+    { id: 'overview',  label: 'Overview' },
+    { id: 'weekly',    label: 'Weekly Log' },
+    { id: 'inventory', label: 'Inventory' },
     { id: 'pricing',   label: '💲 Pricing Lab' },
-    { id: 'accounts',  label: '💰 Accounts' }
+    { id: 'accounts',  label: 'Accounts' }
   ];
 
   document.getElementById('page-content').innerHTML = `
@@ -7829,13 +7829,13 @@ function bf_renderOverview() {
   document.getElementById('bf-content').innerHTML = `
     <div class="bf-stat-grid">
       <div class="bf-stat-card" style="border-color:${rwy !== null && rwy <= 15 ? 'var(--red)' : rwy !== null && rwy <= 45 ? 'var(--yellow)' : 'var(--border)'}">
-        <div class="bf-stat-label">📦 Days of Stock Left</div>
+        <div class="bf-stat-label">Days of Stock Left</div>
         <div class="bf-stat-value" style="color:${rwyCol}">${rwy !== null ? rwy : '—'}</div>
         <div class="bf-runway-bar"><div class="bf-runway-fill" style="width:${rwyFill}%;background:${rwyCol}"></div></div>
         <span class="bf-pill ${pillCls}" style="margin-top:4px;display:inline-block">${pillLbl}</span>
       </div>
       <div class="bf-stat-card">
-        <div class="bf-stat-label">📈 Selling Per Day</div>
+        <div class="bf-stat-label">Selling Per Day</div>
         <div class="bf-stat-value">${vel.toFixed(1)}</div>
         <div class="bf-stat-sub">avg units/day · ~${bf_N(Math.round(vel * 7))} this week</div>
       </div>
@@ -8044,14 +8044,14 @@ function bf_renderInventory() {
 
   document.getElementById('bf-content').innerHTML = `
     <div class="bf-stat-grid" style="grid-template-columns:repeat(4,1fr)">
-      <div class="bf-stat-card"><div class="bf-stat-label">📦 Stock On Hand</div><div class="bf-stat-value">${bf_N(latest?.inventory_units || 0)}</div><div class="bf-stat-sub">units right now</div></div>
-      <div class="bf-stat-card"><div class="bf-stat-label">📈 Selling Per Day</div><div class="bf-stat-value">${vel.toFixed(1)}</div><div class="bf-stat-sub">avg over last 4 weeks</div></div>
+      <div class="bf-stat-card"><div class="bf-stat-label">Stock On Hand</div><div class="bf-stat-value">${bf_N(latest?.inventory_units || 0)}</div><div class="bf-stat-sub">units right now</div></div>
+      <div class="bf-stat-card"><div class="bf-stat-label">Selling Per Day</div><div class="bf-stat-value">${vel.toFixed(1)}</div><div class="bf-stat-sub">avg over last 4 weeks</div></div>
       <div class="bf-stat-card" style="border-color:${rwy !== null && rwy <= 15 ? 'var(--red)' : rwy !== null && rwy <= 45 ? 'var(--yellow)' : 'var(--border)'}">
         <div class="bf-stat-label">⏳ Days Until Sold Out</div>
         <div class="bf-stat-value" style="color:${rwyCol}">${rwy !== null ? rwy : '—'}</div>
         <span class="bf-pill ${pillCls}" style="margin-top:6px;display:inline-block;font-size:11px">${pillLbl}</span>
       </div>
-      <div class="bf-stat-card"><div class="bf-stat-label">📅 Estimated Sellout</div><div class="bf-stat-value" style="font-size:16px;line-height:1.3">${selloutStr}</div><div class="bf-stat-sub">at current pace</div></div>
+      <div class="bf-stat-card"><div class="bf-stat-label">Estimated Sellout</div><div class="bf-stat-value" style="font-size:16px;line-height:1.3">${selloutStr}</div><div class="bf-stat-sub">at current pace</div></div>
     </div>
 
     ${bf_buildTimeline(rwy, selloutDate)}
@@ -8225,7 +8225,7 @@ function bf_renderAccounts() {
         <div class="bf-calc-row"><span style="color:var(--text-secondary)">💵 Cash in Business Accounts</span><span class="bf-calc-val">${bf_$$(net.liquid)}</span></div>
         <div class="bf-calc-row"><span style="color:var(--green)">📥 + Money Coming In</span><span class="bf-calc-val" style="color:var(--green)">+ ${bf_$$(net.incoming)}</span></div>
         <div class="bf-calc-row"><span style="color:var(--red)">💳 − Amex Balance Owed</span><span class="bf-calc-val" style="color:var(--red)">− ${bf_$$(net.amex)}</span></div>
-        <div class="bf-calc-row" style="border-bottom:none"><span style="color:var(--yellow)">📦 − Vendor Bills (30 days)</span><span class="bf-calc-val" style="color:var(--yellow)">− ${bf_$$(net.posDue)}</span></div>
+        <div class="bf-calc-row" style="border-bottom:none"><span style="color:var(--yellow)">− Vendor Bills (30 days)</span><span class="bf-calc-val" style="color:var(--yellow)">− ${bf_$$(net.posDue)}</span></div>
         <div style="height:1px;background:var(--border);margin:8px 0"></div>
         <div class="bf-calc-total"><span>= Your Real Position</span><span class="bf-calc-total-val" style="color:${netCol}">${bf_$$(net.net)}</span></div>
       </div>
