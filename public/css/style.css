@@ -7168,14 +7168,14 @@ textarea:focus {
 .cc-board {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 12px;
 }
 
 .cc-col-headers,
 .cc-platform-row {
   display: grid;
-  grid-template-columns: 142px repeat(7, 1fr);
-  gap: 4px;
+  grid-template-columns: 130px repeat(7, 1fr);
+  gap: 6px;
 }
 
 .cc-platform-stub {
@@ -7404,6 +7404,43 @@ textarea:focus {
   line-height: 1.75;
   resize: vertical;
   min-height: 220px;
+}
+
+/* ── Google Doc embed ─────────────────────────────────────── */
+.cc-doc-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 7px;
+}
+.cc-doc-label-row .cc-label { margin-bottom: 0; }
+
+.cc-doc-embed-btn {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: rgba(0,0,0,0.05);
+  border: none;
+  border-radius: 6px;
+  padding: 3px 10px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.12s, color 0.12s;
+}
+.cc-doc-embed-btn:hover { background: rgba(0,0,0,0.1); color: var(--text-primary); }
+
+.cc-doc-iframe-wrap {
+  margin-top: 10px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: #fff;
+}
+.cc-doc-iframe {
+  display: block;
+  width: 100%;
+  height: 500px;
+  border: none;
 }
 
 .cc-drawer-actions {

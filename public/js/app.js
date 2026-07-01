@@ -6864,11 +6864,20 @@ function ccOpenPostDrawer(platformKey, dayIdx) {
       </div>
 
       <div class="cc-form-row">
-        <label class="cc-label">Google Doc <span style="font-weight:400;opacity:0.55">(optional)</span></label>
+        <div class="cc-doc-label-row">
+          <label class="cc-label">Google Doc <span style="font-weight:400;opacity:0.55">(optional)</span></label>
+          ${entry?.script_url ? `<button class="cc-doc-embed-btn" id="cc-doc-toggle" onclick="ccToggleDocEmbed()">Embed ↓</button>` : `<button class="cc-doc-embed-btn" id="cc-doc-toggle" onclick="ccToggleDocEmbed()" style="display:none">Embed ↓</button>`}
+        </div>
         <div style="display:flex;gap:8px;align-items:center">
           <input type="url" class="dp-input" id="cc-script-url"
-            value="${esc(entry?.script_url || '')}" placeholder="Paste Google Doc URL…" style="flex:1">
+            value="${esc(entry?.script_url || '')}" placeholder="Paste Google Doc URL…" style="flex:1"
+            oninput="ccOnDocUrlInput()">
           <button class="btn btn-secondary btn-sm" onclick="ccOpenDoc()">Open ↗</button>
+        </div>
+        <div id="cc-doc-embed-wrap" style="display:none">
+          <div class="cc-doc-iframe-wrap">
+            <iframe id="cc-doc-iframe" class="cc-doc-iframe" src="" allowfullscreen></iframe>
+          </div>
         </div>
       </div>
 
@@ -6919,6 +6928,48 @@ function ccOpenDoc() {
   const url = document.getElementById('cc-script-url')?.value?.trim();
   if (url) window.open(url, '_blank', 'noopener');
   else showToast('Paste a Google Doc URL first', 'error');
+}
+
+function ccToEmbedUrl(rawUrl) {
+  if (!rawUrl) return null;
+  try {
+    const m = rawUrl.match(/\/document\/d\/([a-zA-Z0-9-_]+)/);
+    if (!m) return null;
+    return `https://docs.google.com/document/d/${m[1]}/edit?rm=minimal`;
+  } catch { return null; }
+}
+
+function ccOnDocUrlInput() {
+  const url = document.getElementById('cc-script-url')?.value?.trim();
+  const toggle = document.getElementById('cc-doc-toggle');
+  if (toggle) toggle.style.display = url ? 'inline-block' : 'none';
+  // collapse embed if URL was cleared
+  if (!url) {
+    const wrap = document.getElementById('cc-doc-embed-wrap');
+    if (wrap) wrap.style.display = 'none';
+    const iframe = document.getElementById('cc-doc-iframe');
+    if (iframe) iframe.src = '';
+    if (toggle) toggle.textContent = 'Embed ↓';
+  }
+}
+
+function ccToggleDocEmbed() {
+  const wrap   = document.getElementById('cc-doc-embed-wrap');
+  const iframe = document.getElementById('cc-doc-iframe');
+  const toggle = document.getElementById('cc-doc-toggle');
+  const open   = wrap?.style.display === 'none';
+  if (open) {
+    const url = document.getElementById('cc-script-url')?.value?.trim();
+    const embedUrl = ccToEmbedUrl(url);
+    if (!embedUrl) return showToast('Paste a valid Google Doc URL first', 'error');
+    iframe.src = embedUrl;
+    wrap.style.display = 'block';
+    toggle.textContent = 'Collapse ↑';
+  } else {
+    wrap.style.display = 'none';
+    iframe.src = '';
+    toggle.textContent = 'Embed ↓';
+  }
 }
 
 async function ccSavePost(week, platformKey, dayIdx, existingId) {
