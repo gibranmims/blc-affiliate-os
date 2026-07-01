@@ -6671,11 +6671,31 @@ const CC_STATUSES = [
 const CC_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 const CC_PLATFORMS = [
-  { key: 'instagram',    label: 'Instagram',    abbr: 'IG' },
-  { key: 'tiktok_blc',  label: 'BLC TikTok',   abbr: 'TT' },
-  { key: 'tamar',       label: 'Tamar',         abbr: 'TM' },
-  { key: 'glow_like_tt', label: 'Glow Like TT', abbr: 'GL' },
+  { key: 'instagram',    label: 'Instagram',                   abbr: 'IG' },
+  { key: 'tiktok_blc',  label: 'The Bikini Line Co (TikTok)', abbr: 'TT' },
+  { key: 'tamar',       label: 'Tamar',                        abbr: 'TM' },
+  { key: 'glow_like_tt', label: 'Glow Like TT',               abbr: 'GL' },
 ];
+
+let ccPlatformOrder = (function() {
+  try { return JSON.parse(localStorage.getItem('ccPlatformOrder')) || null; } catch { return null; }
+})() || CC_PLATFORMS.map(p => p.key);
+
+let ccPlatformLabels = (function() {
+  try { return JSON.parse(localStorage.getItem('ccPlatformLabels')) || {}; } catch { return {}; }
+})();
+
+function ccGetLabel(key) {
+  return (ccPlatformLabels[key] !== undefined && ccPlatformLabels[key] !== '')
+    ? ccPlatformLabels[key]
+    : CC_PLATFORMS.find(p => p.key === key)?.label || key;
+}
+
+function ccOrderedPlatforms() {
+  return ccPlatformOrder
+    .map(k => CC_PLATFORMS.find(p => p.key === k))
+    .filter(Boolean);
+}
 
 const CC_CONTENT_TYPES = [
   { key: 'script',        label: 'Script' },
@@ -6759,10 +6779,25 @@ function renderContentCalendarPage() {
           }).join('')}
         </div>
 
-        ${CC_PLATFORMS.map(platform => `
-          <div class="cc-platform-row">
-            <div class="cc-platform-label">
-              <span class="cc-platform-name">${platform.label}</span>
+        ${ccOrderedPlatforms().map(platform => `
+          <div class="cc-platform-row"
+            ondragover="ccDragOver(event,'${platform.key}')"
+            ondragleave="ccDragLeave(event)"
+            ondrop="ccDrop(event,'${platform.key}')">
+            <div class="cc-platform-label"
+              draggable="true"
+              ondragstart="ccDragStart(event,'${platform.key}')"
+              ondragend="ccDragEnd(event)">
+              <span class="cc-drag-handle">
+                <svg width="8" height="14" viewBox="0 0 8 14" fill="currentColor">
+                  <circle cx="2" cy="2" r="1.3"/><circle cx="6" cy="2" r="1.3"/>
+                  <circle cx="2" cy="7" r="1.3"/><circle cx="6" cy="7" r="1.3"/>
+                  <circle cx="2" cy="12" r="1.3"/><circle cx="6" cy="12" r="1.3"/>
+                </svg>
+              </span>
+              <span class="cc-platform-name" id="cc-pname-${platform.key}"
+                ondblclick="ccEditPlatformName('${platform.key}',event)"
+                title="Double-click to rename">${ccGetLabel(platform.key)}</span>
             </div>
             ${CC_DAYS.map((day, i) => {
               const entry = state.contentCalendar.find(e =>
@@ -6928,6 +6963,77 @@ function ccOpenDoc() {
   const url = document.getElementById('cc-script-url')?.value?.trim();
   if (url) window.open(url, '_blank', 'noopener');
   else showToast('Paste a Google Doc URL first', 'error');
+}
+
+/* ── Row drag-to-reorder ──────────────────────────────────── */
+let _ccDragKey = null;
+
+function ccDragStart(event, key) {
+  _ccDragKey = key;
+  event.dataTransfer.effectAllowed = 'move';
+  event.currentTarget.closest('.cc-platform-row')?.classList.add('cc-dragging');
+}
+
+function ccDragOver(event, key) {
+  event.preventDefault();
+  event.dataTransfer.dropEffect = 'move';
+  document.querySelectorAll('.cc-platform-row').forEach(r => r.classList.remove('cc-drag-over'));
+  event.currentTarget.classList.add('cc-drag-over');
+}
+
+function ccDragLeave(event) {
+  if (!event.currentTarget.contains(event.relatedTarget)) {
+    event.currentTarget.classList.remove('cc-drag-over');
+  }
+}
+
+function ccDrop(event, targetKey) {
+  event.preventDefault();
+  document.querySelectorAll('.cc-platform-row').forEach(r => r.classList.remove('cc-drag-over'));
+  if (!_ccDragKey || _ccDragKey === targetKey) return;
+  const from = ccPlatformOrder.indexOf(_ccDragKey);
+  const to   = ccPlatformOrder.indexOf(targetKey);
+  if (from < 0 || to < 0) return;
+  ccPlatformOrder.splice(from, 1);
+  ccPlatformOrder.splice(to, 0, _ccDragKey);
+  localStorage.setItem('ccPlatformOrder', JSON.stringify(ccPlatformOrder));
+  _ccDragKey = null;
+  renderContentCalendarPage();
+}
+
+function ccDragEnd(event) {
+  _ccDragKey = null;
+  document.querySelectorAll('.cc-platform-row').forEach(r => {
+    r.classList.remove('cc-dragging', 'cc-drag-over');
+  });
+}
+
+/* ── Row rename (double-click) ──────────────────────────────── */
+function ccEditPlatformName(key, event) {
+  event.stopPropagation();
+  const span = document.getElementById(`cc-pname-${key}`);
+  if (!span) return;
+  const current = ccGetLabel(key);
+  span.outerHTML = `<input class="cc-platform-name-input" id="cc-pname-input-${key}"
+    value="${esc(current)}"
+    onblur="ccSavePlatformName('${key}',this.value)"
+    onkeydown="if(event.key==='Enter')this.blur();if(event.key==='Escape'){ccCancelPlatformName('${key}','${esc(current)}');}"
+    onclick="event.stopPropagation()">`;
+  const input = document.getElementById(`cc-pname-input-${key}`);
+  if (input) { input.focus(); input.select(); }
+}
+
+function ccSavePlatformName(key, value) {
+  const name = value.trim();
+  ccPlatformLabels[key] = name || CC_PLATFORMS.find(p => p.key === key)?.label || key;
+  localStorage.setItem('ccPlatformLabels', JSON.stringify(ccPlatformLabels));
+  renderContentCalendarPage();
+}
+
+function ccCancelPlatformName(key, original) {
+  const input = document.getElementById(`cc-pname-input-${key}`);
+  if (input) input.value = original;
+  renderContentCalendarPage();
 }
 
 function ccToEmbedUrl(rawUrl) {

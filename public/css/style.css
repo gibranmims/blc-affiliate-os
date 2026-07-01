@@ -7115,16 +7115,21 @@ textarea:focus {
 
 /* ── Content Calendar Page ─────────────────────────────────── */
 .cc-page {
-  padding: 32px 28px;
-  max-width: 100%;
+  padding: 28px 24px 16px;
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 44px); /* 44px = .page-content padding-top */
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .cc-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
-  margin-bottom: 28px;
+  margin-bottom: 20px;
   gap: 16px;
+  flex-shrink: 0;
 }
 
 .cc-subtitle {
@@ -7168,7 +7173,9 @@ textarea:focus {
 .cc-board {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
+  flex: 1;
+  min-height: 0;
 }
 
 .cc-col-headers,
@@ -7176,6 +7183,13 @@ textarea:focus {
   display: grid;
   grid-template-columns: 130px repeat(7, 1fr);
   gap: 6px;
+}
+
+.cc-col-headers { flex-shrink: 0; }
+
+.cc-platform-row {
+  flex: 1;
+  min-height: 0;
 }
 
 .cc-platform-stub {
@@ -7225,9 +7239,20 @@ textarea:focus {
 .cc-platform-label {
   display: flex;
   align-items: center;
-  padding: 0 14px;
-  min-height: 96px;
+  gap: 6px;
+  padding: 0 10px 0 8px;
+  cursor: grab;
 }
+.cc-platform-label:active { cursor: grabbing; }
+
+.cc-drag-handle {
+  color: var(--text-muted);
+  opacity: 0;
+  flex-shrink: 0;
+  transition: opacity 0.15s;
+  line-height: 0;
+}
+.cc-platform-label:hover .cc-drag-handle { opacity: 0.5; }
 
 .cc-platform-name {
   font-size: 12px;
@@ -7235,11 +7260,35 @@ textarea:focus {
   color: var(--text-secondary);
   letter-spacing: 0.01em;
   line-height: 1.3;
+  cursor: default;
 }
+.cc-platform-name:hover { color: var(--text-primary); }
+
+.cc-platform-name-input {
+  font-size: 12px;
+  font-weight: 700;
+  font-family: inherit;
+  letter-spacing: 0.01em;
+  color: var(--text-primary);
+  background: rgba(0,0,0,0.06);
+  border: none;
+  border-radius: 6px;
+  padding: 3px 6px;
+  width: 100%;
+  outline: none;
+}
+
+.cc-platform-row.cc-drag-over .cc-platform-label,
+.cc-platform-row.cc-drag-over .cc-cell {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+  border-radius: 10px;
+}
+.cc-platform-row.cc-dragging { opacity: 0.35; }
 
 /* ── Cells ──────────────────────────────────────────────────── */
 .cc-cell {
-  min-height: 96px;
+  min-height: 80px;
   border-radius: 10px;
   cursor: pointer;
   transition: all 0.13s;
