@@ -160,34 +160,60 @@
 
     .btn-ghost:hover { opacity: 0.8; }
 
-    /* ── photo frames (screen 5) ── */
-    .frames {
-      display: flex;
-      gap: 1.375rem;
-      justify-content: center;
-      margin: 1.875rem 0 1.375rem;
+    /* ── example photos strip (screen 5) ── */
+    .examples-wrap {
+      width: calc(100% + 3.75rem);
+      margin-left: -1.875rem;
+      margin-top: 1.25rem;
+      margin-bottom: 0.25rem;
     }
 
-    .frame-wrap {
+    .examples-label {
+      font-size: 0.5625rem;
+      font-weight: 500;
+      letter-spacing: 0.2em;
+      color: #FFF6EB;
+      opacity: 0.3;
+      padding-left: 1.875rem;
+      margin-bottom: 0.75rem;
+      display: block;
+      text-transform: none;
+    }
+
+    .examples-strip {
+      display: flex;
+      gap: 0.75rem;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+      padding: 0 1.875rem 0.25rem;
+    }
+
+    .examples-strip::-webkit-scrollbar { display: none; }
+
+    .ex-card {
+      flex-shrink: 0;
       display: flex;
       flex-direction: column;
       align-items: center;
       gap: 0.5rem;
     }
 
-    .frame {
-      width: 68px;
-      height: 96px;
-      border: 1px solid rgba(255, 246, 235, 0.3);
-      border-radius: 8px;
-      background: transparent;
+    .ex-img {
+      width: 108px;
+      height: 144px;
+      object-fit: cover;
+      border-radius: 10px;
+      background: rgba(255, 246, 235, 0.06);
+      display: block;
     }
 
-    .frame-lbl {
+    .ex-lbl {
       font-size: 0.5625rem;
       letter-spacing: 0.12em;
       color: #FFF6EB;
-      opacity: 0.35;
+      opacity: 0.38;
+      text-align: center;
       text-transform: none;
     }
 
@@ -445,21 +471,31 @@
         <li>No filters</li>
         <li>Remember your angle — you'll repeat it at every check-in</li>
       </ul>
-      <div class="frames el">
-        <div class="frame-wrap">
-          <div class="frame"></div>
-          <span class="frame-lbl">Bikini line</span>
-        </div>
-        <div class="frame-wrap">
-          <div class="frame"></div>
-          <span class="frame-lbl">Underarms</span>
-        </div>
-        <div class="frame-wrap">
-          <div class="frame"></div>
-          <span class="frame-lbl">Stomach</span>
+      <div class="examples-wrap el">
+        <span class="examples-label">Example photos</span>
+        <div class="examples-strip">
+          <div class="ex-card">
+            <img class="ex-img" src="/img/examples/legs.png" alt="Legs" loading="lazy">
+            <span class="ex-lbl">Legs</span>
+          </div>
+          <div class="ex-card">
+            <img class="ex-img" src="/img/examples/underarms.png" alt="Underarms" loading="lazy">
+            <span class="ex-lbl">Underarms</span>
+          </div>
+          <div class="ex-card">
+            <img class="ex-img" src="/img/examples/inner%20thighs.png" alt="Inner thighs" loading="lazy">
+            <span class="ex-lbl">Inner thighs</span>
+          </div>
+          <div class="ex-card">
+            <img class="ex-img" src="/img/examples/bikini%20line.png" alt="Bikini line" loading="lazy">
+            <span class="ex-lbl">Bikini line</span>
+          </div>
+          <div class="ex-card">
+            <img class="ex-img" src="/img/examples/stomach.png" alt="Stomach" loading="lazy">
+            <span class="ex-lbl">Stomach</span>
+          </div>
         </div>
       </div>
-      <p class="sub el">Photograph the area you're treating — bikini line, underarms, or stomach.</p>
       <button class="btn el" onclick="go(6)">I'm ready to sign up.</button>
       <div class="gap-sm"></div>
     </div>
@@ -509,9 +545,11 @@
           <select id="fb">
             <option value="">Select one</option>
             <option value="bikini line">Bikini line</option>
+            <option value="legs">Legs</option>
             <option value="underarms">Underarms</option>
+            <option value="inner thighs">Inner thighs</option>
             <option value="stomach">Stomach</option>
-            <option value="all three">All three</option>
+            <option value="multiple areas">Multiple areas</option>
           </select>
         </div>
 
