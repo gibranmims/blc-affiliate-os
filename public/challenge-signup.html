@@ -166,6 +166,18 @@
       margin-left: -1.875rem;
       margin-top: 1.125rem;
       margin-bottom: 1.25rem;
+      position: relative;
+    }
+
+    .examples-wrap::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 64px;
+      height: calc(100% - 0.25rem);
+      background: linear-gradient(to right, transparent, #000000);
+      pointer-events: none;
     }
 
     .examples-strip {
