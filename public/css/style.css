@@ -240,6 +240,11 @@ body {
   height: 6px;
   border-radius: 50%;
   flex-shrink: 0;
+  background: rgba(255,255,255,0.22);
+}
+
+.nav-item.active .nav-dot {
+  background: rgba(255,255,255,0.85);
 }
 
 /* hide SVG icons — dots are used instead */
@@ -495,23 +500,23 @@ body {
   margin-bottom: 6px;
 }
 
-.stat-value.accent { color: var(--accent); }
+.stat-value.accent { color: var(--text-primary); }
 .stat-value.green  { color: var(--green); }
-.stat-value.blue   { color: var(--blue); }
+.stat-value.blue   { color: var(--text-primary); }
 .stat-value.red    { color: var(--red); }
 .stat-value.muted  { color: var(--text-muted); }
 
-/* Colored stat cards */
+/* Stat cards — neutral top border for all, red only for urgent */
 .stat-card-neutral { border-top: 2px solid var(--border); }
-.stat-card-blue    { border-top: 2px solid var(--blue);  background: rgba(96,165,250,0.04); }
-.stat-card-green   { border-top: 2px solid var(--green); background: rgba(74,222,128,0.04); }
+.stat-card-blue    { border-top: 2px solid var(--border); }
+.stat-card-green   { border-top: 2px solid var(--border); }
 .stat-card-muted   { border-top: 2px solid var(--border); }
 .stat-card-red     { border-top: 2px solid var(--border); transition: background 0.15s, border-color 0.15s; }
 .stat-card-red-active {
   border-top: 2px solid var(--red);
-  background: rgba(248,113,113,0.06);
+  background: rgba(220,38,38,0.04);
 }
-.stat-card-red-active:hover { background: rgba(248,113,113,0.1); }
+.stat-card-red-active:hover { background: rgba(220,38,38,0.07); }
 
 .stat-label {
   font-size: 13px;
@@ -688,17 +693,17 @@ body {
   text-transform: capitalize;
 }
 
-.badge-green  { background: var(--green-dim);          color: var(--green); }
-.badge-yellow { background: var(--yellow-dim);         color: var(--yellow); }
-.badge-orange { background: var(--orange-dim);         color: var(--orange); }
-.badge-red    { background: var(--red-dim);            color: var(--red); }
-.badge-blue   { background: var(--blue-dim);           color: var(--blue); }
-.badge-purple { background: var(--purple-dim);         color: var(--purple); }
-.badge-gray   { background: var(--bg-elevated);        color: var(--text-muted); }
-/* New semantic colors */
-.badge-teal   { background: rgba(20,184,166,0.15);    color: #0d9488; }   /* replied — positive engagement */
-.badge-amber  { background: rgba(245,158,11,0.15);    color: #B45309; }   /* countered — negotiation */
-.badge-indigo { background: rgba(99,102,241,0.13);    color: #4338CA; }   /* ctr. reviewed */
+/* Badges: green = done/positive, red = urgent, gray = everything else */
+.badge-green  { background: var(--green-dim);    color: var(--green); }
+.badge-yellow { background: var(--bg-secondary); color: var(--text-secondary); }
+.badge-orange { background: var(--bg-secondary); color: var(--text-secondary); }
+.badge-red    { background: var(--red-dim);      color: var(--red); }
+.badge-blue   { background: var(--bg-secondary); color: var(--text-secondary); }
+.badge-purple { background: var(--bg-secondary); color: var(--text-secondary); }
+.badge-gray   { background: var(--bg-secondary); color: var(--text-muted); }
+.badge-teal   { background: var(--green-dim);    color: var(--green); }
+.badge-amber  { background: var(--bg-secondary); color: var(--text-secondary); }
+.badge-indigo { background: var(--bg-secondary); color: var(--text-secondary); }
 
 .inline-status-select {
   -webkit-appearance: none;
@@ -716,16 +721,17 @@ body {
   background-size: 8px 5px;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 5'%3E%3Cpath fill='rgba(0,0,0,0.35)' d='M0 0l4 5 4-5z'/%3E%3C/svg%3E");
 }
-.inline-status-select.status-key-drafted        { background-color: var(--bg-elevated); color: var(--text-muted); }
-.inline-status-select.status-key-sent           { background-color: var(--blue-dim);    color: var(--blue); }
-.inline-status-select.status-key-replied        { background-color: rgba(20,184,166,0.18); color: #0F766E; }
-.inline-status-select.status-key-evaluating     { background-color: var(--purple-dim);    color: var(--purple); }
-.inline-status-select.status-key-counter_review    { background-color: var(--purple-dim);    color: var(--purple); }
-.inline-status-select.status-key-counter_approved  { background-color: rgba(79,70,229,0.12); color: #4338CA; }
-.inline-status-select.status-key-counter_offered   { background-color: rgba(245,158,11,0.16); color: #B45309; }
-.inline-status-select.status-key-signed         { background-color: var(--green-dim);   color: var(--green); }
-.inline-status-select.status-key-archived       { background-color: var(--bg-elevated); color: var(--text-muted); }
-.inline-status-select.status-key-ghosted        { background-color: var(--bg-elevated); color: var(--text-muted); }
+/* Status dropdowns: green = done/positive, red = urgent, gray = everything else */
+.inline-status-select.status-key-drafted        { background-color: var(--bg-secondary); color: var(--text-muted); }
+.inline-status-select.status-key-sent           { background-color: var(--bg-secondary); color: var(--text-secondary); }
+.inline-status-select.status-key-replied        { background-color: var(--green-dim);    color: var(--green); }
+.inline-status-select.status-key-evaluating     { background-color: var(--bg-secondary); color: var(--text-secondary); }
+.inline-status-select.status-key-counter_review    { background-color: var(--bg-secondary); color: var(--text-secondary); }
+.inline-status-select.status-key-counter_approved  { background-color: var(--bg-secondary); color: var(--text-secondary); }
+.inline-status-select.status-key-counter_offered   { background-color: var(--bg-secondary); color: var(--text-secondary); }
+.inline-status-select.status-key-signed         { background-color: var(--green-dim);    color: var(--green); }
+.inline-status-select.status-key-archived       { background-color: var(--bg-secondary); color: var(--text-muted); }
+.inline-status-select.status-key-ghosted        { background-color: var(--bg-secondary); color: var(--text-muted); }
 
 /* ============================================================
    BUTTONS
@@ -2530,56 +2536,26 @@ body {
    ============================================================ */
 
 /* Per-status tab colors — always visible, bolder when active */
-.filter-tabs .filter-tab-drafted        { color: var(--text-secondary); }
-.filter-tabs .filter-tab-drafted .filter-count { color: var(--text-secondary); }
-.filter-tabs .filter-tab-drafted.active { color: var(--text-primary); background: var(--bg-elevated); }
-.filter-tabs .filter-tab-drafted.active .filter-count { color: var(--text-primary); background: var(--bg-hover); }
+/* Filter tabs — neutral by default, active = black pill (via .filter-tab.active global rule) */
+/* Only green for positive end-states, red for rejected/archived */
+.filter-tabs [class*="filter-tab-"]         { color: var(--text-muted); }
+.filter-tabs [class*="filter-tab-"] .filter-count { color: var(--text-muted); }
 
-.filter-tabs .filter-tab-sent           { color: rgba(96,165,250,0.75); }
-.filter-tabs .filter-tab-sent .filter-count { color: rgba(96,165,250,0.75); }
-.filter-tabs .filter-tab-sent.active    { color: var(--blue); background: var(--blue-dim); }
-.filter-tabs .filter-tab-sent.active .filter-count { background: rgba(96,165,250,0.2); color: var(--blue); }
+.filter-tabs .filter-tab-signed             { color: var(--green); }
+.filter-tabs .filter-tab-signed .filter-count { color: var(--green); }
+.filter-tabs .filter-tab-replied            { color: var(--green); }
+.filter-tabs .filter-tab-replied .filter-count { color: var(--green); }
 
-.filter-tabs .filter-tab-replied        { color: rgba(45,212,191,0.75); }
-.filter-tabs .filter-tab-replied .filter-count { color: rgba(45,212,191,0.75); }
-.filter-tabs .filter-tab-replied.active { color: #2dd4bf; background: rgba(45,212,191,0.1); }
-.filter-tabs .filter-tab-replied.active .filter-count { background: rgba(45,212,191,0.2); color: #2dd4bf; }
-
-.filter-tabs .filter-tab-counter_review        { color: rgba(168,85,247,0.75); }
-.filter-tabs .filter-tab-counter_review .filter-count { color: rgba(168,85,247,0.75); }
-.filter-tabs .filter-tab-counter_review.active { color: var(--purple); background: var(--purple-dim); }
-.filter-tabs .filter-tab-counter_review.active .filter-count { background: rgba(168,85,247,0.2); color: var(--purple); }
-
-.filter-tabs .filter-tab-counter_approved        { color: rgba(20,184,166,0.75); }
-.filter-tabs .filter-tab-counter_approved .filter-count { color: rgba(20,184,166,0.75); }
-.filter-tabs .filter-tab-counter_approved.active { color: #14b8a6; background: rgba(20,184,166,0.1); }
-.filter-tabs .filter-tab-counter_approved.active .filter-count { background: rgba(20,184,166,0.2); color: #14b8a6; }
-
-.filter-tabs .filter-tab-counter_offered        { color: rgba(245,158,11,0.85); }
-.filter-tabs .filter-tab-counter_offered .filter-count { color: rgba(245,158,11,0.85); }
-.filter-tabs .filter-tab-counter_offered.active { color: #B45309; background: rgba(245,158,11,0.12); }
-.filter-tabs .filter-tab-counter_offered.active .filter-count { background: rgba(245,158,11,0.2); color: #B45309; }
-
-.filter-tabs .filter-tab-counter_rejected        { color: rgba(248,113,113,0.75); }
-.filter-tabs .filter-tab-counter_rejected .filter-count { color: rgba(248,113,113,0.75); }
-.filter-tabs .filter-tab-counter_rejected.active { color: var(--red); background: var(--red-dim); }
-.filter-tabs .filter-tab-counter_rejected.active .filter-count { background: rgba(248,113,113,0.2); color: var(--red); }
-
-.filter-tabs .filter-tab-signed        { color: rgba(74,222,128,0.75); }
-.filter-tabs .filter-tab-signed .filter-count { color: rgba(74,222,128,0.75); }
-.filter-tabs .filter-tab-signed.active { color: var(--green); background: var(--green-dim); }
-.filter-tabs .filter-tab-signed.active .filter-count { background: rgba(74,222,128,0.2); color: var(--green); }
+.filter-tabs .filter-tab-counter_rejected   { color: var(--red); }
+.filter-tabs .filter-tab-counter_rejected .filter-count { color: var(--red); }
 
 .filter-tabs .filter-tab-archive {
   margin-left: 6px;
   padding-left: 16px !important;
   border-left: 1px solid var(--border);
-  color: rgba(248,113,113,0.65);
+  color: var(--text-muted);
 }
-.filter-tabs .filter-tab-archive .filter-count { color: rgba(248,113,113,0.65); }
-.filter-tabs .filter-tab-archive:hover { color: var(--red); }
-.filter-tabs .filter-tab-archive.active { color: var(--red); background: var(--red-dim); }
-.filter-tabs .filter-tab-archive.active .filter-count { background: rgba(248,113,113,0.2); color: var(--red); }
+.filter-tabs .filter-tab-archive .filter-count { color: var(--text-muted); }
 
 /* Counter offer two-button row */
 .dp-counter-btn-row {
@@ -6444,7 +6420,7 @@ textarea:focus {
   color: var(--text-muted);
   line-height: 1.4;
 }
-.qa-alert { color: var(--yellow); font-weight: 600; }
+.qa-alert { color: var(--red); font-weight: 600; }
 
 /* ── Team Focus: For Founder column ──────────────────────── */
 .focus-col-review {
@@ -6672,14 +6648,9 @@ textarea:focus {
 /* ── Metric cards: all clean white (no special overrides) ─ */
 
 /* ── QA cards: icon bg per card ─────────────────────────── */
-.home-qa-card:nth-child(1) .home-qa-icon { background: rgba(37,99,235,0.1);  color: var(--blue); }
-.home-qa-card:nth-child(2) .home-qa-icon { background: rgba(22,163,74,0.1);  color: var(--green); }
-.home-qa-card:nth-child(3) .home-qa-icon { background: rgba(234,88,12,0.1);  color: var(--orange); }
-.home-qa-card:nth-child(4) .home-qa-icon { background: rgba(124,58,237,0.1); color: var(--purple); }
-.home-qa-card:nth-child(1) .home-qa-stat { color: var(--blue); }
-.home-qa-card:nth-child(2) .home-qa-stat { color: var(--green); }
-.home-qa-card:nth-child(3) .home-qa-stat { color: var(--orange); }
-.home-qa-card:nth-child(4) .home-qa-stat { color: var(--purple); }
+/* Quick action cards — single neutral tone, no per-card color coding */
+.home-qa-icon { background: var(--bg-tertiary) !important; color: var(--text-muted) !important; }
+.home-qa-stat { color: var(--text-primary) !important; font-weight: 800; }
 
 /* ── Daily Top 2: two-person layout ─────────────────────── */
 .dt2-two-col {
