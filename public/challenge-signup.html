@@ -293,6 +293,40 @@
 
     .form-err.show { display: block; }
 
+    /* ── step list ── */
+    .steps {
+      list-style: none;
+      padding: 0;
+      width: 100%;
+      max-width: 340px;
+      margin: 0 auto 1.5rem;
+      text-align: left;
+    }
+
+    .steps li {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+      padding: 0.625rem 0;
+      font-size: 0.9375rem;
+      font-weight: 400;
+      line-height: 1.5;
+      color: #FFF6EB;
+      opacity: 0.75;
+      border-bottom: 1px solid rgba(255,246,235,0.08);
+      text-transform: lowercase;
+    }
+
+    .steps li:last-child { border-bottom: none; }
+
+    .steps li::before {
+      content: '→';
+      font-size: 0.875rem;
+      opacity: 0.3;
+      flex-shrink: 0;
+      margin-top: 0.0625rem;
+    }
+
     .fine-print {
       font-size: 0.625rem;
       color: #FFF6EB;
@@ -333,10 +367,9 @@
       <h1 class="el">here's the deal.</h1>
       <div class="body el">
         <p>we want you to try bbl serum for free.</p>
-        <p>not a free sample. a full bottle.</p>
-        <p>you buy it. you use it. you show us what happens.</p>
-        <p>and we give you your money back.</p>
-        <p>all of it.</p>
+        <p>not a free sample — a full bottle.</p>
+        <p>use it. show us what happens. we give you your money back.</p>
+        <p><strong>all of it.</strong></p>
       </div>
       <button class="btn el" onclick="go(3)">how does it work?</button>
       <div class="gap-lg"></div>
@@ -350,15 +383,14 @@
       <div class="gap-md"></div>
       <p class="lbl el">the win your money back challenge</p>
       <h1 class="el">here's what you do.</h1>
-      <div class="body el">
-        <p>buy one bottle of bbl serum.</p>
-        <p>use it every night on clean dry skin for 8 weeks.</p>
-        <p>take a before photo today. that's your week zero.</p>
-        <p>check in with a progress photo every two weeks.</p>
-        <p>complete all four check-ins.</p>
-        <p>we refund your full $39.99. no catches.</p>
-        <p>and if your results are incredible,<br>we might have something extra for you.</p>
-      </div>
+      <ul class="steps el">
+        <li>buy one bottle of bbl serum.</li>
+        <li>use it every night on clean dry skin for 8 weeks.</li>
+        <li>take a before photo today — that's your week zero.</li>
+        <li>check in every 2 weeks with a progress photo.</li>
+        <li>complete all 4. we refund your $39.99. no catches.</li>
+      </ul>
+      <p class="sub el">and if your results are incredible, we might have something extra for you.</p>
       <button class="btn el" onclick="go(4)">what do the check-ins look like?</button>
       <div class="gap-sm"></div>
     </div>
@@ -371,15 +403,17 @@
       <div class="gap-md"></div>
       <h1 class="el">the check-ins are easy.</h1>
       <div class="body el">
-        <p>every two weeks you'll get a reminder with a link.</p>
-        <p>click it. answer three quick questions.</p>
-        <p>have you been using bbl serum every night on clean dry skin?</p>
-        <p>have you been exfoliating the area three to four times a week?</p>
-        <p>anything to note? any changes so far?</p>
-        <p>then upload your photo from the same angle as your week zero.</p>
-        <p>takes two minutes.</p>
+        <p>every two weeks, a link lands in your inbox. click it.</p>
       </div>
-      <p class="sub el">you can miss one check-in and still qualify. but consistency is where the results come from.</p>
+      <ul class="steps el">
+        <li>are you using bbl serum every night on clean dry skin?</li>
+        <li>exfoliating 3–4 times a week?</li>
+        <li>anything to note? any changes so far?</li>
+      </ul>
+      <div class="body el">
+        <p>upload a photo from the same angle as week zero. takes two minutes.</p>
+      </div>
+      <p class="sub el">you can miss one check-in and still qualify — but consistency is where the results come from.</p>
       <button class="btn el" onclick="go(5)">got it. how do i take my photo?</button>
       <div class="gap-sm"></div>
     </div>
@@ -393,11 +427,13 @@
       <h1 class="el">let's talk about your week zero photo.</h1>
       <div class="body el">
         <p>this is the step that locks you in.</p>
-        <p>use natural light. stand near a window.</p>
-        <p>get close enough that the treatment area fills the frame.</p>
-        <p>no filters. we need to see real texture.</p>
-        <p>remember your angle. you'll match it at every check-in.</p>
       </div>
+      <ul class="steps el">
+        <li>natural light — stand near a window</li>
+        <li>fill the frame with your treatment area</li>
+        <li>no filters. real texture only</li>
+        <li>remember your angle — you'll repeat it every check-in</li>
+      </ul>
       <div class="frames el">
         <div class="frame-wrap">
           <div class="frame"></div>
@@ -495,14 +531,14 @@
       <div class="gap-lg"></div>
       <h1 class="el">you're in.</h1>
       <div class="body el">
-        <p>welcome to the win your money back challenge.</p>
-        <p>your week zero photo is submitted. that's your starting point.</p>
-        <p>watch your inbox. your week 2 check-in link is coming.</p>
-        <p>until then, use your bbl serum every night.</p>
-        <p>clean dry skin. that's the only rule.</p>
-        <p>we'll see you in two weeks.</p>
+        <p>your week zero photo is in. that's your starting point.</p>
+        <p>watch your inbox — your week 2 check-in link is on its way.</p>
       </div>
-      <p class="sub el">questions? find us @thebikinilineco</p>
+      <div class="body el">
+        <p>until then, one rule:</p>
+        <p><strong>bbl serum. clean dry skin. every night.</strong></p>
+      </div>
+      <p class="sub el">we'll see you in two weeks. questions? @thebikinilineco</p>
       <div class="gap-lg"></div>
     </div>
   </div>
