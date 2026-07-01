@@ -6396,8 +6396,8 @@ textarea:focus {
   flex-direction: column;
   align-items: flex-start;
   padding: 18px 18px 20px;
-  background: #fff;
-  border: 1.5px solid var(--border);
+  background: rgba(255,246,235,0.04);
+  border: 1px solid rgba(255,246,235,0.08);
   border-radius: 16px;
   cursor: pointer;
   transition: all 0.15s ease;
@@ -6405,7 +6405,8 @@ textarea:focus {
   min-height: 148px;
 }
 .home-qa-card:hover {
-  border-color: var(--accent);
+  border-color: rgba(255,246,235,0.2);
+  background: rgba(255,246,235,0.06);
   box-shadow: var(--shadow-md);
   transform: translateY(-2px);
 }
@@ -7333,8 +7334,8 @@ textarea:focus {
 .home-timer-section { margin-top: 28px; }
 
 .home-timer-card {
-  background: #fff;
-  border: 1.5px solid var(--border);
+  background: rgba(255,246,235,0.04);
+  border: 1px solid rgba(255,246,235,0.08);
   border-radius: 16px;
   padding: 24px 24px 20px;
   display: flex;
@@ -7367,9 +7368,9 @@ textarea:focus {
   font-family: inherit;
 }
 .tmr-tab.tmr-tab-active {
-  background: #fff;
-  color: var(--text);
-  box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+  background: rgba(255,246,235,0.12);
+  color: var(--text-primary);
+  box-shadow: none;
 }
 
 .tmr-ring-wrap {
@@ -7395,7 +7396,7 @@ textarea:focus {
   font-size: 36px;
   font-weight: 600;
   letter-spacing: -0.03em;
-  color: var(--text);
+  color: var(--text-primary);
   font-variant-numeric: tabular-nums;
   line-height: 1;
 }
@@ -7415,7 +7416,7 @@ textarea:focus {
 .tmr-start-btn {
   padding: 9px 28px;
   background: var(--accent);
-  color: #fff;
+  color: #0a0805;
   border: none;
   border-radius: 999px;
   font-size: 14px;
@@ -7427,7 +7428,7 @@ textarea:focus {
 }
 .tmr-start-btn:hover { background: var(--accent-hover); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(255,246,235,0.15); }
 .tmr-start-btn.tmr-running { background: var(--text-secondary); }
-.tmr-start-btn.tmr-running:hover { background: var(--text); }
+.tmr-start-btn.tmr-running:hover { background: var(--text-primary); }
 .tmr-reset-btn {
   padding: 9px 16px;
   background: transparent;
@@ -7440,7 +7441,7 @@ textarea:focus {
   font-family: inherit;
   transition: all 0.15s;
 }
-.tmr-reset-btn:hover { border-color: var(--text-secondary); color: var(--text); }
+.tmr-reset-btn:hover { border-color: var(--text-secondary); color: var(--text-primary); }
 
 .tmr-presets {
   display: flex;
@@ -7478,7 +7479,7 @@ textarea:focus {
   background: transparent;
   font-size: 12px;
   font-weight: 500;
-  color: var(--text);
+  color: var(--text-primary);
   font-family: inherit;
   text-align: center;
   outline: none;
