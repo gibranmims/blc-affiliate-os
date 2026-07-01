@@ -38,85 +38,89 @@
 
         <div class="nav-divider"></div>
 
-        <div class="nav-section-label">BRAND</div>
-        <a href="#" class="nav-item" data-page="content-calendar">
-          <span class="nav-dot"></span>
-          <span>Content Calendar</span>
-        </a>
+        <div class="nav-section-label nav-section-toggle" onclick="toggleNavSection('brand')">BRAND <svg class="nav-section-chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg></div>
+        <div class="nav-section-body" id="nav-section-brand">
+          <a href="#" class="nav-item" data-page="content-calendar">
+            <span class="nav-dot"></span>
+            <span>Content Calendar</span>
+          </a>
+        </div>
 
         <div class="nav-divider"></div>
 
-        <div class="nav-section-label">WORKSPACE</div>
-        <a href="#" class="nav-item" data-page="outreach">
-          <span class="nav-dot"></span>
-          <span>Affiliate Outreach</span>
-        </a>
-        <div class="nav-group" id="nav-group-roster">
-          <a href="#" class="nav-item nav-group-trigger" data-page="roster">
+        <div class="nav-section-label nav-section-toggle" onclick="toggleNavSection('workspace')">WORKSPACE <svg class="nav-section-chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg></div>
+        <div class="nav-section-body" id="nav-section-workspace">
+          <a href="#" class="nav-item" data-page="outreach">
             <span class="nav-dot"></span>
-            <span>Affiliate Roster</span>
-            <span class="nav-chevron">
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
-            </span>
+            <span>Affiliate Outreach</span>
           </a>
-          <div class="nav-sub" id="nav-sub-roster">
-            <a href="#" class="nav-sub-item" data-roster-tab="paid">Paid Affiliates</a>
-            <a href="#" class="nav-sub-item" data-roster-tab="free">Free Affiliates</a>
+          <div class="nav-group" id="nav-group-roster">
+            <a href="#" class="nav-item nav-group-trigger" data-page="roster">
+              <span class="nav-dot"></span>
+              <span>Affiliate Roster</span>
+              <span class="nav-chevron">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+              </span>
+            </a>
+            <div class="nav-sub" id="nav-sub-roster">
+              <a href="#" class="nav-sub-item" data-roster-tab="paid">Paid Affiliates</a>
+              <a href="#" class="nav-sub-item" data-roster-tab="free">Free Affiliates</a>
+            </div>
           </div>
+          <a href="#" class="nav-item" data-page="review">
+            <span class="nav-dot"></span>
+            <span>For Review</span>
+            <span class="nav-review-badge" id="review-badge" style="display:none">0</span>
+          </a>
+          <a href="#" class="nav-item" data-page="finance">
+            <span class="nav-dot"></span>
+            <span>Finance</span>
+          </a>
+          <a href="#" class="nav-item" data-page="brand-finance">
+            <span class="nav-dot"></span>
+            <span>BLC Tracker</span>
+          </a>
+          <a href="#" class="nav-item" data-page="support">
+            <span class="nav-dot"></span>
+            <span>Customer Support</span>
+            <span class="nav-support-badge" id="support-badge" style="display:none">0</span>
+          </a>
         </div>
 
-        <a href="#" class="nav-item" data-page="review">
-          <span class="nav-dot"></span>
-          <span>For Review</span>
-          <span class="nav-review-badge" id="review-badge" style="display:none">0</span>
-        </a>
+        <div class="nav-section-label nav-section-toggle" style="margin-top:12px" onclick="toggleNavSection('creative')">CREATIVE LAB <svg class="nav-section-chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg></div>
+        <div class="nav-section-body" id="nav-section-creative">
+          <a href="#" class="nav-item nav-cl-item" data-scripts-tab="creators">
+            <span class="nav-dot"></span>
+            <span>Content Lab</span>
+          </a>
+          <a href="#" class="nav-item nav-cl-item" data-scripts-tab="write">
+            <span class="nav-dot"></span>
+            <span>Write Script</span>
+            <span class="nav-badge">AI</span>
+          </a>
+          <a href="#" class="nav-item nav-cl-item" data-scripts-tab="rewrite">
+            <span class="nav-dot"></span>
+            <span>Rewrite Script</span>
+            <span class="nav-badge">AI</span>
+          </a>
+          <a href="#" class="nav-item nav-cl-item" data-scripts-tab="analyzer">
+            <span class="nav-dot"></span>
+            <span>Script Analyzer</span>
+            <span class="nav-badge">AI</span>
+          </a>
+          <a href="#" class="nav-item nav-cl-item" data-scripts-tab="library">
+            <span class="nav-dot"></span>
+            <span>Script Library</span>
+          </a>
+        </div>
 
-        <a href="#" class="nav-item" data-page="finance">
-          <span class="nav-dot"></span>
-          <span>Finance</span>
-        </a>
-
-        <a href="#" class="nav-item" data-page="brand-finance">
-          <span class="nav-dot"></span>
-          <span>BLC Tracker</span>
-        </a>
-
-        <a href="#" class="nav-item" data-page="support">
-          <span class="nav-dot"></span>
-          <span>Customer Support</span>
-          <span class="nav-support-badge" id="support-badge" style="display:none">0</span>
-        </a>
-
-        <div class="nav-section-label" style="margin-top:12px">CREATIVE LAB</div>
-        <a href="#" class="nav-item nav-cl-item" data-scripts-tab="creators">
-          <span class="nav-dot"></span>
-          <span>Content Lab</span>
-        </a>
-        <a href="#" class="nav-item nav-cl-item" data-scripts-tab="write">
-          <span class="nav-dot"></span>
-          <span>Write Script</span>
-          <span class="nav-badge">AI</span>
-        </a>
-        <a href="#" class="nav-item nav-cl-item" data-scripts-tab="rewrite">
-          <span class="nav-dot"></span>
-          <span>Rewrite Script</span>
-          <span class="nav-badge">AI</span>
-        </a>
-        <a href="#" class="nav-item nav-cl-item" data-scripts-tab="analyzer">
-          <span class="nav-dot"></span>
-          <span>Script Analyzer</span>
-          <span class="nav-badge">AI</span>
-        </a>
-        <a href="#" class="nav-item nav-cl-item" data-scripts-tab="library">
-          <span class="nav-dot"></span>
-          <span>Script Library</span>
-        </a>
-
-        <div class="nav-section-label" style="margin-top:12px">BBL CHALLENGE</div>
-        <a href="#" class="nav-item" data-page="challenge">
-          <span class="nav-dot"></span>
-          <span>Before & Afters</span>
-        </a>
+        <div class="nav-section-label nav-section-toggle" style="margin-top:12px" onclick="toggleNavSection('bbl')">BBL CHALLENGE <svg class="nav-section-chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg></div>
+        <div class="nav-section-body" id="nav-section-bbl">
+          <a href="#" class="nav-item" data-page="challenge">
+            <span class="nav-dot"></span>
+            <span>Before & Afters</span>
+          </a>
+        </div>
       </nav>
 
       <div class="sidebar-footer">

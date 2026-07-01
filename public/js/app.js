@@ -6891,6 +6891,27 @@ function toggleSidebar() {
   localStorage.setItem('sidebar-hidden', isHidden ? '1' : '0');
 }
 
+function toggleNavSection(id) {
+  const body = document.getElementById('nav-section-' + id);
+  if (!body) return;
+  const toggle = body.previousElementSibling;
+  const isCollapsed = body.classList.toggle('collapsed');
+  toggle?.classList.toggle('collapsed', isCollapsed);
+  const stored = JSON.parse(localStorage.getItem('nav_collapsed') || '{}');
+  stored[id] = isCollapsed;
+  localStorage.setItem('nav_collapsed', JSON.stringify(stored));
+}
+
+function restoreNavCollapsed() {
+  const stored = JSON.parse(localStorage.getItem('nav_collapsed') || '{}');
+  for (const [id, collapsed] of Object.entries(stored)) {
+    if (!collapsed) continue;
+    const body = document.getElementById('nav-section-' + id);
+    const toggle = body?.previousElementSibling;
+    if (body) { body.classList.add('collapsed'); toggle?.classList.add('collapsed'); }
+  }
+}
+
 // ============================================================
 // INIT
 // ============================================================
@@ -6903,6 +6924,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const revealBtn = document.getElementById('sidebar-reveal-btn');
     if (revealBtn) revealBtn.style.display = 'flex';
   }
+  restoreNavCollapsed();
 
   // Regular nav items (not the roster group trigger or Creative Lab items — handled separately)
   document.querySelectorAll('.nav-item:not(.nav-group-trigger):not(.nav-cl-item)').forEach(el => {
