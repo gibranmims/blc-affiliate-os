@@ -32,7 +32,7 @@ app.use(express.json());
 // ── Challenge subdomain — redirect everything to signup ───────────
 app.use((req, res, next) => {
   if (req.hostname === 'challenge.thebikiniline.co') {
-    if (req.path === '/challenge/signup' || req.path.startsWith('/challenge/checkin') || req.path.startsWith('/api/')) return next();
+    if (req.path === '/challenge/signup' || req.path.startsWith('/challenge/checkin') || req.path.startsWith('/api/') || req.path.startsWith('/img/') || req.path.startsWith('/css/') || req.path.startsWith('/js/')) return next();
     return res.redirect(301, '/challenge/signup');
   }
   next();
