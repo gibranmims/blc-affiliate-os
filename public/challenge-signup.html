@@ -389,23 +389,7 @@
       <div class="gap-lg"></div>
       <h1 class="el">We have a secret.</h1>
       <p class="body el">And you just got access to it.</p>
-      <button class="btn el" onclick="go(2)">Show me</button>
-      <div class="gap-lg"></div>
-    </div>
-  </div>
-
-  <!-- ── SCREEN 2: THE REVEAL ── -->
-  <div class="screen" id="s2">
-    <div class="inner">
-      <div class="logo el">The Bikini Line Co.</div>
-      <div class="gap-lg"></div>
-      <h1 class="el">Here's the deal.</h1>
-      <div class="body el">
-        <p>Buy BBL Serum. Use it every night for 8 weeks.</p>
-        <p>Check in every 2 weeks with a progress photo.</p>
-        <p>We give you your full $39.99 back. All of it.</p>
-      </div>
-      <button class="btn el" onclick="go(3)">How does it work?</button>
+      <button class="btn el" onclick="go(3)">Show me</button>
       <div class="gap-lg"></div>
     </div>
   </div>
@@ -573,6 +557,7 @@
 
 <script>
   let cur = 1;
+  const hist = [];
 
   function revealEls(screenEl) {
     const els = screenEl.querySelectorAll('.el');
@@ -588,14 +573,23 @@
     });
   }
 
-  function goBack() { if (cur > 1) go(cur - 1); }
+  function goBack() {
+    if (!hist.length) return;
+    const prev = hist.pop();
+    _navigate(prev);
+  }
 
   function go(n) {
     if (n === cur) return;
+    hist.push(cur);
+    _navigate(n);
+  }
+
+  function _navigate(n) {
     const from = document.getElementById('s' + cur);
     const to   = document.getElementById('s' + n);
     if (!to) return;
-    document.getElementById('back-btn').classList.toggle('visible', n > 1);
+    document.getElementById('back-btn').classList.toggle('visible', hist.length > 0);
 
     from.style.transition = 'opacity 0.28s ease';
     from.style.opacity = '0';
