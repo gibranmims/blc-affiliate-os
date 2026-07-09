@@ -12,7 +12,8 @@ const API = {
   settings:    '/api/settings',
   tasks:       '/api/tasks',
   ideas:           '/api/ideas',
-  contentCalendar: '/api/content-calendar'
+  contentCalendar: '/api/content-calendar',
+  teamCalendar:    '/api/team-calendar'
 };
 
 const STATUSES = [
@@ -55,6 +56,8 @@ const state = {
   ideas:              [],
   contentCalendar:    [],
   calWeek:            null,
+  teamCalendar:       [],
+  tcStart:            null,
   monthlyGoal:        0,
   monthlyRevenue:     0,
   bfTab:              'overview'
@@ -741,7 +744,8 @@ function navigate(page) {
     'brand-finance': renderBrandFinancePage,
     challenge:          renderChallengePage,
     support:            renderSupportPage,
-    'content-calendar': renderContentCalendarPage
+    'content-calendar': renderContentCalendarPage,
+    'team-calendar':    renderTeamCalendarPage
   };
   if (renderers[page]) renderers[page]();
 }
@@ -8589,4 +8593,300 @@ function bf_saveAccs(e) {
     amazon_deferred:   { balance: +fd.get('amazon_deferred')    || 0, updated: t }
   });
   closeModal(); showToast('Accounts updated ✓'); bf_renderAccounts();
+}
+
+/* ============================================================
+   TEAM CALENDAR
+   ============================================================ */
+
+const TEAM_MEMBERS = [
+  { key: 'gibran', name: 'Gibran', color: '#0a0a0a', initials: 'G' },
+  { key: 'lu',     name: 'Lu',     color: '#7c3aed', initials: 'L' },
+  { key: 'tamar',  name: 'Tamar',  color: '#db2777', initials: 'T' },
+];
+
+const ABSENCE_TYPES = [
+  { key: 'vacation', label: 'Vacation',      color: '#0d9488' },
+  { key: 'ooo',      label: 'Out of Office', color: '#ea580c' },
+  { key: 'slow',     label: 'Slow Response', color: '#ca8a04' },
+  { key: 'remote',   label: 'Remote',        color: '#7c3aed' },
+  { key: 'sick',     label: 'Sick Day',      color: '#dc2626' },
+];
+
+function tcAddDays(dateStr, n) {
+  const d = new Date(dateStr + 'T12:00:00');
+  d.setDate(d.getDate() + n);
+  return d.toISOString().split('T')[0];
+}
+
+function tcWeekStart(dateStr) {
+  const d = new Date((dateStr || new Date().toISOString().split('T')[0]) + 'T12:00:00');
+  const day = d.getDay();
+  d.setDate(d.getDate() - (day === 0 ? 6 : day - 1));
+  return d.toISOString().split('T')[0];
+}
+
+function tcFmtDate(dateStr) {
+  const d = new Date(dateStr + 'T12:00:00');
+  const mo = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return mo[d.getMonth()] + ' ' + d.getDate();
+}
+
+async function loadTeamCalendar() {
+  if (!state.tcStart) state.tcStart = tcWeekStart();
+  const end = tcAddDays(state.tcStart, 6);
+  try {
+    state.teamCalendar = await fetchAPI(API.teamCalendar + '?start=' + state.tcStart + '&end=' + end);
+  } catch (e) {
+    state.teamCalendar = [];
+  }
+}
+
+function tcNavigate(n) {
+  state.tcStart = tcAddDays(state.tcStart || tcWeekStart(), n * 7);
+  loadTeamCalendar().then(() => renderTeamCalendarPage());
+}
+
+async function renderTeamCalendarPage() {
+  if (!state.tcStart) state.tcStart = tcWeekStart();
+  await loadTeamCalendar();
+
+  const start = state.tcStart;
+  const today = new Date().toISOString().split('T')[0];
+  const days  = [];
+  for (let i = 0; i < 7; i++) days.push(tcAddDays(start, i));
+  const end = days[6];
+
+  const DOW      = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
+  const outToday = state.teamCalendar.filter(a => a.start_date <= today && a.end_date >= today);
+
+  function dayCell(member, d) {
+    const isToday  = d === today;
+    const dow      = new Date(d + 'T12:00:00').getDay();
+    const isWk     = dow === 0 || dow === 6;
+    const entry    = state.teamCalendar.find(a =>
+      a.member_key === member.key && a.start_date <= d && a.end_date >= d
+    );
+
+    const classes = [
+      'tc-day-cell',
+      isToday ? 'tc-today-col' : '',
+      isWk    ? 'tc-weekend-col' : '',
+      entry   ? 'tc-has-event'  : 'tc-empty-cell'
+    ].filter(Boolean).join(' ');
+
+    if (!entry) {
+      return '<div class="' + classes + '" onclick="tcOpenDrawer(\'' + member.key + '\',\'' + d + '\',null)" title="Mark as out on ' + d + '"></div>';
+    }
+
+    const at       = ABSENCE_TYPES.find(t => t.key === entry.absence_type) || ABSENCE_TYPES[0];
+    const isStart  = entry.start_date === d;
+    const isEnd    = entry.end_date   === d;
+    const pos      = (isStart && isEnd) ? 'single' : isStart ? 'start' : isEnd ? 'end' : 'mid';
+    const showLabel = isStart || (isStart && isEnd);
+
+    return '<div class="' + classes + '" onclick="tcOpenDrawer(\'' + member.key + '\',\'' + d + '\',\'' + entry.id + '\')" title="' + esc(at.label) + ': ' + tcFmtDate(entry.start_date) + ' – ' + tcFmtDate(entry.end_date) + '">' +
+      '<div class="tc-event-block tc-event-' + pos + '" style="--ec:' + at.color + '">' +
+        (showLabel ? '<span class="tc-event-label">' + at.label + '</span>' : '') +
+      '</div>' +
+    '</div>';
+  }
+
+  const bannerHtml = outToday.length === 0
+    ? '<span class="tc-banner-dot tc-dot-green"></span><span class="tc-banner-text">Everyone\'s available today</span>'
+    : outToday.map(function(a) {
+        const m  = TEAM_MEMBERS.find(t => t.key === a.member_key);
+        const at = ABSENCE_TYPES.find(t => t.key === a.absence_type);
+        return '<div class="tc-banner-chip">' +
+          '<div class="tc-chip-avatar" style="background:' + (m ? m.color : '#444') + '">' + (m ? m.initials : '?') + '</div>' +
+          '<div>' +
+            '<div class="tc-chip-name">' + (m ? m.name : a.member_key) + '</div>' +
+            '<div class="tc-chip-type" style="color:' + (at ? at.color : '#888') + '">' + (at ? at.label : a.absence_type) + ' · until ' + tcFmtDate(a.end_date) + '</div>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+
+  const colHeaders = days.map(function(d) {
+    const isToday = d === today;
+    const dow     = new Date(d + 'T12:00:00').getDay();
+    const isWk    = dow === 0 || dow === 6;
+    const num     = new Date(d + 'T12:00:00').getDate();
+    return '<div class="tc-col-head' + (isWk ? ' tc-col-weekend' : '') + '">' +
+      '<span class="tc-dow">' + DOW[dow] + '</span>' +
+      '<span class="tc-date-num' + (isToday ? ' tc-date-today' : '') + '">' + num + '</span>' +
+    '</div>';
+  }).join('');
+
+  const memberRows = TEAM_MEMBERS.map(function(member) {
+    return '<div class="tc-member-row">' +
+      '<div class="tc-name-col">' +
+        '<div class="tc-avatar" style="background:' + member.color + '">' + member.initials + '</div>' +
+        '<span class="tc-member-name">' + member.name + '</span>' +
+      '</div>' +
+      days.map(d => dayCell(member, d)).join('') +
+    '</div>';
+  }).join('');
+
+  document.getElementById('page-content').innerHTML =
+    '<div class="tc-page">' +
+
+      '<div class="tc-header">' +
+        '<div>' +
+          '<h1 class="page-title" style="margin-bottom:3px">Team Calendar</h1>' +
+          '<p class="tc-subtitle">Track who\'s out, on vacation, or unavailable</p>' +
+        '</div>' +
+        '<div style="display:flex;align-items:center;gap:10px">' +
+          '<div class="tc-nav-controls">' +
+            '<button class="tc-nav-btn" onclick="tcNavigate(-1)">' +
+              '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>' +
+            '</button>' +
+            '<span class="tc-nav-label">' + tcFmtDate(start) + ' – ' + tcFmtDate(end) + '</span>' +
+            '<button class="tc-nav-btn" onclick="tcNavigate(1)">' +
+              '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>' +
+            '</button>' +
+          '</div>' +
+          '<button class="btn btn-secondary btn-sm" onclick="tcOpenDrawer(null,null,null)">+ Add</button>' +
+        '</div>' +
+      '</div>' +
+
+      '<div class="tc-banner">' + bannerHtml + '</div>' +
+
+      '<div class="tc-grid-wrap">' +
+        '<div class="tc-col-row">' +
+          '<div class="tc-name-stub"></div>' +
+          colHeaders +
+        '</div>' +
+        memberRows +
+      '</div>' +
+
+    '</div>';
+}
+
+/* ── Team Calendar Drawer ─────────────────────────────────── */
+
+let tcSelMember = null, tcSelType = null;
+
+function tcOpenDrawer(memberKey, dateStr, existingId) {
+  const entry    = existingId ? state.teamCalendar.find(a => a.id === existingId) : null;
+  tcSelMember    = entry ? entry.member_key    : (memberKey || TEAM_MEMBERS[0].key);
+  tcSelType      = entry ? entry.absence_type  : 'vacation';
+  const curStart = entry ? entry.start_date    : (dateStr || '');
+  const curEnd   = entry ? entry.end_date      : (dateStr || '');
+
+  document.getElementById('detail-drawer-title').textContent = entry ? 'Edit Absence' : 'Mark as Out';
+
+  document.getElementById('detail-drawer-body').innerHTML =
+    '<div style="padding:0 0 8px">' +
+
+      '<div class="cc-form-row">' +
+        '<label class="cc-label">Team Member</label>' +
+        '<div class="cc-type-pills">' +
+          TEAM_MEMBERS.map(function(m) {
+            return '<button class="cc-type-pill' + (tcSelMember === m.key ? ' cc-type-active' : '') + '" ' +
+              'data-tc-field="member" data-tc-val="' + m.key + '" ' +
+              'onclick="tcPickField(this,\'member\')">' +
+              '<span style="display:inline-flex;width:18px;height:18px;border-radius:50%;background:' + m.color + ';align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff;margin-right:5px">' + m.initials + '</span>' +
+              m.name +
+            '</button>';
+          }).join('') +
+        '</div>' +
+      '</div>' +
+
+      '<div class="cc-form-row">' +
+        '<label class="cc-label">Type</label>' +
+        '<div class="cc-type-pills" style="flex-wrap:wrap;gap:6px">' +
+          ABSENCE_TYPES.map(function(t) {
+            return '<button class="cc-type-pill' + (tcSelType === t.key ? ' cc-type-active' : '') + '" ' +
+              'data-tc-field="type" data-tc-val="' + t.key + '" ' +
+              'onclick="tcPickField(this,\'type\')">' +
+              '<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:' + t.color + ';margin-right:5px;flex-shrink:0"></span>' +
+              t.label +
+            '</button>';
+          }).join('') +
+        '</div>' +
+      '</div>' +
+
+      '<div class="cc-form-row" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">' +
+        '<div>' +
+          '<label class="cc-label">From</label>' +
+          '<input type="date" class="dp-input" id="tc-start" value="' + curStart + '">' +
+        '</div>' +
+        '<div>' +
+          '<label class="cc-label">Until <span style="opacity:0.45;font-weight:400">(inclusive)</span></label>' +
+          '<input type="date" class="dp-input" id="tc-end" value="' + curEnd + '">' +
+        '</div>' +
+      '</div>' +
+
+      '<div class="cc-form-row">' +
+        '<label class="cc-label">Notes <span style="opacity:0.45;font-weight:400">(optional)</span></label>' +
+        '<textarea class="dp-input" id="tc-notes" rows="3" placeholder="e.g. no cell service, back Monday…" style="resize:vertical">' + esc(entry ? (entry.notes || '') : '') + '</textarea>' +
+      '</div>' +
+
+      '<div class="cc-drawer-actions" style="margin-top:16px">' +
+        '<button class="btn btn-primary" onclick="tcSave(\'' + (existingId || '') + '\')">' + (entry ? 'Save Changes' : 'Add to Calendar') + '</button>' +
+        (entry ? '<button class="btn btn-secondary" onclick="tcDelete(\'' + entry.id + '\')">Remove</button>' : '') +
+      '</div>' +
+
+    '</div>';
+
+  document.getElementById('detail-panel').style.display = 'flex';
+}
+
+function tcPickField(btn, field) {
+  const val   = btn.dataset.tcVal;
+  const group = btn.closest('.cc-type-pills');
+  group.querySelectorAll('.cc-type-pill').forEach(b => b.classList.remove('cc-type-active'));
+  btn.classList.add('cc-type-active');
+  if (field === 'member') tcSelMember = val;
+  else                    tcSelType   = val;
+}
+
+async function tcSave(existingId) {
+  const member_key   = tcSelMember || TEAM_MEMBERS[0].key;
+  const absence_type = tcSelType   || 'vacation';
+  const start_date   = (document.getElementById('tc-start') || {}).value;
+  const end_date     = (document.getElementById('tc-end')   || {}).value;
+  const notes        = ((document.getElementById('tc-notes') || {}).value || '').trim();
+
+  if (!start_date || !end_date) return showToast('Set start and end dates', 'error');
+  if (end_date < start_date)    return showToast('End date must be on or after start', 'error');
+
+  const payload = { member_key, absence_type, start_date, end_date, notes: notes || null };
+
+  try {
+    if (existingId) {
+      const updated = await fetchAPI(API.teamCalendar + '/' + existingId, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const idx = state.teamCalendar.findIndex(a => a.id === existingId);
+      if (idx !== -1) state.teamCalendar[idx] = updated;
+    } else {
+      const created = await fetchAPI(API.teamCalendar, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      state.teamCalendar.push(created);
+    }
+    closeDetailPanel();
+    renderTeamCalendarPage();
+    showToast('Saved ✓');
+  } catch (e) {
+    showToast((e && e.message) || 'Error saving', 'error');
+  }
+}
+
+async function tcDelete(id) {
+  if (!confirm('Remove this absence from the calendar?')) return;
+  try {
+    await fetchAPI(API.teamCalendar + '/' + id, { method: 'DELETE' });
+    state.teamCalendar = state.teamCalendar.filter(a => a.id !== id);
+    closeDetailPanel();
+    renderTeamCalendarPage();
+    showToast('Removed');
+  } catch (e) {
+    showToast((e && e.message) || 'Error', 'error');
+  }
 }

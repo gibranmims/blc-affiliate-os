@@ -7984,3 +7984,274 @@ h1, h2 { letter-spacing: -0.025em; }
 
 /* ── Page title on grey canvas ──────────────────────────────── */
 .page-hero { background: transparent; }
+
+/* ============================================================
+   TEAM CALENDAR — Google-Calendar-style team availability view
+   ============================================================ */
+
+.tc-page {
+  padding: 28px 24px 32px;
+}
+
+.tc-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 18px;
+}
+
+.tc-subtitle {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+/* ── Navigation controls ──────────────────────────────────── */
+.tc-nav-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255,255,255,0.88);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 4px 8px;
+}
+
+.tc-nav-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  padding: 4px 5px;
+  border-radius: 6px;
+  transition: background 0.12s;
+}
+.tc-nav-btn:hover { background: rgba(0,0,0,0.06); }
+
+.tc-nav-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  padding: 0 6px;
+  white-space: nowrap;
+}
+
+/* ── Who's Out Banner ─────────────────────────────────────── */
+.tc-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255,255,255,0.88);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border-light);
+  border-radius: 14px;
+  padding: 12px 18px;
+  margin-bottom: 20px;
+  min-height: 52px;
+  flex-wrap: wrap;
+}
+
+.tc-banner-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.tc-dot-green { background: #16a34a; }
+
+.tc-banner-text {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.tc-banner-chip {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  background: rgba(0,0,0,0.04);
+  border-radius: 10px;
+  padding: 6px 12px;
+}
+
+.tc-chip-avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.tc-chip-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+
+.tc-chip-type {
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+/* ── Calendar Grid ────────────────────────────────────────── */
+.tc-grid-wrap {
+  background: rgba(255,255,255,0.88);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border-light);
+  border-radius: 18px;
+  overflow: hidden;
+}
+
+/* Column header row + member rows share same grid */
+.tc-col-row,
+.tc-member-row {
+  display: grid;
+  /* name col: 120px, then 7 equal day cols */
+  grid-template-columns: 120px repeat(7, 1fr);
+  column-gap: 0;
+}
+
+.tc-member-row {
+  border-top: 1px solid rgba(0,0,0,0.05);
+}
+
+/* Column header: day + date */
+.tc-name-stub { /* spacer for name column */ }
+
+.tc-col-head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 14px 4px 12px;
+}
+
+.tc-col-weekend {
+  background: rgba(0,0,0,0.018);
+}
+
+.tc-dow {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.tc-date-num {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background 0.15s;
+}
+
+.tc-date-today {
+  background: var(--accent);
+  color: #fff !important;
+}
+
+/* ── Name column ──────────────────────────────────────────── */
+.tc-name-col {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 0 14px;
+  border-right: 1px solid rgba(0,0,0,0.05);
+}
+
+.tc-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.tc-member-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+/* ── Day cells ────────────────────────────────────────────── */
+.tc-day-cell {
+  position: relative;
+  height: 68px;
+  cursor: pointer;
+  border-right: 1px solid rgba(0,0,0,0.04);
+  transition: background 0.1s;
+}
+
+.tc-empty-cell:hover { background: rgba(0,0,0,0.025); }
+.tc-today-col        { background: rgba(10,10,10,0.025); }
+.tc-weekend-col      { background: rgba(0,0,0,0.018); }
+
+/* ── Absence event blocks (absolutely positioned in cell) ─── */
+.tc-event-block {
+  position: absolute;
+  top: 10px;
+  bottom: 10px;
+  left: 0;
+  right: 0;
+  background: color-mix(in srgb, var(--ec) 14%, white);
+  border-top: 2.5px solid var(--ec);
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  pointer-events: none;   /* clicks fall through to the cell */
+}
+
+/* Start: rounded left, margin from left edge */
+.tc-event-start {
+  left: 5px;
+  border-radius: 6px 0 0 6px;
+}
+
+/* Mid: flush — seamlessly connects start→end */
+/* .tc-event-mid { } */
+
+/* End: rounded right, margin from right edge */
+.tc-event-end {
+  right: 5px;
+  border-radius: 0 6px 6px 0;
+}
+
+/* Single day: fully rounded pill */
+.tc-event-single {
+  left: 5px;
+  right: 5px;
+  border-radius: 6px;
+}
+
+.tc-event-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--ec);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding-left: 8px;
+  pointer-events: none;
+}
