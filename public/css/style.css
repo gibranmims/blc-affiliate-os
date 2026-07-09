@@ -1724,7 +1724,7 @@ body {
 }
 
 .detail-drawer {
-  width: 460px;
+  width: 580px;
   background: var(--bg-secondary);
   border-left: 1px solid var(--border-light);
   display: flex;
