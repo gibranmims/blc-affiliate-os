@@ -18,6 +18,7 @@ const challengeAdminRoutes = require('./routes/challenge-admin');
 const tasksRoutes          = require('./routes/tasks');
 const ideasRoutes          = require('./routes/ideas');
 const contentCalendarRoutes = require('./routes/content-calendar');
+const contentIdeasRoutes    = require('./routes/content-ideas');
 const teamCalendarRoutes    = require('./routes/team-calendar');
 const { requireAuth } = require('./middleware/auth');
 const { startCron } = require('./cron/reminders');
@@ -100,6 +101,7 @@ app.use('/api/challenge', challengeAdminRoutes);
 app.use('/api/tasks',             tasksRoutes);
 app.use('/api/ideas',             ideasRoutes);
 app.use('/api/content-calendar',  contentCalendarRoutes);
+app.use('/api/content-ideas',     contentIdeasRoutes);
 app.use('/api/team-calendar',     teamCalendarRoutes);
 
 // ── SPA fallback (serves index.html for all other GET requests) ───

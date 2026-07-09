@@ -406,18 +406,25 @@ router.post('/create-contract', async (req, res) => {
     const drive = google.drive({ version: 'v3', auth: oauth2Client });
     const docs  = google.docs({ version: 'v1', auth: oauth2Client });
 
-    // 1. Create creator folder inside TikTok Affiliates folder
-    const folderRes = await drive.files.create({
-      requestBody: {
-        name: `${creatorName} (@${handle})`,
-        mimeType: 'application/vnd.google-apps.folder',
-        parents: [FOLDER_ID]
-      },
-      fields: 'id'
+    // 1. Find or create creator folder inside TikTok Affiliates folder
+    const folderName = `${creatorName} (@${handle})`;
+    const existingFolders = await drive.files.list({
+      q: `name='${folderName.replace(/'/g, "\\'")}' and '${FOLDER_ID}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+      fields: 'files(id)',
+      pageSize: 1
     });
-    const folderId = folderRes.data.id;
+    let folderId;
+    if (existingFolders.data.files.length > 0) {
+      folderId = existingFolders.data.files[0].id;
+    } else {
+      const folderRes = await drive.files.create({
+        requestBody: { name: folderName, mimeType: 'application/vnd.google-apps.folder', parents: [FOLDER_ID] },
+        fields: 'id'
+      });
+      folderId = folderRes.data.id;
+    }
 
-    // 2. Copy template into the new folder
+    // 2. Copy template into the folder
     const copyRes = await drive.files.copy({
       fileId: TEMPLATE_ID,
       requestBody: {
@@ -534,16 +541,28 @@ router.post('/sign-flow', async (req, res) => {
     const drive = google.drive({ version: 'v3', auth: driveAuth });
     const docs  = google.docs({ version: 'v1', auth: driveAuth });
 
-    // Create creator folder
-    const folderRes = await drive.files.create({
-      requestBody: { name: `${creatorName} (@${handle})`, mimeType: 'application/vnd.google-apps.folder', parents: [FOLDER_ID] },
-      fields: 'id'
+    // Find or create creator folder (reuse if one already exists for this creator)
+    const folderName = `${creatorName} (@${handle})`;
+    const existingFolders = await drive.files.list({
+      q: `name='${folderName.replace(/'/g, "\\'")}' and '${FOLDER_ID}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+      fields: 'files(id)',
+      pageSize: 1
     });
+    let folderId;
+    if (existingFolders.data.files.length > 0) {
+      folderId = existingFolders.data.files[0].id;
+    } else {
+      const folderRes = await drive.files.create({
+        requestBody: { name: folderName, mimeType: 'application/vnd.google-apps.folder', parents: [FOLDER_ID] },
+        fields: 'id'
+      });
+      folderId = folderRes.data.id;
+    }
 
     // Copy template
     const copyRes = await drive.files.copy({
       fileId: TEMPLATE_ID,
-      requestBody: { name: `${creatorName} - BLC Partnership Agreement`, parents: [folderRes.data.id] },
+      requestBody: { name: `${creatorName} - BLC Partnership Agreement`, parents: [folderId] },
       fields: 'id'
     });
     const docId = copyRes.data.id;

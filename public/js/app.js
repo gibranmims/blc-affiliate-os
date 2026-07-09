@@ -13,6 +13,7 @@ const API = {
   tasks:       '/api/tasks',
   ideas:           '/api/ideas',
   contentCalendar: '/api/content-calendar',
+  contentIdeas:    '/api/content-ideas',
   teamCalendar:    '/api/team-calendar'
 };
 
@@ -55,6 +56,7 @@ const state = {
   tasks:              [],
   ideas:              [],
   contentCalendar:    [],
+  contentIdeas:       [],
   calWeek:            null,
   teamCalendar:       [],
   tcStart:            null,
@@ -4486,7 +4488,17 @@ function showAddVideoForm(rosterId) {
 }
 
 function renderCreatorGrid() {
-  const creators = state.roster.filter(r => (r.affiliate_type !== 'free' || !r.affiliate_type) && r.status !== 'inactive');
+  const creators = state.roster.filter(r => {
+    if (r.affiliate_type === 'free') return false;
+    if (r.status === 'inactive') return false;
+    if (r.contract_month) return r.contract_month === state.rosterMonth;
+    const startMonth = r.start_date ? r.start_date.slice(0, 7) : null;
+    if (!startMonth) return true;
+    const remaining = (parseInt(r.video_count) || 0) > 0
+      ? Math.max(0, (parseInt(r.video_count) || 0) - (parseInt(r.content_submitted) || 0))
+      : null;
+    return startMonth === state.rosterMonth || (startMonth < state.rosterMonth && (remaining === null || remaining > 0));
+  });
   if (creators.length === 0) {
     return `<div class="empty-state"><div class="empty-icon">👥</div><h3>No creators on your roster yet</h3><p>Add creators to your Roster to track their content here</p><button class="btn btn-primary" onclick="navigate('roster')">Go to Roster</button></div>`;
   }
@@ -4522,6 +4534,7 @@ function renderCreatorGrid() {
             </div>
             <div class="cl-card-badges">
               ${r.tier ? `<span class="grade-badge grade-${r.tier}">${r.tier}</span>` : ''}
+              <button class="cl-card-delete" onclick="event.stopPropagation();clDeleteCreator('${r.id}')" title="Remove from roster">×</button>
             </div>
           </div>
           <div class="cl-card-stats">
@@ -4547,6 +4560,17 @@ function renderCreatorGrid() {
         </div>`;
       }).join('')}
     </div>`;
+}
+
+async function clDeleteCreator(id) {
+  if (!confirm('Remove this creator from the roster?')) return;
+  try {
+    await fetchAPI(`${API.roster}/${id}`, { method: 'DELETE' });
+    state.roster = state.roster.filter(r => r.id !== id);
+    const body = document.getElementById('cl-tab-body');
+    if (body) body.innerHTML = renderCreatorsTab();
+    showToast('Creator removed');
+  } catch (err) { showToast(err.message, 'error'); }
 }
 
 function renderCreatorContentProfile(id) {
@@ -6756,78 +6780,90 @@ function renderContentCalendarPage() {
 
   document.getElementById('page-content').innerHTML = `
     <div class="cc-page">
-      <div class="cc-header">
-        <div class="cc-header-left">
-          <h1 class="page-title" style="margin-bottom:4px">Content Calendar</h1>
-          <p class="cc-subtitle">4 channels · plan, script, and track every post</p>
-        </div>
-        <div class="cc-week-nav">
-          <button class="cc-week-btn" onclick="ccNavigateWeek(-1)">←</button>
-          <span class="cc-week-label">${ccWeekLabel(week)}</span>
-          <button class="cc-week-btn" onclick="ccNavigateWeek(1)">→</button>
-          ${!isThisWeek ? `<button class="btn btn-secondary btn-sm" onclick="ccGoToThisWeek()" style="margin-left:8px">This week</button>` : ''}
-        </div>
-      </div>
-
-      <div class="cc-board">
-        <div class="cc-col-headers">
-          <div class="cc-platform-stub"></div>
-          ${CC_DAYS.map((day, i) => {
-            const d = new Date(week + 'T12:00:00');
-            d.setDate(d.getDate() + i);
-            const isToday = d.getDate() === today.getDate() && d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear();
-            return `<div class="cc-col-head${isToday ? ' cc-col-today' : ''}">
-              <span class="cc-col-day">${day}</span>
-              <span class="cc-col-date${isToday ? ' cc-col-date-today' : ''}">${d.getDate()}</span>
-            </div>`;
-          }).join('')}
+      <div class="cc-main">
+        <div class="cc-header">
+          <div class="cc-header-left">
+            <h1 class="page-title" style="margin-bottom:4px">Content Calendar</h1>
+            <p class="cc-subtitle">4 channels · plan, script, and track every post</p>
+          </div>
+          <div class="cc-week-nav">
+            <button class="cc-week-btn" onclick="ccNavigateWeek(-1)">←</button>
+            <span class="cc-week-label">${ccWeekLabel(week)}</span>
+            <button class="cc-week-btn" onclick="ccNavigateWeek(1)">→</button>
+            ${!isThisWeek ? `<button class="btn btn-secondary btn-sm" onclick="ccGoToThisWeek()" style="margin-left:8px">This week</button>` : ''}
+          </div>
         </div>
 
-        ${ccOrderedPlatforms().map(platform => `
-          <div class="cc-platform-row"
-            ondragover="ccDragOver(event,'${platform.key}')"
-            ondragleave="ccDragLeave(event)"
-            ondrop="ccDrop(event,'${platform.key}')">
-            <div class="cc-platform-label"
-              draggable="true"
-              ondragstart="ccDragStart(event,'${platform.key}')"
-              ondragend="ccDragEnd(event)">
-              <span class="cc-drag-handle">
-                <svg width="8" height="14" viewBox="0 0 8 14" fill="currentColor">
-                  <circle cx="2" cy="2" r="1.3"/><circle cx="6" cy="2" r="1.3"/>
-                  <circle cx="2" cy="7" r="1.3"/><circle cx="6" cy="7" r="1.3"/>
-                  <circle cx="2" cy="12" r="1.3"/><circle cx="6" cy="12" r="1.3"/>
-                </svg>
-              </span>
-              <span class="cc-platform-name" id="cc-pname-${platform.key}"
-                ondblclick="ccEditPlatformName('${platform.key}',event)"
-                title="Double-click to rename">${ccGetLabel(platform.key)}</span>
-            </div>
+        <div class="cc-board">
+          <div class="cc-col-headers">
+            <div class="cc-platform-stub"></div>
             ${CC_DAYS.map((day, i) => {
-              const entry = state.contentCalendar.find(e =>
-                (e.platform || 'tiktok_blc') === platform.key && e.day_of_week === i
-              );
-              if (entry && (entry.title || entry.script_text || entry.script_url)) {
-                const status = ccStatusObj(entry.status);
-                const typeObj = CC_CONTENT_TYPES.find(t => t.key === (entry.content_type || 'script'));
-                const typeLabel = typeObj?.label || 'Script';
-                const preview = entry.script_text ? entry.script_text.slice(0, 100).replace(/\n/g, ' ') : '';
-                return `<div class="cc-cell cc-cell-filled" onclick="ccOpenPostDrawer('${platform.key}', ${i})">
-                  <div class="cc-cell-top">
-                    <span class="cc-cell-type">${typeLabel}</span>
-                    <span class="cc-cell-dot" style="background:${status.color}" title="${status.label}"></span>
-                  </div>
-                  ${entry.title ? `<div class="cc-cell-title">${esc(entry.title)}</div>` : ''}
-                  ${preview ? `<div class="cc-cell-preview">${esc(preview)}${entry.script_text?.length > 100 ? '…' : ''}</div>` : ''}
-                </div>`;
-              }
-              return `<div class="cc-cell cc-cell-empty" onclick="ccOpenPostDrawer('${platform.key}', ${i})">
-                <span class="cc-cell-add">+ Add</span>
+              const d = new Date(week + 'T12:00:00');
+              d.setDate(d.getDate() + i);
+              const isToday = d.getDate() === today.getDate() && d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear();
+              return `<div class="cc-col-head${isToday ? ' cc-col-today' : ''}">
+                <span class="cc-col-day">${day}</span>
+                <span class="cc-col-date${isToday ? ' cc-col-date-today' : ''}">${d.getDate()}</span>
               </div>`;
             }).join('')}
           </div>
-        `).join('')}
+
+          ${ccOrderedPlatforms().map(platform => `
+            <div class="cc-platform-row"
+              ondragover="ccDragOver(event,'${platform.key}')"
+              ondragleave="ccDragLeave(event)"
+              ondrop="ccDrop(event,'${platform.key}')">
+              <div class="cc-platform-label"
+                draggable="true"
+                ondragstart="ccDragStart(event,'${platform.key}')"
+                ondragend="ccDragEnd(event)">
+                <span class="cc-drag-handle">
+                  <svg width="8" height="14" viewBox="0 0 8 14" fill="currentColor">
+                    <circle cx="2" cy="2" r="1.3"/><circle cx="6" cy="2" r="1.3"/>
+                    <circle cx="2" cy="7" r="1.3"/><circle cx="6" cy="7" r="1.3"/>
+                    <circle cx="2" cy="12" r="1.3"/><circle cx="6" cy="12" r="1.3"/>
+                  </svg>
+                </span>
+                <span class="cc-platform-name" id="cc-pname-${platform.key}"
+                  ondblclick="ccEditPlatformName('${platform.key}',event)"
+                  title="Double-click to rename">${ccGetLabel(platform.key)}</span>
+              </div>
+              ${CC_DAYS.map((day, i) => {
+                const entry = state.contentCalendar.find(e =>
+                  (e.platform || 'tiktok_blc') === platform.key && e.day_of_week === i
+                );
+                if (entry && (entry.title || entry.script_text || entry.script_url)) {
+                  const status = ccStatusObj(entry.status);
+                  const typeObj = CC_CONTENT_TYPES.find(t => t.key === (entry.content_type || 'script'));
+                  const typeLabel = typeObj?.label || 'Script';
+                  const preview = entry.script_text ? entry.script_text.slice(0, 100).replace(/\n/g, ' ') : '';
+                  return `<div class="cc-cell cc-cell-filled"
+                    onclick="ccOpenPostDrawer('${platform.key}', ${i})"
+                    ondragover="ibCellDragOver(event)"
+                    ondragleave="ibCellDragLeave(event)"
+                    ondrop="ibCellDrop(event,'${platform.key}',${i})">
+                    <div class="cc-cell-top">
+                      <span class="cc-cell-type">${typeLabel}</span>
+                      <span class="cc-cell-dot" style="background:${status.color}" title="${status.label}"></span>
+                    </div>
+                    ${entry.title ? `<div class="cc-cell-title">${esc(entry.title)}</div>` : ''}
+                    ${preview ? `<div class="cc-cell-preview">${esc(preview)}${entry.script_text?.length > 100 ? '…' : ''}</div>` : ''}
+                  </div>`;
+                }
+                return `<div class="cc-cell cc-cell-empty"
+                  onclick="ccOpenPostDrawer('${platform.key}', ${i})"
+                  ondragover="ibCellDragOver(event)"
+                  ondragleave="ibCellDragLeave(event)"
+                  ondrop="ibCellDrop(event,'${platform.key}',${i})">
+                  <span class="cc-cell-add">+ Add</span>
+                </div>`;
+              }).join('')}
+            </div>
+          `).join('')}
+        </div>
       </div>
+
+      ${renderIdeaBank()}
     </div>
   `;
 }
@@ -6979,6 +7015,7 @@ function ccDragStart(event, key) {
 }
 
 function ccDragOver(event, key) {
+  if (_ibDragId) return; // idea-bank drag — cells handle it
   event.preventDefault();
   event.dataTransfer.dropEffect = 'move';
   document.querySelectorAll('.cc-platform-row').forEach(r => r.classList.remove('cc-drag-over'));
@@ -6992,6 +7029,7 @@ function ccDragLeave(event) {
 }
 
 function ccDrop(event, targetKey) {
+  if (_ibDragId) return; // idea-bank drag — cells handle it
   event.preventDefault();
   document.querySelectorAll('.cc-platform-row').forEach(r => r.classList.remove('cc-drag-over'));
   if (!_ccDragKey || _ccDragKey === targetKey) return;
@@ -7010,6 +7048,258 @@ function ccDragEnd(event) {
   document.querySelectorAll('.cc-platform-row').forEach(r => {
     r.classList.remove('cc-dragging', 'cc-drag-over');
   });
+}
+
+// ============================================================
+// IDEA BANK
+// ============================================================
+
+let _ibDragId = null;
+let _ibOpen   = (function() { try { return JSON.parse(localStorage.getItem('ibOpen') ?? 'true'); } catch { return true; } })();
+
+async function loadContentIdeas() {
+  state.contentIdeas = await fetchAPI(API.contentIdeas);
+}
+
+function renderIdeaBank() {
+  const ideas = state.contentIdeas || [];
+  return `
+    <div class="cc-bank${_ibOpen ? '' : ' cc-bank-collapsed'}" id="cc-bank">
+      <div class="cc-bank-header">
+        <span class="cc-bank-title">Idea Bank</span>
+        <div style="display:flex;gap:6px;align-items:center">
+          ${_ibOpen ? `<button class="btn btn-primary btn-sm" onclick="ibNewIdea()">+ New</button>` : ''}
+          <button class="cc-bank-toggle" onclick="ibToggleBank()" title="${_ibOpen ? 'Collapse' : 'Expand'}">
+            ${_ibOpen ? '‹' : '›'}
+          </button>
+        </div>
+      </div>
+      ${_ibOpen ? `
+      <div class="cc-bank-list" id="ib-list">
+        ${ideas.length === 0
+          ? `<div class="ib-empty"><p style="font-weight:500;margin-bottom:4px">No ideas yet</p><p style="font-size:12px;color:var(--text-muted)">Click + New to add one, then drag it onto the calendar.</p></div>`
+          : ideas.map(idea => `
+            <div class="ib-card"
+              draggable="true"
+              ondragstart="ibDragStart(event,'${idea.id}')"
+              ondragend="ibDragEnd(event)"
+              onclick="ibOpenDrawer('${idea.id}')">
+              <div class="ib-card-title">${esc(idea.title || 'Untitled')}</div>
+              ${idea.channel ? `<div class="ib-card-channel">${ccGetLabel(idea.channel)}</div>` : ''}
+              <div class="ib-card-badges">
+                ${ibStatusBadge(idea.status)}
+                ${ibTypeBadge(idea.content_type)}
+              </div>
+            </div>
+          `).join('')
+        }
+      </div>` : ''}
+    </div>`;
+}
+
+function ibStatusBadge(status) {
+  const s = CC_STATUSES.find(x => x.key === status) || CC_STATUSES[0];
+  return `<span class="ib-badge" style="background:${s.color}18;color:${s.color}">${s.label}</span>`;
+}
+
+function ibTypeBadge(type) {
+  const t = CC_CONTENT_TYPES.find(x => x.key === type);
+  if (!t || t.key === 'script') return '';
+  return `<span class="ib-badge" style="background:rgba(0,0,0,0.06);color:var(--text-muted)">${t.label}</span>`;
+}
+
+function ibToggleBank() {
+  _ibOpen = !_ibOpen;
+  localStorage.setItem('ibOpen', JSON.stringify(_ibOpen));
+  renderContentCalendarPage();
+}
+
+function ibNewIdea() {
+  ccSelectedStatus = null;
+  ccSelectedType   = null;
+  ibOpenDrawer(null);
+}
+
+function ibOpenDrawer(id) {
+  const idea = id ? state.contentIdeas.find(i => i.id === id) : null;
+  ccSelectedStatus = null;
+  ccSelectedType   = null;
+
+  document.getElementById('detail-drawer-title').textContent = idea ? 'Edit Idea' : 'New Idea';
+  document.getElementById('detail-drawer-body').innerHTML = `
+    <div class="cc-drawer">
+      <div class="cc-form-row">
+        <label class="cc-label">Title</label>
+        <input type="text" class="dp-input" id="ib-title"
+          value="${esc(idea?.title || '')}" placeholder="Hook, angle, or topic…">
+      </div>
+
+      <div class="cc-form-row">
+        <label class="cc-label">Channel <span style="font-weight:400;opacity:0.55">(optional)</span></label>
+        <select class="dp-input" id="ib-channel">
+          <option value="">Any channel</option>
+          ${CC_PLATFORMS.map(p => `
+            <option value="${p.key}"${idea?.channel === p.key ? ' selected' : ''}>${ccGetLabel(p.key)}</option>
+          `).join('')}
+        </select>
+      </div>
+
+      <div class="cc-form-row">
+        <label class="cc-label">Content Type</label>
+        <div class="cc-type-pills">
+          ${CC_CONTENT_TYPES.map(t => `
+            <button class="cc-type-pill${(idea?.content_type || 'script') === t.key ? ' cc-type-active' : ''}"
+              data-type="${t.key}" onclick="ccSelectType(this,'${t.key}')">${t.label}</button>
+          `).join('')}
+        </div>
+      </div>
+
+      <div class="cc-form-row">
+        <label class="cc-label">Status</label>
+        <div class="cc-status-pills">
+          ${CC_STATUSES.map(s => {
+            const active = (idea?.status || 'idea') === s.key;
+            return `<button class="cc-status-pill${active ? ' cc-status-active' : ''}"
+              style="${active
+                ? `background:${s.color};color:#fff;border-color:${s.color}`
+                : `color:${s.color};border-color:${s.color}40`}"
+              data-status="${s.key}" onclick="ccSelectStatus(this,'${s.key}','${s.color}')">
+              ${s.label}</button>`;
+          }).join('')}
+        </div>
+      </div>
+
+      <div class="cc-form-row">
+        <label class="cc-label">Script</label>
+        <textarea class="dp-input cc-script-input" id="ib-script" rows="10"
+          placeholder="Write or paste your script here…">${esc(idea?.script_text || '')}</textarea>
+      </div>
+
+      <div class="cc-form-row">
+        <label class="cc-label">Notes</label>
+        <textarea class="dp-input" id="ib-notes" rows="3"
+          placeholder="References, context, inspiration…" style="resize:vertical">${esc(idea?.notes || '')}</textarea>
+      </div>
+
+      <div class="cc-drawer-actions">
+        <button class="btn btn-primary" onclick="ibSaveIdea('${idea?.id || ''}')">
+          ${idea ? 'Save Changes' : 'Add to Bank'}
+        </button>
+        ${idea ? `<button class="btn btn-secondary" onclick="ibDeleteIdea('${idea.id}')">Delete</button>` : ''}
+      </div>
+    </div>
+  `;
+  document.getElementById('detail-panel').style.display = 'flex';
+}
+
+async function ibSaveIdea(id) {
+  const title        = document.getElementById('ib-title')?.value?.trim() || '';
+  const channel      = document.getElementById('ib-channel')?.value || null;
+  const script_text  = document.getElementById('ib-script')?.value?.trim() || '';
+  const notes        = document.getElementById('ib-notes')?.value?.trim() || '';
+  const status       = ccSelectedStatus
+    || document.querySelector('.cc-status-pill.cc-status-active')?.dataset?.status || 'idea';
+  const content_type = ccSelectedType
+    || document.querySelector('.cc-type-pill.cc-type-active')?.dataset?.type || 'script';
+
+  if (!title) { showToast('Add a title first', 'error'); return; }
+
+  try {
+    const body = { title, channel: channel || null, script_text, notes, status, content_type };
+    if (id) {
+      const updated = await fetchAPI(`${API.contentIdeas}/${id}`, { method: 'PUT', body: JSON.stringify(body) });
+      const idx = state.contentIdeas.findIndex(i => i.id === id);
+      if (idx !== -1) state.contentIdeas[idx] = updated;
+    } else {
+      const created = await fetchAPI(API.contentIdeas, { method: 'POST', body: JSON.stringify(body) });
+      state.contentIdeas.unshift(created);
+    }
+    ccSelectedStatus = null;
+    ccSelectedType   = null;
+    closeDetailPanel();
+    renderContentCalendarPage();
+    showToast(id ? 'Idea updated' : 'Added to bank');
+  } catch (err) { showToast(err.message, 'error'); }
+}
+
+async function ibDeleteIdea(id) {
+  if (!confirm('Delete this idea?')) return;
+  try {
+    await fetchAPI(`${API.contentIdeas}/${id}`, { method: 'DELETE' });
+    state.contentIdeas = state.contentIdeas.filter(i => i.id !== id);
+    closeDetailPanel();
+    renderContentCalendarPage();
+    showToast('Idea deleted');
+  } catch (err) { showToast(err.message, 'error'); }
+}
+
+/* ── Drag from bank onto calendar cell ── */
+function ibDragStart(event, ideaId) {
+  _ibDragId  = ideaId;
+  _ccDragKey = null;
+  event.dataTransfer.effectAllowed = 'copy';
+  event.currentTarget.classList.add('ib-dragging');
+}
+
+function ibDragEnd(event) {
+  _ibDragId = null;
+  event.currentTarget?.classList.remove('ib-dragging');
+  document.querySelectorAll('.cc-cell-drop-target').forEach(el => el.classList.remove('cc-cell-drop-target'));
+}
+
+function ibCellDragOver(event) {
+  if (!_ibDragId) return;
+  event.preventDefault();
+  event.stopPropagation(); // prevent row reorder handler from firing
+  event.dataTransfer.dropEffect = 'copy';
+  event.currentTarget.classList.add('cc-cell-drop-target');
+}
+
+function ibCellDragLeave(event) {
+  event.currentTarget.classList.remove('cc-cell-drop-target');
+}
+
+function ibCellDrop(event, platformKey, dayIdx) {
+  event.stopPropagation();
+  event.currentTarget.classList.remove('cc-cell-drop-target');
+  if (!_ibDragId) return;
+  const id = _ibDragId;
+  _ibDragId = null;
+
+  const idea = state.contentIdeas.find(i => i.id === id);
+  if (!idea) return;
+
+  const existing = state.contentCalendar.find(e =>
+    (e.platform || 'tiktok_blc') === platformKey && e.day_of_week === dayIdx
+  );
+  if (existing) {
+    showToast('That slot already has content — click to edit it', 'error');
+    return;
+  }
+
+  ibScheduleIdea(idea, platformKey, dayIdx);
+}
+
+async function ibScheduleIdea(idea, platformKey, dayIdx) {
+  try {
+    const week  = state.calWeek || ccWeekStart();
+    const entry = await fetchAPI(API.contentCalendar, {
+      method: 'POST',
+      body: JSON.stringify({
+        week_start:   week,
+        day_of_week:  dayIdx,
+        platform:     platformKey,
+        title:        idea.title        || '',
+        script_text:  idea.script_text  || '',
+        notes:        idea.notes        || '',
+        status:       idea.status       || 'idea',
+        content_type: idea.content_type || 'script',
+      })
+    });
+    state.contentCalendar.push(entry);
+    renderContentCalendarPage();
+    showToast(`"${idea.title || 'Idea'}" scheduled`);
+  } catch (err) { showToast(err.message, 'error'); }
 }
 
 /* ── Row rename (double-click) ──────────────────────────────── */
@@ -7223,6 +7513,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     loadHomeSettings().catch(() => {}),
     loadIdeas().catch(() => {}),
     loadContentCalendar().catch(() => {}),
+    loadContentIdeas().catch(() => {}),
     checkTikTokStatus().catch(() => {})
   ]);
 
@@ -8660,6 +8951,13 @@ async function renderTeamCalendarPage() {
   const DOW      = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
   const outToday = state.teamCalendar.filter(a => a.start_date <= today && a.end_date >= today);
 
+  // Which task assignees map to each team member
+  const TASK_ASSIGNEE_MAP = {
+    gibran: ['founder', 'for-founder'],
+    lu:     ['lu'],
+    tamar:  ['tamar'],
+  };
+
   function dayCell(member, d) {
     const isToday  = d === today;
     const dow      = new Date(d + 'T12:00:00').getDay();
@@ -8668,27 +8966,49 @@ async function renderTeamCalendarPage() {
       a.member_key === member.key && a.start_date <= d && a.end_date >= d
     );
 
+    // Tasks with a deadline on this day for this member
+    const dayTasks = (state.tasks || []).filter(t =>
+      !t.completed && !t.archived && t.deadline === d &&
+      (TASK_ASSIGNEE_MAP[member.key] || []).includes(t.assignee)
+    );
+    const hasTasks = dayTasks.length > 0;
+
     const classes = [
       'tc-day-cell',
-      isToday ? 'tc-today-col' : '',
-      isWk    ? 'tc-weekend-col' : '',
-      entry   ? 'tc-has-event'  : 'tc-empty-cell'
+      isToday  ? 'tc-today-col'  : '',
+      isWk     ? 'tc-weekend-col': '',
+      entry    ? 'tc-has-event'  : 'tc-empty-cell',
+      hasTasks ? 'tc-has-tasks'  : ''
     ].filter(Boolean).join(' ');
 
+    const taskChipsHtml = hasTasks
+      ? '<div class="tc-task-chips">' +
+          dayTasks.slice(0, 3).map(t =>
+            '<div class="tc-task-chip" title="' + esc(t.title) + '">' +
+              '<span class="tc-task-dot"></span>' + esc(t.title) +
+            '</div>'
+          ).join('') +
+          (dayTasks.length > 3 ? '<div class="tc-task-more">+' + (dayTasks.length - 3) + ' more</div>' : '') +
+        '</div>'
+      : '';
+
     if (!entry) {
-      return '<div class="' + classes + '" onclick="tcOpenDrawer(\'' + member.key + '\',\'' + d + '\',null)" title="Mark as out on ' + d + '"></div>';
+      return '<div class="' + classes + '" onclick="tcOpenDrawer(\'' + member.key + '\',\'' + d + '\',null)" title="Mark as out on ' + d + '">' +
+        taskChipsHtml +
+      '</div>';
     }
 
-    const at       = ABSENCE_TYPES.find(t => t.key === entry.absence_type) || ABSENCE_TYPES[0];
-    const isStart  = entry.start_date === d;
-    const isEnd    = entry.end_date   === d;
-    const pos      = (isStart && isEnd) ? 'single' : isStart ? 'start' : isEnd ? 'end' : 'mid';
+    const at        = ABSENCE_TYPES.find(t => t.key === entry.absence_type) || ABSENCE_TYPES[0];
+    const isStart   = entry.start_date === d;
+    const isEnd     = entry.end_date   === d;
+    const pos       = (isStart && isEnd) ? 'single' : isStart ? 'start' : isEnd ? 'end' : 'mid';
     const showLabel = isStart || (isStart && isEnd);
 
     return '<div class="' + classes + '" onclick="tcOpenDrawer(\'' + member.key + '\',\'' + d + '\',\'' + entry.id + '\')" title="' + esc(at.label) + ': ' + tcFmtDate(entry.start_date) + ' – ' + tcFmtDate(entry.end_date) + '">' +
       '<div class="tc-event-block tc-event-' + pos + '" style="--ec:' + at.color + '">' +
         (showLabel ? '<span class="tc-event-label">' + at.label + '</span>' : '') +
       '</div>' +
+      taskChipsHtml +
     '</div>';
   }
 

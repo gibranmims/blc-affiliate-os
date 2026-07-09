@@ -4715,6 +4715,27 @@ a.cl-card-handle:hover {
   display: flex;
   gap: 4px;
   flex-shrink: 0;
+  align-items: center;
+}
+
+.cl-card-delete {
+  display: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 16px;
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: color 0.15s, background 0.15s;
+}
+.cl-card-delete:hover {
+  color: #dc2626;
+  background: rgba(220,38,38,0.08);
+}
+.cl-creator-card:hover .cl-card-delete {
+  display: inline-flex;
 }
 
 .cl-card-stats {
@@ -7115,11 +7136,21 @@ textarea:focus {
 
 /* ── Content Calendar Page ─────────────────────────────────── */
 .cc-page {
-  padding: 28px 24px 16px;
+  padding: 28px 0 16px;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  gap: 16px;
   height: calc(100vh - 44px); /* 44px = .page-content padding-top */
   box-sizing: border-box;
+  overflow: hidden;
+}
+
+/* Calendar column (header + board) */
+.cc-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
 }
 
@@ -7990,7 +8021,7 @@ h1, h2 { letter-spacing: -0.025em; }
    ============================================================ */
 
 .tc-page {
-  padding: 28px 24px 32px;
+  padding: 28px 0 32px;
 }
 
 .tc-header {
@@ -8198,7 +8229,7 @@ h1, h2 { letter-spacing: -0.025em; }
 /* ── Day cells ────────────────────────────────────────────── */
 .tc-day-cell {
   position: relative;
-  height: 68px;
+  height: 110px;
   cursor: pointer;
   border-right: 1px solid rgba(0,0,0,0.04);
   transition: background 0.1s;
@@ -8254,4 +8285,183 @@ h1, h2 { letter-spacing: -0.025em; }
   text-overflow: ellipsis;
   padding-left: 8px;
   pointer-events: none;
+}
+
+/* ============================================================
+   IDEA BANK PANEL
+   ============================================================ */
+
+.cc-bank {
+  width: 252px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.88);
+  backdrop-filter: blur(12px);
+  transition: width 0.2s ease;
+}
+
+.cc-bank-collapsed {
+  width: 44px;
+}
+
+.cc-bank-header {
+  padding: 14px 14px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  gap: 8px;
+}
+
+.cc-bank-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.cc-bank-collapsed .cc-bank-title { display: none; }
+
+.cc-bank-toggle {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  width: 26px;
+  height: 26px;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.12s, color 0.12s;
+}
+.cc-bank-toggle:hover { background: var(--bg-elevated); color: var(--text-primary); }
+
+.cc-bank-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.ib-empty {
+  padding: 16px 4px;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.ib-card {
+  background: var(--bg-card, #fff);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  cursor: grab;
+  transition: box-shadow 0.12s, transform 0.12s, border-color 0.12s;
+  user-select: none;
+}
+.ib-card:hover {
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  transform: translateY(-1px);
+  border-color: rgba(0,0,0,0.14);
+}
+.ib-card:active { cursor: grabbing; transform: translateY(0); }
+
+.ib-dragging { opacity: 0.35; }
+
+.ib-card-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.ib-card-channel {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.ib-card-badges {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+.ib-badge {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  letter-spacing: 0.02em;
+}
+
+/* Cell drop target highlight */
+.cc-cell-drop-target {
+  background: rgba(10,10,10,0.05) !important;
+  outline: 2px dashed rgba(10,10,10,0.25) !important;
+  outline-offset: -3px;
+}
+
+/* ── Task chips in Team Calendar cells ──────────────────────── */
+.tc-task-chips {
+  position: absolute;
+  bottom: 6px;
+  left: 5px;
+  right: 5px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  z-index: 2;
+}
+
+.tc-task-chip {
+  font-size: 10px;
+  font-weight: 500;
+  background: rgba(255,255,255,0.92);
+  border: 1px solid rgba(0,0,0,0.1);
+  color: var(--text-primary);
+  border-radius: 4px;
+  padding: 2px 5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.5;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.tc-task-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #f59e0b;
+  flex-shrink: 0;
+}
+
+.tc-task-more {
+  font-size: 10px;
+  color: var(--text-muted);
+  padding-left: 2px;
+}
+
+/* When a cell has tasks, shrink the absence block so chips don't overlap */
+.tc-has-tasks .tc-event-block {
+  bottom: 38px;
 }
