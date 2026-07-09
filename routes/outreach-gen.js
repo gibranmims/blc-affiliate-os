@@ -380,7 +380,7 @@ router.post('/create-contract', async (req, res) => {
 
   const start = new Date(startDate + 'T12:00:00'); // noon to avoid timezone shifts
   const end   = new Date(start);
-  end.setDate(end.getDate() + 60);
+  end.setMonth(end.getMonth() + 1); // exactly 1 month later (e.g. Jun 10 → Jul 10)
 
   const fmt = d => d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 
@@ -516,7 +516,7 @@ router.post('/sign-flow', async (req, res) => {
     // 3. Generate contract PDF via Google Drive (clone template → fill → export PDF)
     const start = new Date(startDate + 'T12:00:00');
     const end   = new Date(start);
-    end.setDate(end.getDate() + 60);
+    end.setMonth(end.getMonth() + 1); // exactly 1 month later (e.g. Jun 10 → Jul 10)
     const fmtDate = d => d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 
     const TEMPLATE_ID = '10NFrH809w1ksmG8TlSp6_fwanNnm2nFcJNd1HzauSEY';
@@ -669,9 +669,16 @@ router.post('/sign-flow', async (req, res) => {
       creator_assessment: null
     };
 
-    const { data: existing, error: findErr } = await supabase
-      .from('roster').select('id').ilike('handle', r.handle).maybeSingle();
+    // Match by handle + start_date so each contract month is distinct and
+    // re-running sign-flow for the same deal updates rather than inserts.
+    const { data: existingRows, error: findErr } = await supabase
+      .from('roster')
+      .select('id')
+      .ilike('handle', r.handle)
+      .eq('start_date', startDate)
+      .limit(1);
     if (findErr) throw new Error(`Roster lookup failed: ${findErr.message}`);
+    const existing = existingRows?.[0] ?? null;
 
     let rosterEntry;
     if (existing?.id) {
