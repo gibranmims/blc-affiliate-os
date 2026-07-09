@@ -7413,7 +7413,7 @@ textarea:focus {
   display: flex;
   flex-direction: column;
   gap: 0;
-  padding-bottom: 24px;
+  padding: 20px 24px 24px;
 }
 
 .cc-form-row {
