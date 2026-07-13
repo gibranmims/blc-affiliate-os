@@ -6,53 +6,53 @@
   <title>BBL Challenge Check-In</title>
   <link rel="icon" type="image/svg+xml" href="/img/blc-icon.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; }
-    body { margin: 0; background: #0a0a0a; color: #FFF6EB; font-family: 'Inter', sans-serif; min-height: 100vh; padding: 40px 20px 80px; }
+    body { margin: 0; background: #FFFBF8; color: #33261F; font-family: 'Poppins', sans-serif; min-height: 100vh; padding: 40px 20px 80px; }
     .container { max-width: 500px; margin: 0 auto; }
-    .brand { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: #665e52; margin-bottom: 32px; }
-    .week-tag { display: inline-block; padding: 4px 12px; background: rgba(255,246,235,.08); border: 1px solid rgba(255,246,235,.12); border-radius: 20px; font-size: 11.5px; font-weight: 500; color: #a89880; margin-bottom: 14px; }
+    .brand { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 600; color: #E2734D; margin-bottom: 32px; }
+    .week-tag { display: inline-block; padding: 4px 12px; background: rgba(226,115,77,.1); border: 1px solid rgba(226,115,77,.28); border-radius: 20px; font-size: 11.5px; font-weight: 500; color: #C05A32; margin-bottom: 14px; }
     h1 { margin: 0 0 8px; font-size: 26px; font-weight: 700; }
-    .greeting { font-size: 14px; color: #a89880; margin: 0 0 28px; }
-    .card { background: #111111; border: 1px solid #2a2a2a; border-radius: 14px; padding: 28px; }
+    .greeting { font-size: 14px; color: #7A6A60; margin: 0 0 28px; }
+    .card { background: #FFFFFF; border: 1px solid rgba(51,38,31,.1); border-radius: 14px; padding: 28px; box-shadow: 0 8px 32px -14px rgba(51,38,31,.12); }
     .form-group { margin-bottom: 20px; }
-    label { display: block; font-size: 12px; font-weight: 500; color: #a89880; margin-bottom: 8px; }
+    label { display: block; font-size: 12px; font-weight: 500; color: #7A6A60; margin-bottom: 8px; }
     .radio-group { display: flex; gap: 10px; }
     .radio-option { flex: 1; }
     .radio-option input[type="radio"] { display: none; }
     .radio-option label {
-      display: block; padding: 11px 14px; background: #171717; border: 1.5px solid #333;
-      border-radius: 8px; font-size: 13.5px; font-weight: 500; color: #a89880;
+      display: block; padding: 11px 14px; background: #FBF6F2; border: 1.5px solid rgba(51,38,31,.15);
+      border-radius: 8px; font-size: 13.5px; font-weight: 500; color: #7A6A60;
       cursor: pointer; text-align: center; transition: all .15s; margin: 0;
     }
-    .radio-option input[type="radio"]:checked + label { border-color: #FFF6EB; color: #FFF6EB; background: rgba(255,246,235,.06); }
-    textarea { width: 100%; background: #171717; border: 1px solid #333; border-radius: 8px; padding: 11px 13px; font-size: 14px; color: #FFF6EB; font-family: inherit; outline: none; resize: vertical; min-height: 80px; }
-    textarea:focus { border-color: #FFF6EB; box-shadow: 0 0 0 3px rgba(255,246,235,.08); }
-    textarea::placeholder { color: #665e52; }
-    .photo-drop { background: #171717; border: 1.5px dashed #333; border-radius: 10px; padding: 28px 20px; text-align: center; cursor: pointer; transition: border-color .2s, background .2s; position: relative; }
-    .photo-drop:hover, .photo-drop.drag-over { border-color: #a89880; background: #1a1a1a; }
+    .radio-option input[type="radio"]:checked + label { border-color: #E2734D; color: #B3502F; background: rgba(226,115,77,.08); }
+    textarea { width: 100%; background: #FFFFFF; border: 1px solid rgba(51,38,31,.18); border-radius: 8px; padding: 11px 13px; font-size: 14px; color: #33261F; font-family: inherit; outline: none; resize: vertical; min-height: 80px; }
+    textarea:focus { border-color: #E2734D; box-shadow: 0 0 0 3px rgba(226,115,77,.12); }
+    textarea::placeholder { color: #A39387; }
+    .photo-drop { background: #FBF6F2; border: 1.5px dashed rgba(51,38,31,.22); border-radius: 10px; padding: 28px 20px; text-align: center; cursor: pointer; transition: border-color .2s, background .2s; position: relative; }
+    .photo-drop:hover, .photo-drop.drag-over { border-color: #E2734D; background: rgba(226,115,77,.05); }
     .photo-drop input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
     .photo-drop-icon { font-size: 24px; margin-bottom: 8px; }
-    .photo-drop-text { font-size: 13px; color: #a89880; }
-    .photo-drop-text strong { color: #FFF6EB; }
-    .photo-drop-hint { font-size: 11px; color: #665e52; margin-top: 4px; }
+    .photo-drop-text { font-size: 13px; color: #7A6A60; }
+    .photo-drop-text strong { color: #33261F; }
+    .photo-drop-hint { font-size: 11px; color: #A39387; margin-top: 4px; }
     .photo-preview { display: none; margin-top: 10px; }
     .photo-preview img { max-width: 100%; max-height: 180px; border-radius: 8px; object-fit: cover; }
-    .photo-preview-label { font-size: 11.5px; color: #4ade80; margin-bottom: 6px; }
-    .btn { width: 100%; margin-top: 4px; padding: 13px; background: #FFF6EB; color: #0a0a0a; border: none; border-radius: 8px; font-size: 14.5px; font-weight: 600; font-family: inherit; cursor: pointer; transition: background .15s; }
-    .btn:hover:not(:disabled) { background: #fff; }
+    .photo-preview-label { font-size: 11.5px; color: #1E9E5A; margin-bottom: 6px; }
+    .btn { width: 100%; margin-top: 4px; padding: 13px; background: #E2734D; color: #FFFFFF; border: none; border-radius: 8px; font-size: 14.5px; font-weight: 600; font-family: inherit; cursor: pointer; transition: background .15s; }
+    .btn:hover:not(:disabled) { background: #D3603B; }
     .btn:disabled { opacity: .6; cursor: not-allowed; }
-    .error { display: none; margin-top: 12px; padding: 10px 13px; background: rgba(248,113,113,.1); border: 1px solid rgba(248,113,113,.25); border-radius: 8px; font-size: 13px; color: #f87171; }
+    .error { display: none; margin-top: 12px; padding: 10px 13px; background: rgba(179,64,42,.08); border: 1px solid rgba(179,64,42,.25); border-radius: 8px; font-size: 13px; color: #B3402A; }
     .error.show { display: block; }
     .state-screen { display: none; padding: 10px 0; }
     .state-screen.show { display: block; }
-    .state-icon { font-size: 36px; margin-bottom: 14px; }
+    .state-icon { font-size: 36px; margin-bottom: 14px; color: #E2734D; }
     .state-screen h2 { font-size: 20px; font-weight: 700; margin: 0 0 10px; }
-    .state-screen p { font-size: 14px; color: #a89880; line-height: 1.65; margin: 0; }
-    .spinner { display: none; width: 18px; height: 18px; border: 2px solid rgba(10,10,10,.3); border-top-color: #0a0a0a; border-radius: 50%; animation: spin .6s linear infinite; margin: 0 auto; }
+    .state-screen p { font-size: 14px; color: #7A6A60; line-height: 1.65; margin: 0; }
+    .spinner { display: none; width: 18px; height: 18px; border: 2px solid rgba(255,255,255,.35); border-top-color: #FFFFFF; border-radius: 50%; animation: spin .6s linear infinite; margin: 0 auto; }
     @keyframes spin { to { transform: rotate(360deg); } }
-    .loading-screen { text-align: center; padding: 60px 0; color: #665e52; font-size: 14px; }
+    .loading-screen { text-align: center; padding: 60px 0; color: #A39387; font-size: 14px; }
   </style>
 </head>
 <body>
@@ -103,7 +103,7 @@
         main.innerHTML = `
           <div class="week-tag">Week ${info.week_number} Check-In</div>
           <h1>How are you progressing?</h1>
-          <p class="greeting">Hey ${info.challenger_name || 'there'} — snap a progress photo and fill in your check-in below. Deadline: <strong style="color:#FFF6EB">${deadlineDate}</strong>.</p>
+          <p class="greeting">Hey ${info.challenger_name || 'there'} — snap a progress photo and fill in your check-in below. Deadline: <strong style="color:#E2734D">${deadlineDate}</strong>.</p>
 
           <div class="card">
             <form id="checkin-form">
@@ -231,7 +231,7 @@
       return `
         <div style="padding:20px 0">
           <h1 style="margin:0 0 10px;font-size:22px">${title}</h1>
-          <p style="font-size:14px;color:#a89880;line-height:1.65;margin:0">${message}</p>
+          <p style="font-size:14px;color:#7A6A60;line-height:1.65;margin:0">${message}</p>
         </div>
       `;
     }

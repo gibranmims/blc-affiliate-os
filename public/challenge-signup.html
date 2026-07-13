@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#000000">
+  <meta name="theme-color" content="#FFFBF8">
   <title>Win Your Money Back — The Bikini Line Co.</title>
   <link rel="icon" type="image/svg+xml" href="/img/blc-icon.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -14,8 +14,8 @@
 
     html, body {
       height: 100%;
-      background: #000000;
-      color: #FFF6EB;
+      background: #FFFBF8;
+      color: #33261F;
       font-family: 'Poppins', sans-serif;
       -webkit-font-smoothing: antialiased;
       -webkit-tap-highlight-color: transparent;
@@ -31,7 +31,7 @@
       width: 140vw;
       height: 85vh;
       transform: translateX(-50%);
-      background: radial-gradient(ellipse 50% 50% at 50% 50%, rgba(255, 246, 235, 0.055), transparent 65%);
+      background: radial-gradient(ellipse 50% 50% at 50% 50%, rgba(226, 115, 77, 0.09), transparent 65%);
       pointer-events: none;
       z-index: 0;
       animation: breathe 11s ease-in-out infinite alternate;
@@ -49,7 +49,7 @@
       background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
       pointer-events: none;
       z-index: 2;
-      opacity: 0.035;
+      opacity: 0.028;
       animation: grainShift 1.4s steps(1) infinite;
     }
 
@@ -107,7 +107,7 @@
       font-size: 1rem;
       font-weight: 700;
       letter-spacing: -0.04em;
-      color: #FFF6EB;
+      color: #33261F;
       flex-shrink: 0;
       text-transform: none;
     }
@@ -115,12 +115,11 @@
     /* ── type ── */
     .lbl {
       font-size: 0.5875rem;
-      font-weight: 500;
+      font-weight: 600;
       letter-spacing: 0.25em;
-      color: #FFF6EB;
-      opacity: 0.4;
+      color: #E2734D;
+      text-transform: uppercase;
       margin-bottom: 0.625rem;
-      text-transform: none;
     }
 
     h1 {
@@ -128,7 +127,7 @@
       font-weight: 700;
       letter-spacing: -0.025em;
       line-height: 1.1;
-      color: #FFF6EB;
+      color: #33261F;
       margin-bottom: 1.375rem;
       text-transform: none;
     }
@@ -137,7 +136,7 @@
       font-size: clamp(0.9375rem, 4vw, 1rem);
       font-weight: 400;
       line-height: 1.8;
-      color: #FFF6EB;
+      color: #33261F;
       opacity: 0.75;
       margin-bottom: 1.5rem;
       text-transform: none;
@@ -149,8 +148,8 @@
       font-size: 0.8125rem;
       font-weight: 400;
       line-height: 1.65;
-      color: #FFF6EB;
-      opacity: 0.4;
+      color: #33261F;
+      opacity: 0.5;
       margin-bottom: 1.5rem;
       max-width: 300px;
       text-transform: none;
@@ -162,8 +161,8 @@
       width: 100%;
       max-width: 340px;
       padding: 0.9375rem 1.75rem;
-      background: #FFF6EB;
-      color: #000000;
+      background: #E2734D;
+      color: #FFFFFF;
       border: none;
       border-radius: 999px;
       font-family: 'Poppins', sans-serif;
@@ -184,9 +183,9 @@
 
     @media (hover: hover) {
       .btn:not(:disabled):hover {
-        background: #F5EAD8;
+        background: #D3603B;
         transform: translateY(-2px);
-        box-shadow: 0 12px 32px -10px rgba(255, 246, 235, 0.28);
+        box-shadow: 0 12px 32px -10px rgba(226, 115, 77, 0.45);
       }
     }
 
@@ -200,7 +199,7 @@
     .btn-ghost {
       background: none;
       border: none;
-      color: #FFF6EB;
+      color: #33261F;
       font-family: 'Poppins', sans-serif;
       font-size: 0.9375rem;
       font-weight: 400;
@@ -233,7 +232,7 @@
       right: 0;
       width: 64px;
       height: calc(100% - 0.25rem);
-      background: linear-gradient(to right, transparent, #000000);
+      background: linear-gradient(to right, transparent, #FFFBF8);
       pointer-events: none;
     }
 
@@ -261,14 +260,14 @@
       height: 197px;
       object-fit: cover;
       border-radius: 12px;
-      background: rgba(255, 246, 235, 0.06);
+      background: rgba(51, 38, 31, 0.06);
       display: block;
     }
 
     .ex-lbl {
       font-size: 0.625rem;
       letter-spacing: 0.1em;
-      color: #FFF6EB;
+      color: #33261F;
       opacity: 0.55;
       text-align: center;
       text-transform: none;
@@ -277,8 +276,8 @@
     .swipe-hint {
       font-size: 0.6875rem;
       font-weight: 400;
-      color: #FFF6EB;
-      opacity: 0.35;
+      color: #33261F;
+      opacity: 0.45;
       text-align: center;
       letter-spacing: 0.04em;
       margin-top: -0.5rem;
@@ -299,8 +298,8 @@
       font-size: 0.6875rem;
       font-weight: 500;
       letter-spacing: 0.1em;
-      color: #FFF6EB;
-      opacity: 0.4;
+      color: #33261F;
+      opacity: 0.5;
       margin-bottom: 0.375rem;
       text-transform: none;
     }
@@ -309,10 +308,10 @@
     .field select {
       width: 100%;
       padding: 0.8125rem 1rem;
-      background: rgba(255, 246, 235, 0.05);
-      border: 1px solid rgba(255, 246, 235, 0.13);
+      background: #FFFFFF;
+      border: 1px solid rgba(51, 38, 31, 0.15);
       border-radius: 10px;
-      color: #FFF6EB;
+      color: #33261F;
       font-family: 'Poppins', sans-serif;
       font-size: 16px;
       outline: none;
@@ -323,33 +322,34 @@
       touch-action: manipulation;
     }
 
-    .field input::placeholder { color: #FFF6EB; opacity: 0.2; }
+    .field input::placeholder { color: #33261F; opacity: 0.3; }
     .field input:focus,
     .field select:focus {
-      border-color: rgba(255, 246, 235, 0.45);
-      background-color: rgba(255, 246, 235, 0.075);
-      box-shadow: 0 0 0 4px rgba(255, 246, 235, 0.05);
+      border-color: rgba(226, 115, 77, 0.65);
+      background-color: #FFFFFF;
+      box-shadow: 0 0 0 4px rgba(226, 115, 77, 0.12);
     }
 
     .field select {
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='7' viewBox='0 0 12 7'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23FFF6EB' stroke-opacity='0.4' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='7' viewBox='0 0 12 7'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2333261F' stroke-opacity='0.5' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
       background-repeat: no-repeat;
       background-position: right 1rem center;
       padding-right: 2.5rem;
       cursor: pointer;
     }
 
-    .field select option { background: #1a1a1a; color: #FFF6EB; }
+    .field select option { background: #FFFFFF; color: #33261F; }
 
     .photo-tip {
-      border: 1px solid rgba(255, 246, 235, 0.1);
+      background: rgba(226, 115, 77, 0.06);
+      border: 1px solid rgba(226, 115, 77, 0.16);
       border-radius: 10px;
       padding: 0.875rem 1.125rem;
       margin-bottom: 0.875rem;
       font-size: 0.8125rem;
       line-height: 1.65;
-      color: #FFF6EB;
-      opacity: 0.55;
+      color: #33261F;
+      opacity: 0.8;
       text-transform: none;
     }
 
@@ -376,10 +376,10 @@
       gap: 0.5rem;
       width: 100%;
       padding: 1.75rem 1rem;
-      border: 1.5px dashed rgba(255, 246, 235, 0.22);
+      border: 1.5px dashed rgba(51, 38, 31, 0.25);
       border-radius: 12px;
       text-align: center;
-      color: #FFF6EB;
+      color: #33261F;
       cursor: pointer;
       margin-bottom: 1rem;
       transition: border-color 0.25s ease, background-color 0.25s ease;
@@ -393,7 +393,7 @@
       font-family: 'Poppins', sans-serif;
       font-size: 0.9375rem;
       font-weight: 500;
-      color: #FFF6EB;
+      color: #33261F;
       opacity: 0.75;
     }
 
@@ -401,12 +401,12 @@
       display: block;
       font-family: 'Poppins', sans-serif;
       font-size: 0.75rem;
-      color: #FFF6EB;
-      opacity: 0.35;
+      color: #33261F;
+      opacity: 0.45;
     }
 
-    .upload-lbl:hover { border-color: rgba(255, 246, 235, 0.4); background-color: rgba(255, 246, 235, 0.03); }
-    .upload-lbl.has-file { border-color: rgba(255, 246, 235, 0.4); border-style: solid; background-color: rgba(255, 246, 235, 0.04); }
+    .upload-lbl:hover { border-color: rgba(226, 115, 77, 0.5); background-color: rgba(226, 115, 77, 0.04); }
+    .upload-lbl.has-file { border-color: rgba(226, 115, 77, 0.55); border-style: solid; background-color: rgba(226, 115, 77, 0.06); }
     .upload-lbl.has-file .upload-main { opacity: 0.9; }
 
     @keyframes popIn {
@@ -426,12 +426,12 @@
     @keyframes drawCheck { to { stroke-dashoffset: 0; } }
 
     .form-err {
-      background: rgba(255, 80, 80, 0.08);
-      border: 1px solid rgba(255, 80, 80, 0.2);
+      background: rgba(179, 64, 42, 0.07);
+      border: 1px solid rgba(179, 64, 42, 0.22);
       border-radius: 8px;
       padding: 0.75rem 1rem;
       font-size: 0.8125rem;
-      color: #ff9999;
+      color: #B3402A;
       margin-bottom: 0.875rem;
       display: none;
       text-transform: none;
@@ -462,9 +462,9 @@
       font-size: 0.9375rem;
       font-weight: 400;
       line-height: 1.5;
-      color: #FFF6EB;
+      color: #33261F;
       opacity: 0.75;
-      border-bottom: 1px solid rgba(255,246,235,0.08);
+      border-bottom: 1px solid rgba(51, 38, 31, 0.1);
       text-transform: none;
     }
 
@@ -473,15 +473,16 @@
     .steps li::before {
       content: '→';
       font-size: 0.875rem;
-      opacity: 0.3;
+      color: #E2734D;
+      opacity: 0.8;
       flex-shrink: 0;
       margin-top: 0.0625rem;
     }
 
     .fine-print {
       font-size: 0.625rem;
-      color: #FFF6EB;
-      opacity: 0.22;
+      color: #33261F;
+      opacity: 0.38;
       line-height: 1.55;
       text-align: center;
       margin-top: 0.75rem;
@@ -495,7 +496,7 @@
       left: 1.25rem;
       background: none;
       border: none;
-      color: #FFF6EB;
+      color: #33261F;
       font-family: 'Poppins', sans-serif;
       font-size: 0.75rem;
       font-weight: 400;
@@ -654,8 +655,8 @@
       </div>
 
       <div id="s6-sent" style="width:100%;display:none;flex-direction:column;align-items:center;text-align:center;opacity:0;transition:opacity 0.35s ease;">
-        <h1 style="font-size:clamp(1.875rem,7.5vw,2.875rem);font-weight:700;letter-spacing:-0.025em;line-height:1.1;color:#FFF6EB;margin-bottom:1.375rem;">Almost there.</h1>
-        <p style="font-size:clamp(0.9375rem,4vw,1rem);line-height:1.8;color:#FFF6EB;opacity:0.75;margin-bottom:1.75rem;">Complete checkout in the other tab —<br>then come back here to finish signing up.<br><span style="opacity:0.55;font-size:0.875rem;">Your order number will be in the Shopify confirmation email.</span></p>
+        <h1 style="font-size:clamp(1.875rem,7.5vw,2.875rem);font-weight:700;letter-spacing:-0.025em;line-height:1.1;color:#33261F;margin-bottom:1.375rem;">Almost there.</h1>
+        <p style="font-size:clamp(0.9375rem,4vw,1rem);line-height:1.8;color:#33261F;opacity:0.75;margin-bottom:1.75rem;">Complete checkout in the other tab —<br>then come back here to finish signing up.<br><span style="opacity:0.55;font-size:0.875rem;">Your order number will be in the Shopify confirmation email.</span></p>
         <button class="btn" onclick="go(7)">I have my order number →</button>
       </div>
 
@@ -915,7 +916,7 @@
     const lbl = document.getElementById('uplbl');
     if (this.files[0]) {
       lbl.innerHTML =
-        '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.85"><circle cx="12" cy="12" r="10" opacity="0.4"/><path class="check-path" d="M8 12.5l2.6 2.6L16 9.5"/></svg>' +
+        '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color:#E2734D;opacity:0.95"><circle cx="12" cy="12" r="10" opacity="0.4"/><path class="check-path" d="M8 12.5l2.6 2.6L16 9.5"/></svg>' +
         '<span class="upload-main">Photo added</span><span class="upload-sub">' + this.files[0].name + '</span>';
       lbl.classList.add('has-file');
       lbl.classList.remove('pop');
