@@ -542,7 +542,7 @@
   </style>
 </head>
 <body>
-<button id="back-btn" onclick="goBack()">← Back</button>
+<button id="back-btn" class="visible" onclick="goBack()">← thebikiniline.co</button>
 <div id="app">
 
   <!-- ── SCREEN 1: THE HOOK ── -->
@@ -832,7 +832,7 @@
   }
 
   function goBack() {
-    if (!hist.length) return;
+    if (!hist.length) { window.location.href = 'https://thebikiniline.co'; return; }
     const prev = hist.pop();
     _navigate(prev);
   }
@@ -847,7 +847,9 @@
     const from = document.getElementById('s' + cur);
     const to   = document.getElementById('s' + n);
     if (!to) return;
-    document.getElementById('back-btn').classList.toggle('visible', hist.length > 0);
+    const backBtn = document.getElementById('back-btn');
+    backBtn.classList.add('visible');
+    backBtn.textContent = hist.length > 0 ? '\u2190 Back' : '\u2190 thebikiniline.co';
 
     from.style.transition = 'opacity 0.26s ease, transform 0.3s ease';
     from.style.opacity = '0';
