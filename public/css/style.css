@@ -751,6 +751,14 @@ body {
 .inline-status-select.status-key-archived       { background-color: var(--bg-secondary); color: var(--text-muted); }
 .inline-status-select.status-key-ghosted        { background-color: var(--bg-secondary); color: var(--text-muted); }
 
+/* Pro Partner Outreach statuses */
+.inline-status-select.status-key-not_contacted  { background-color: var(--bg-secondary); color: var(--text-muted); }
+.inline-status-select.status-key-contacted      { background-color: var(--blue-dim);      color: var(--blue); }
+.inline-status-select.status-key-applied        { background-color: var(--purple-dim);    color: var(--purple); }
+.inline-status-select.status-key-accepted       { background-color: var(--green-dim);     color: var(--green); }
+.inline-status-select.status-key-not_interested { background-color: var(--red-dim);       color: var(--red); }
+.inline-status-select.status-key-no_response    { background-color: var(--bg-secondary);  color: var(--text-muted); }
+
 /* ============================================================
    BUTTONS
    ============================================================ */
@@ -6586,6 +6594,94 @@ textarea:focus {
 .idea-dot-blue    { background: #93C5FD; }
 .idea-dot-green   { background: #86EFAC; }
 .idea-dot-purple  { background: #D8B4FE; }
+
+/* Comment Bank */
+.cr-filter-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+.cr-filter-btn {
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1.5px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+.cr-filter-btn:hover { color: var(--text-primary); }
+.cr-filter-active {
+  background: var(--accent-color, #7c3aed);
+  border-color: var(--accent-color, #7c3aed);
+  color: #fff;
+}
+.cr-card {
+  background: var(--bg-secondary);
+  border-color: var(--border-color);
+  min-height: 170px;
+}
+.cr-comment-text {
+  font-style: italic;
+  cursor: pointer;
+}
+.cr-notes {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 8px;
+  cursor: pointer;
+}
+.cr-footer { cursor: default; }
+.cr-video-link {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent-color, #7c3aed);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.cr-video-link:hover { text-decoration: underline; }
+.cr-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+.cr-status-btn {
+  flex: 1;
+  padding: 7px 10px;
+  border-radius: 8px;
+  border: 1.5px solid var(--border-color);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+.cr-status-btn:hover { border-color: var(--accent-color, #7c3aed); color: var(--text-primary); }
+.cr-status-replied {
+  background: #DCFCE7;
+  border-color: #86EFAC;
+  color: #15803d;
+}
+.cr-copy-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1.5px solid var(--border-color);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+.cr-copy-btn:hover { border-color: var(--accent-color, #7c3aed); color: var(--text-primary); }
 
 /* ══════════════════════════════════════════════════════════
    CONTRAST + COLOR OVERRIDES

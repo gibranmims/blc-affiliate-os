@@ -12,10 +12,23 @@ const API = {
   settings:    '/api/settings',
   tasks:       '/api/tasks',
   ideas:           '/api/ideas',
+  commentBank:     '/api/comment-bank',
   contentCalendar: '/api/content-calendar',
   contentIdeas:    '/api/content-ideas',
-  teamCalendar:    '/api/team-calendar'
+  teamCalendar:    '/api/team-calendar',
+  partnerOutreach:    '/api/partner-outreach',
+  partnerOutreachGen: '/api/partner-outreach-gen'
 };
+
+const PARTNER_STATUSES = [
+  { key: 'not_contacted',  label: 'Not Contacted',  color: 'gray'   },
+  { key: 'contacted',      label: 'Contacted',      color: 'blue'   },
+  { key: 'replied',        label: 'Replied',        color: 'teal'   },
+  { key: 'applied',        label: 'Applied',        color: 'purple' },
+  { key: 'accepted',       label: 'Accepted',       color: 'green'  },
+  { key: 'not_interested', label: 'Not Interested', color: 'red'    },
+  { key: 'no_response',    label: 'No Response',    color: 'gray'   }
+];
 
 const STATUSES = [
   { key: 'drafted',          label: 'In Drafts',         color: 'gray'   },
@@ -55,6 +68,8 @@ const state = {
   customIssueTypes:   [],
   tasks:              [],
   ideas:              [],
+  commentBank:        [],
+  commentBankFilter:  'pending',  // 'all' | 'pending' | 'replied'
   contentCalendar:    [],
   contentIdeas:       [],
   calWeek:            null,
@@ -62,7 +77,13 @@ const state = {
   tcStart:            null,
   monthlyGoal:        0,
   monthlyRevenue:     0,
-  bfTab:              'overview'
+  bfTab:              'overview',
+  partnerLeads:      [],
+  partnerTemplates:  [],
+  partnerFilter:     'all',
+  partnerView:       'pipeline',   // 'pipeline' | 'import' | 'templates' | 'stats'
+  selectedPartnerId: null,
+  partnerStats:      null
 };
 
 const nbState = {
@@ -738,6 +759,7 @@ function navigate(page) {
     home:         renderHomePage,
     tasks:        renderTasksPage,
     ideas:        renderIdeasPage,
+    'comment-bank': renderCommentBankPage,
     outreach:     renderOutreachPage,
     roster:       renderRosterPage,
     scripts:      renderScriptsPage,
@@ -747,7 +769,8 @@ function navigate(page) {
     challenge:          renderChallengePage,
     support:            renderSupportPage,
     'content-calendar': renderContentCalendarPage,
-    'team-calendar':    renderTeamCalendarPage
+    'team-calendar':    renderTeamCalendarPage,
+    'partner-outreach': renderPartnerOutreachPage
   };
   if (renderers[page]) renderers[page]();
 }
@@ -1055,6 +1078,7 @@ function closeDetailPanel() {
   stopDictation();
   state.selectedOutreachId = null;
   state.activeRosterId     = null;
+  state.selectedPartnerId  = null;
   document.getElementById('detail-panel').style.display = 'none';
   document.querySelectorAll('.clickable-row').forEach(r => r.classList.remove('row-active'));
 }
@@ -6686,6 +6710,155 @@ async function deleteIdea(id) {
 }
 
 // ============================================================
+// COMMENT BANK
+// ============================================================
+
+async function loadCommentBank() {
+  state.commentBank = await fetchAPI(API.commentBank);
+}
+
+function renderCommentBankPage() {
+  const filter = state.commentBankFilter || 'pending';
+  const all = state.commentBank || [];
+  const list = filter === 'all' ? all : all.filter(c => c.status === filter);
+  const pendingCount = all.filter(c => c.status === 'pending').length;
+
+  document.getElementById('page-content').innerHTML = `
+    <div class="ideas-page">
+      <div class="ideas-header">
+        <div>
+          <h1 class="page-title" style="margin-bottom:6px">Comment Bank</h1>
+          <p class="ideas-subtitle">Good comments worth replying to — link the video, save the comment, never lose it</p>
+        </div>
+        <button class="btn btn-primary" onclick="openCommentModal(null)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right:6px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          New Comment
+        </button>
+      </div>
+      <div class="cr-filter-row">
+        ${[
+          { key: 'pending', label: `Pending${pendingCount ? ` (${pendingCount})` : ''}` },
+          { key: 'replied', label: 'Replied' },
+          { key: 'all',     label: 'All' }
+        ].map(f => `<button class="cr-filter-btn${filter === f.key ? ' cr-filter-active' : ''}" onclick="setCommentBankFilter('${f.key}')">${f.label}</button>`).join('')}
+      </div>
+      ${list.length === 0
+        ? `<div class="ideas-empty">
+             <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--text-muted);margin-bottom:12px"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+             <p>${filter === 'replied' ? 'No replied comments yet' : 'No comments saved yet — paste a good one in'}</p>
+           </div>`
+        : `<div class="ideas-grid">
+             ${list.map(c => `
+               <div class="idea-card cr-card">
+                 <div class="idea-body cr-comment-text" onclick="openCommentModal('${c.id}')">&ldquo;${esc(c.comment_text)}&rdquo;</div>
+                 ${c.notes ? `<div class="cr-notes" onclick="openCommentModal('${c.id}')">${esc(c.notes)}</div>` : ''}
+                 <div class="idea-footer cr-footer">
+                   <a href="${esc(c.video_url)}" target="_blank" rel="noopener" class="cr-video-link" onclick="event.stopPropagation()">
+                     <i class="fa-solid fa-video"></i> View video
+                   </a>
+                   <span class="idea-date">${fmtDate(c.created_at)}</span>
+                 </div>
+                 <div class="cr-actions">
+                   <button class="cr-status-btn${c.status === 'replied' ? ' cr-status-replied' : ''}" onclick="toggleCommentStatus('${c.id}','${c.status}')">
+                     ${c.status === 'replied' ? '<i class="fa-solid fa-check"></i> Replied' : 'Mark Replied'}
+                   </button>
+                   <button class="cr-copy-btn" onclick="copyCommentText('${c.id}')" title="Copy comment"><i class="fa-regular fa-copy"></i></button>
+                 </div>
+               </div>
+             `).join('')}
+           </div>`}
+    </div>
+  `;
+}
+
+function setCommentBankFilter(key) {
+  state.commentBankFilter = key;
+  renderCommentBankPage();
+}
+
+function openCommentModal(id) {
+  const comment = id ? state.commentBank.find(c => c.id === id) : null;
+  const isEdit = !!comment;
+
+  openModal(isEdit ? 'Edit Comment' : 'New Comment', `
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div class="form-group">
+        <label class="form-label">TikTok video link</label>
+        <input type="url" class="form-input" id="cr-video-url" placeholder="https://www.tiktok.com/@..." value="${isEdit ? esc(comment.video_url) : ''}">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Comment</label>
+        <textarea class="form-input" id="cr-comment-text" rows="4" placeholder="Paste the comment here…" style="resize:vertical">${isEdit ? esc(comment.comment_text) : ''}</textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Notes (optional)</label>
+        <input type="text" class="form-input" id="cr-notes" placeholder="e.g. reply angle, why it's good" value="${isEdit ? esc(comment.notes || '') : ''}">
+      </div>
+      <div style="display:flex;gap:8px;justify-content:space-between">
+        <div>${isEdit ? `<button class="btn btn-danger btn-sm" onclick="deleteComment('${id}')">Delete</button>` : ''}</div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-secondary btn-sm" onclick="closeModal()">Cancel</button>
+          <button class="btn btn-primary btn-sm" onclick="saveComment(${id ? `'${id}'` : 'null'})">
+            ${isEdit ? 'Save' : 'Add Comment'}
+          </button>
+        </div>
+      </div>
+    </div>
+  `);
+  setTimeout(() => document.getElementById('cr-video-url')?.focus(), 60);
+}
+
+async function saveComment(id) {
+  const video_url    = document.getElementById('cr-video-url')?.value.trim();
+  const comment_text = document.getElementById('cr-comment-text')?.value.trim();
+  const notes         = document.getElementById('cr-notes')?.value.trim();
+  if (!video_url)    { showToast('Paste the video link first', 'error'); return; }
+  if (!comment_text) { showToast('Paste the comment text first', 'error'); return; }
+  try {
+    if (id) {
+      const updated = await fetchAPI(`${API.commentBank}/${id}`, { method: 'PUT', body: JSON.stringify({ video_url, comment_text, notes }) });
+      const i = state.commentBank.findIndex(c => c.id === id);
+      if (i !== -1) state.commentBank[i] = updated;
+    } else {
+      const created = await fetchAPI(API.commentBank, { method: 'POST', body: JSON.stringify({ video_url, comment_text, notes }) });
+      state.commentBank.unshift(created);
+    }
+    closeModal();
+    if (state.currentPage === 'comment-bank') renderCommentBankPage();
+    showToast(id ? 'Comment updated' : 'Comment saved');
+  } catch (err) { showToast(err.message, 'error'); }
+}
+
+async function toggleCommentStatus(id, currentStatus) {
+  const status = currentStatus === 'replied' ? 'pending' : 'replied';
+  try {
+    const updated = await fetchAPI(`${API.commentBank}/${id}`, { method: 'PUT', body: JSON.stringify({ status }) });
+    const i = state.commentBank.findIndex(c => c.id === id);
+    if (i !== -1) state.commentBank[i] = updated;
+    if (state.currentPage === 'comment-bank') renderCommentBankPage();
+  } catch (err) { showToast(err.message, 'error'); }
+}
+
+async function copyCommentText(id) {
+  const comment = state.commentBank.find(c => c.id === id);
+  if (!comment) return;
+  try {
+    await navigator.clipboard.writeText(comment.comment_text);
+    showToast('Comment copied');
+  } catch (err) { showToast('Could not copy', 'error'); }
+}
+
+async function deleteComment(id) {
+  try {
+    await fetchAPI(`${API.commentBank}/${id}`, { method: 'DELETE' });
+    state.commentBank = state.commentBank.filter(c => c.id !== id);
+    closeModal();
+    if (state.currentPage === 'comment-bank') renderCommentBankPage();
+    showToast('Comment deleted');
+  } catch (err) { showToast(err.message, 'error'); }
+}
+
+// ============================================================
 // CONTENT CALENDAR
 // ============================================================
 
@@ -7512,9 +7685,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     loadTasks().catch(() => {}),
     loadHomeSettings().catch(() => {}),
     loadIdeas().catch(() => {}),
+    loadCommentBank().catch(() => {}),
     loadContentCalendar().catch(() => {}),
     loadContentIdeas().catch(() => {}),
-    checkTikTokStatus().catch(() => {})
+    checkTikTokStatus().catch(() => {}),
+    loadPartnerOutreach().catch(err => console.error('Partner outreach load failed:', err))
   ]);
 
   const params = new URLSearchParams(window.location.search);
@@ -9096,7 +9271,7 @@ function tcOpenDrawer(memberKey, dateStr, existingId) {
   document.getElementById('detail-drawer-title').textContent = entry ? 'Edit Absence' : 'Mark as Out';
 
   document.getElementById('detail-drawer-body').innerHTML =
-    '<div style="padding:0 0 8px">' +
+    '<div class="cc-drawer">' +
 
       '<div class="cc-form-row">' +
         '<label class="cc-label">Team Member</label>' +
@@ -9208,5 +9383,509 @@ async function tcDelete(id) {
     showToast('Removed');
   } catch (e) {
     showToast((e && e.message) || 'Error', 'error');
+  }
+}
+
+// ============================================================
+// PRO PARTNER OUTREACH — IG DM lead tracker for licensed
+// wax specialists / estheticians (Pro Partner Network funnel).
+// Separate from the TikTok creator "Affiliate Outreach" pipeline.
+// ============================================================
+
+async function loadPartnerOutreach() {
+  state.partnerLeads     = await fetchAPI(API.partnerOutreach);
+  state.partnerTemplates = await fetchAPI(`${API.partnerOutreach}/templates`);
+}
+
+function renderPartnerOutreachPage() {
+  if (state.partnerView === 'import')    return renderPartnerImportView();
+  if (state.partnerView === 'templates') return renderPartnerTemplatesView();
+  if (state.partnerView === 'stats')     return renderPartnerStatsView();
+  renderPartnerPipelineView();
+}
+
+function partnerSubnav() {
+  const tabs = [
+    ['pipeline',  'Pipeline'],
+    ['import',    'Import CSV'],
+    ['templates', 'DM Templates'],
+    ['stats',     'Stats']
+  ];
+  return `
+    <div class="filter-bar" style="margin-bottom:16px">
+      <div class="filter-tabs">
+        ${tabs.map(([key, label]) => `
+          <button class="filter-tab ${state.partnerView === key ? 'active' : ''}" onclick="setPartnerView('${key}')">${label}</button>
+        `).join('')}
+      </div>
+    </div>`;
+}
+
+function setPartnerView(view) {
+  state.partnerView = view;
+  renderPartnerOutreachPage();
+}
+
+// ── Pipeline view ──────────────────────────────────────────────
+
+function renderPartnerPipelineView() {
+  const counts = PARTNER_STATUSES.reduce((acc, s) => {
+    acc[s.key] = state.partnerLeads.filter(l => l.status === s.key).length;
+    return acc;
+  }, {});
+  const allCount = state.partnerLeads.length;
+  const contactedOrLater = state.partnerLeads.filter(l => l.status !== 'not_contacted').length;
+  const repliedOrLater   = state.partnerLeads.filter(l => ['replied','applied','accepted'].includes(l.status)).length;
+  const applied          = state.partnerLeads.filter(l => ['applied','accepted'].includes(l.status)).length;
+
+  const filtered = state.partnerFilter === 'all'
+    ? state.partnerLeads
+    : state.partnerLeads.filter(l => l.status === state.partnerFilter);
+
+  document.getElementById('page-content').innerHTML = `
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Pro Partner Outreach</h1>
+        <p class="page-subtitle">Instagram DM outreach to licensed wax specialists &amp; estheticians for the Pro Partner Network</p>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-secondary" onclick="setPartnerView('import')">+ Import CSV</button>
+        <button class="btn btn-primary" onclick="openAddPartnerLeadModal()">+ Add Lead</button>
+      </div>
+    </div>
+
+    ${partnerSubnav()}
+
+    <div class="stat-cards">
+      <div class="stat-card stat-card-neutral">
+        <div class="stat-value">${allCount}</div>
+        <div class="stat-label">Total Leads</div>
+      </div>
+      <div class="stat-card stat-card-blue">
+        <div class="stat-value blue">${contactedOrLater}</div>
+        <div class="stat-label">Contacted</div>
+      </div>
+      <div class="stat-card stat-card-green">
+        <div class="stat-value green">${repliedOrLater}</div>
+        <div class="stat-label">Replied</div>
+      </div>
+      <div class="stat-card stat-card-green">
+        <div class="stat-value green">${applied}</div>
+        <div class="stat-label">Applied</div>
+      </div>
+    </div>
+
+    <div class="filter-bar">
+      <div class="filter-tabs">
+        <button class="filter-tab ${state.partnerFilter === 'all' ? 'active' : ''}" onclick="setPartnerFilter('all')">
+          All <span class="filter-count">${allCount}</span>
+        </button>
+        ${PARTNER_STATUSES.map(s => `
+          <button class="filter-tab ${state.partnerFilter === s.key ? 'active' : ''}" onclick="setPartnerFilter('${s.key}')">
+            ${s.label} <span class="filter-count">${counts[s.key] || 0}</span>
+          </button>
+        `).join('')}
+      </div>
+    </div>
+
+    <div class="table-container">
+      ${filtered.length === 0 ? `
+        <div class="empty-state">
+          <div class="empty-icon">📬</div>
+          <h3>${state.partnerFilter === 'all' ? 'No leads yet' : 'None in this stage'}</h3>
+          <p>${state.partnerFilter === 'all' ? 'Add a lead or import a CSV to get started' : 'Try a different filter'}</p>
+          ${state.partnerFilter === 'all' ? '<button class="btn btn-primary" onclick="openAddPartnerLeadModal()">+ Add Lead</button>' : ''}
+        </div>
+      ` : `
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Esthetician / Studio</th>
+              <th>IG Handle</th>
+              <th>City</th>
+              <th>Template</th>
+              <th>Status</th>
+              <th>Follow-up Due</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            ${filtered.map(l => `
+              <tr class="clickable-row ${state.selectedPartnerId === l.id ? 'row-active' : ''}" onclick="openPartnerDetailPanel('${l.id}')">
+                <td>
+                  <div class="creator-cell">
+                    <div class="creator-name">${esc(l.esthetician_name || l.studio_name || l.ig_handle)}</div>
+                    ${l.studio_name && l.esthetician_name ? `<div style="font-size:12px;color:var(--text-muted)">${esc(l.studio_name)}</div>` : ''}
+                  </div>
+                </td>
+                <td>
+                  <a href="https://www.instagram.com/${esc((l.ig_handle||'').replace(/^@/,''))}/" target="_blank" rel="noopener" onclick="event.stopPropagation()">@${esc(l.ig_handle)}</a>
+                </td>
+                <td>${esc(l.city) || '—'}</td>
+                <td>${esc((state.partnerTemplates.find(t => t.id === l.template_id) || {}).name) || '—'}</td>
+                <td onclick="event.stopPropagation()">
+                  <select class="inline-status-select status-key-${l.status}" onchange="updatePartnerStatusInline('${l.id}', this.value, this)">
+                    ${PARTNER_STATUSES.map(s => `<option value="${s.key}"${l.status === s.key ? ' selected' : ''}>${s.label}</option>`).join('')}
+                  </select>
+                </td>
+                <td>${l.status === 'contacted' && l.followup_due_date ? fmtDateShort(l.followup_due_date) : '—'}</td>
+                <td onclick="event.stopPropagation()">
+                  ${l.status === 'not_contacted' ? `<button class="btn btn-secondary btn-sm" onclick="updatePartnerStatusInline('${l.id}','contacted')">Mark Contacted</button>` : ''}
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `}
+    </div>`;
+}
+
+function setPartnerFilter(f) {
+  state.partnerFilter = f;
+  renderPartnerPipelineView();
+}
+
+async function updatePartnerStatusInline(id, newStatus, selectEl) {
+  if (selectEl) selectEl.className = `inline-status-select status-key-${newStatus}`;
+  try {
+    const rec = await fetchAPI(`${API.partnerOutreach}/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ status: newStatus })
+    });
+    const i = state.partnerLeads.findIndex(x => x.id === id);
+    if (i !== -1) state.partnerLeads[i] = rec;
+    if (newStatus === 'applied') showToast('🎉 Marked as applied!');
+    renderPartnerPipelineView();
+    if (state.selectedPartnerId === id) renderPartnerDetailPanel();
+  } catch (err) {
+    showToast(err.message, 'error');
+    renderPartnerPipelineView();
+  }
+}
+
+function openAddPartnerLeadModal() {
+  const html = `
+    <form id="modal-form">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Instagram Handle *</label>
+          <input name="ig_handle" placeholder="@username" required>
+        </div>
+        <div class="form-group">
+          <label>Esthetician Name</label>
+          <input name="esthetician_name" placeholder="e.g. Amy">
+        </div>
+        <div class="form-group">
+          <label>Studio Name</label>
+          <input name="studio_name" placeholder="e.g. Glow Wax Studio">
+        </div>
+        <div class="form-group">
+          <label>City</label>
+          <input name="city" placeholder="e.g. Austin">
+        </div>
+        <div class="form-group">
+          <label>Region / State</label>
+          <input name="region" placeholder="e.g. TX">
+        </div>
+        <div class="form-group">
+          <label>Found via (hashtag/geotag)</label>
+          <input name="source_tag" placeholder="e.g. #austinesthetician">
+        </div>
+        <div class="form-group" style="grid-column:1/-1">
+          <label>Specific detail noticed (for personalization)</label>
+          <input name="found_detail" placeholder="e.g. saw your ingrown-care Reel">
+        </div>
+      </div>
+      <div class="form-actions">
+        <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+        <button type="submit" class="btn btn-primary">Add Lead</button>
+      </div>
+    </form>`;
+
+  openModal('Add Pro Partner Lead', html, async (e) => {
+    const data = Object.fromEntries(new FormData(e.target));
+    try {
+      const rec = await fetchAPI(API.partnerOutreach, { method: 'POST', body: JSON.stringify(data) });
+      state.partnerLeads.unshift(rec);
+      closeModal();
+      renderPartnerPipelineView();
+      showToast('Lead added!');
+    } catch (err) { showToast(err.message, 'error'); }
+  });
+}
+
+async function deletePartnerLead(id) {
+  if (!confirm('Delete this lead?')) return;
+  try {
+    await fetchAPI(`${API.partnerOutreach}/${id}`, { method: 'DELETE' });
+    state.partnerLeads = state.partnerLeads.filter(l => l.id !== id);
+    closeDetailPanel();
+    renderPartnerPipelineView();
+    showToast('Lead deleted');
+  } catch (err) { showToast(err.message, 'error'); }
+}
+
+// ── Detail panel (reuses the shared #detail-panel drawer) ───────
+
+function openPartnerDetailPanel(id) {
+  state.selectedPartnerId = id;
+  const panel = document.getElementById('detail-panel');
+  panel.style.display = 'flex';
+  renderPartnerDetailPanel();
+}
+
+function renderPartnerDetailPanel() {
+  const l = state.partnerLeads.find(x => x.id === state.selectedPartnerId);
+  if (!l) { closeDetailPanel(); return; }
+
+  document.getElementById('detail-drawer-title').textContent = 'Pro Partner Lead';
+  document.getElementById('detail-drawer-body').innerHTML = `
+    <div class="dp-creator-header">
+      <div class="dp-header-top">
+        <div class="dp-name">${esc(l.esthetician_name || l.studio_name || l.ig_handle)}</div>
+        <select class="inline-status-select status-key-${l.status} dp-status-inline"
+          onchange="updatePartnerStatusInline('${l.id}', this.value)">
+          ${PARTNER_STATUSES.map(s => `<option value="${s.key}" ${l.status === s.key ? 'selected' : ''}>${s.label}</option>`).join('')}
+        </select>
+      </div>
+      <a href="https://www.instagram.com/${esc((l.ig_handle||'').replace(/^@/,''))}/" target="_blank" rel="noopener">@${esc(l.ig_handle)}</a>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="detail-row"><span class="detail-label">Studio</span><span class="detail-value">${esc(l.studio_name) || '—'}</span></div>
+    <div class="detail-row"><span class="detail-label">City</span><span class="detail-value">${esc(l.city) || '—'}${l.region ? ', ' + esc(l.region) : ''}</span></div>
+    <div class="detail-row"><span class="detail-label">Source</span><span class="detail-value">${esc(l.source_tag) || '—'}</span></div>
+    <div class="detail-row"><span class="detail-label">Detail noticed</span><span class="detail-value">${esc(l.found_detail) || '—'}</span></div>
+    <div class="detail-row"><span class="detail-label">Template used</span><span class="detail-value">${esc((state.partnerTemplates.find(t => t.id === l.template_id) || {}).name) || '—'}</span></div>
+
+    <div class="divider"></div>
+
+    <div class="detail-row"><span class="detail-label">Contacted</span><span class="detail-value">${fmtDate(l.contacted_date)}</span></div>
+    <div class="detail-row"><span class="detail-label">Follow-up due</span><span class="detail-value">${fmtDate(l.followup_due_date)}</span></div>
+    <div class="detail-row"><span class="detail-label">Replied</span><span class="detail-value">${fmtDate(l.replied_date)}</span></div>
+    <div class="detail-row"><span class="detail-label">Applied</span><span class="detail-value">${fmtDate(l.applied_date)}</span></div>
+    <div class="detail-row"><span class="detail-label">Accepted</span><span class="detail-value">${fmtDate(l.accepted_date)}</span></div>
+
+    <div class="divider"></div>
+
+    <div class="form-group">
+      <label>Notes</label>
+      <textarea id="partner-notes-input" rows="4" placeholder="Add notes...">${esc(l.notes) || ''}</textarea>
+    </div>
+    <button class="btn btn-secondary btn-sm" onclick="savePartnerNotes('${l.id}')">Save Notes</button>
+
+    <div class="divider"></div>
+    <button class="btn btn-danger btn-sm" onclick="deletePartnerLead('${l.id}')">Delete Lead</button>
+  `;
+}
+
+async function savePartnerNotes(id) {
+  const notes = document.getElementById('partner-notes-input').value;
+  try {
+    const rec = await fetchAPI(`${API.partnerOutreach}/${id}`, { method: 'PUT', body: JSON.stringify({ notes }) });
+    const i = state.partnerLeads.findIndex(x => x.id === id);
+    if (i !== -1) state.partnerLeads[i] = rec;
+    showToast('Notes saved');
+  } catch (err) { showToast(err.message, 'error'); }
+}
+
+// ── CSV import view ───────────────────────────────────────────
+
+function renderPartnerImportView() {
+  document.getElementById('page-content').innerHTML = `
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Import Leads</h1>
+        <p class="page-subtitle">Upload a CSV of Instagram leads found by hashtag/geotag search</p>
+      </div>
+    </div>
+    ${partnerSubnav()}
+    <div class="csv-columns-hint" style="margin-bottom:16px">
+      Supported columns:<br>
+      <code>ig_handle</code> <code>esthetician_name</code> <code>studio_name</code>
+      <code>city</code> <code>region</code> <code>source_tag</code> <code>found_detail</code> <code>profile_url</code>
+    </div>
+    <div class="dropzone" id="partner-dropzone" onclick="document.getElementById('partner-file-input').click()">
+      <div class="dropzone-icon">📂</div>
+      <div class="dropzone-label">Click to upload CSV</div>
+      <div class="dropzone-sub">Max 500 leads per import</div>
+    </div>
+    <input type="file" id="partner-file-input" accept=".csv" style="display:none" onchange="handlePartnerCsvUpload(event)">
+    <div id="partner-import-result"></div>
+  `;
+}
+
+async function handlePartnerCsvUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const formData = new FormData();
+  formData.append('csv', file);
+  try {
+    const result = await fetchAPI(`${API.partnerOutreach}/import`, { method: 'POST', body: formData, headers: {} });
+    await loadPartnerOutreach();
+    document.getElementById('partner-import-result').innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">✅</div>
+        <h3>${result.imported} leads imported</h3>
+        <p>${result.skipped ? `${result.skipped} rows skipped (missing ig_handle)` : ''}</p>
+        <button class="btn btn-primary" onclick="setPartnerView('pipeline')">View Pipeline</button>
+      </div>`;
+    showToast(`${result.imported} leads imported!`);
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+// ── DM Templates view ─────────────────────────────────────────
+
+function renderPartnerTemplatesView() {
+  document.getElementById('page-content').innerHTML = `
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">DM Templates</h1>
+        <p class="page-subtitle">Rotating message variants — swap-in {{name}}, {{studio}}, {{detail}} placeholders</p>
+      </div>
+      <button class="btn btn-primary" onclick="openAddPartnerTemplateModal()">+ New Template</button>
+    </div>
+    ${partnerSubnav()}
+    <div class="table-container">
+      ${state.partnerTemplates.length === 0 ? `
+        <div class="empty-state">
+          <div class="empty-icon">✉️</div>
+          <h3>No templates yet</h3>
+          <p>Add 3-5 rotating variants so outreach doesn't read as copy-pasted</p>
+          <button class="btn btn-primary" onclick="openAddPartnerTemplateModal()">+ New Template</button>
+        </div>
+      ` : state.partnerTemplates.map(t => `
+        <div class="nb-step" style="margin-bottom:12px">
+          <div class="nb-step-header">
+            <span class="nb-step-title">${esc(t.name)}</span>
+            <span class="badge badge-${t.active ? 'green' : 'gray'}">${t.active ? 'Active' : 'Inactive'}</span>
+          </div>
+          <p style="white-space:pre-wrap;font-size:13px;color:var(--text-secondary);margin:8px 0">${esc(t.body)}</p>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-secondary btn-sm" onclick="editPartnerTemplate('${t.id}')">Edit</button>
+            <button class="btn btn-secondary btn-sm" onclick="togglePartnerTemplateActive('${t.id}', ${!t.active})">${t.active ? 'Deactivate' : 'Activate'}</button>
+            <button class="btn btn-danger btn-sm" onclick="deletePartnerTemplate('${t.id}')">Delete</button>
+          </div>
+        </div>
+      `).join('')}
+    </div>`;
+}
+
+function partnerTemplateFormHtml(t) {
+  return `
+    <form id="modal-form">
+      <div class="form-group">
+        <label>Name *</label>
+        <input name="name" placeholder="e.g. Variant A - direct invite" value="${esc(t?.name) || ''}" required>
+      </div>
+      <div class="form-group">
+        <label>Message *</label>
+        <textarea name="body" rows="6" placeholder="Hey {{name}}! Saw {{detail}} at {{studio}}..." required>${esc(t?.body) || ''}</textarea>
+      </div>
+      <div class="form-actions">
+        <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+        <button type="submit" class="btn btn-primary">${t ? 'Save' : 'Add Template'}</button>
+      </div>
+    </form>`;
+}
+
+function openAddPartnerTemplateModal() {
+  openModal('New DM Template', partnerTemplateFormHtml(), async (e) => {
+    const data = Object.fromEntries(new FormData(e.target));
+    try {
+      const rec = await fetchAPI(`${API.partnerOutreach}/templates`, { method: 'POST', body: JSON.stringify(data) });
+      state.partnerTemplates.push(rec);
+      closeModal();
+      renderPartnerTemplatesView();
+      showToast('Template added!');
+    } catch (err) { showToast(err.message, 'error'); }
+  });
+}
+
+function editPartnerTemplate(id) {
+  const t = state.partnerTemplates.find(x => x.id === id);
+  if (!t) return;
+  openModal('Edit DM Template', partnerTemplateFormHtml(t), async (e) => {
+    const data = Object.fromEntries(new FormData(e.target));
+    try {
+      const rec = await fetchAPI(`${API.partnerOutreach}/templates/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+      const i = state.partnerTemplates.findIndex(x => x.id === id);
+      if (i !== -1) state.partnerTemplates[i] = rec;
+      closeModal();
+      renderPartnerTemplatesView();
+      showToast('Template saved!');
+    } catch (err) { showToast(err.message, 'error'); }
+  });
+}
+
+async function togglePartnerTemplateActive(id, active) {
+  try {
+    const rec = await fetchAPI(`${API.partnerOutreach}/templates/${id}`, { method: 'PUT', body: JSON.stringify({ active }) });
+    const i = state.partnerTemplates.findIndex(x => x.id === id);
+    if (i !== -1) state.partnerTemplates[i] = rec;
+    renderPartnerTemplatesView();
+  } catch (err) { showToast(err.message, 'error'); }
+}
+
+async function deletePartnerTemplate(id) {
+  if (!confirm('Delete this template?')) return;
+  try {
+    await fetchAPI(`${API.partnerOutreach}/templates/${id}`, { method: 'DELETE' });
+    state.partnerTemplates = state.partnerTemplates.filter(t => t.id !== id);
+    renderPartnerTemplatesView();
+    showToast('Template deleted');
+  } catch (err) { showToast(err.message, 'error'); }
+}
+
+// ── Stats view ───────────────────────────────────────────────
+
+async function renderPartnerStatsView() {
+  document.getElementById('page-content').innerHTML = `
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Outreach Stats</h1>
+        <p class="page-subtitle">Response and application rate by template and by city</p>
+      </div>
+    </div>
+    ${partnerSubnav()}
+    <div id="partner-stats-body"><div class="empty-state"><p>Loading...</p></div></div>`;
+
+  try {
+    const stats = await fetchAPI(`${API.partnerOutreach}/stats`);
+    const pct = n => `${Math.round((n || 0) * 100)}%`;
+    const rowsTable = (rows, labelKey) => `
+      <table class="data-table">
+        <thead><tr><th>${labelKey === 'template_name' ? 'Template' : 'City'}</th><th>Contacted</th><th>Replied</th><th>Applied</th><th>Response Rate</th><th>Application Rate</th></tr></thead>
+        <tbody>
+          ${rows.length === 0 ? `<tr><td colspan="6" style="text-align:center;color:var(--text-muted)">No data yet</td></tr>` : rows.map(r => `
+            <tr>
+              <td>${esc(r[labelKey])}</td>
+              <td>${r.contacted}</td>
+              <td>${r.replied}</td>
+              <td>${r.applied}</td>
+              <td>${pct(r.response_rate)}</td>
+              <td>${pct(r.application_rate)}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>`;
+
+    document.getElementById('partner-stats-body').innerHTML = `
+      <div class="stat-cards">
+        <div class="stat-card stat-card-neutral"><div class="stat-value">${stats.overall.contacted}</div><div class="stat-label">Contacted</div></div>
+        <div class="stat-card stat-card-blue"><div class="stat-value blue">${stats.overall.replied}</div><div class="stat-label">Replied</div></div>
+        <div class="stat-card stat-card-green"><div class="stat-value green">${stats.overall.applied}</div><div class="stat-label">Applied</div></div>
+        <div class="stat-card stat-card-green"><div class="stat-value green">${stats.overall.accepted}</div><div class="stat-label">Accepted</div></div>
+      </div>
+      <h3 style="margin:20px 0 8px">By Template</h3>
+      <div class="table-container">${rowsTable(stats.byTemplate, 'template_name')}</div>
+      <h3 style="margin:20px 0 8px">By City</h3>
+      <div class="table-container">${rowsTable(stats.byCity, 'city')}</div>
+    `;
+  } catch (err) {
+    document.getElementById('partner-stats-body').innerHTML = `<div class="empty-state"><p>${esc(err.message)}</p></div>`;
   }
 }

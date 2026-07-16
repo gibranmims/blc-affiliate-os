@@ -20,8 +20,12 @@ const ideasRoutes          = require('./routes/ideas');
 const contentCalendarRoutes = require('./routes/content-calendar');
 const contentIdeasRoutes    = require('./routes/content-ideas');
 const teamCalendarRoutes    = require('./routes/team-calendar');
+const partnerOutreachRoutes    = require('./routes/partner-outreach');
+const partnerOutreachGenRoutes = require('./routes/partner-outreach-gen');
+const commentBankRoutes        = require('./routes/comment-bank');
 const { requireAuth } = require('./middleware/auth');
 const { startCron } = require('./cron/reminders');
+const { startPartnerFollowupCron } = require('./cron/partner-followups');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -103,6 +107,11 @@ app.use('/api/ideas',             ideasRoutes);
 app.use('/api/content-calendar',  contentCalendarRoutes);
 app.use('/api/content-ideas',     contentIdeasRoutes);
 app.use('/api/team-calendar',     teamCalendarRoutes);
+app.use('/api/comment-bank',      commentBankRoutes);
+
+// ── Pro Partner Outreach ──────────────────────────────────────────
+app.use('/api/partner-outreach',     partnerOutreachRoutes);
+app.use('/api/partner-outreach-gen', partnerOutreachGenRoutes);
 
 // ── SPA fallback (serves index.html for all other GET requests) ───
 app.get('*', (req, res) => {
@@ -113,4 +122,5 @@ app.get('*', (req, res) => {
 app.listen(PORT, () => {
   console.log(`BLC OS running on http://localhost:${PORT}`);
   startCron();
+  startPartnerFollowupCron();
 });
