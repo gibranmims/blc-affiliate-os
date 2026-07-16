@@ -357,11 +357,12 @@ body {
 }
 
 .nav-sub-item.active {
-  color: rgba(255,255,255,0.9);
+  background: rgba(255,255,255,0.08);
+  color: #ffffff;
 }
 
 .nav-sub-item.active::before {
-  background: var(--accent);
+  background: #ffffff;
 }
 
 .sidebar-footer {
@@ -6044,7 +6045,7 @@ textarea:focus {
 }
 
 .nav-sub-item.active {
-  color: var(--accent) !important;
+  color: #ffffff !important;
   font-weight: 600 !important;
 }
 
