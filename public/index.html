@@ -2,7 +2,11 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#0a0a0a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="BLC OS">
   <title>BLC OS</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Poppins:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -10,6 +14,18 @@
   <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
+  <!-- Mobile top bar (hidden on desktop) -->
+  <header class="mobile-topbar">
+    <button class="mobile-menu-btn" onclick="toggleMobileNav()" aria-label="Open menu">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    </button>
+    <div class="mobile-topbar-logo">BLC<span style="font-weight:400;opacity:0.5"> OS</span></div>
+    <div class="mobile-topbar-spacer"></div>
+  </header>
+
+  <!-- Mobile nav scrim (tap to close drawer) -->
+  <div class="mobile-nav-scrim" onclick="closeMobileNav()"></div>
+
   <div class="app-layout">
 
     <!-- Sidebar -->
@@ -36,10 +52,6 @@
           <i class="fa-regular fa-lightbulb nav-icon"></i>
           <span>Idea Board</span>
         </a>
-        <a href="#" class="nav-item" data-page="comment-bank">
-          <i class="fa-regular fa-comment-dots nav-icon"></i>
-          <span>Comment Bank</span>
-        </a>
 
         <div class="nav-divider"></div>
 
@@ -52,6 +64,10 @@
           <a href="#" class="nav-item" data-page="team-calendar">
             <i class="fa-regular fa-calendar-check nav-icon"></i>
             <span>Team Calendar</span>
+          </a>
+          <a href="#" class="nav-item" data-page="comment-bank">
+            <i class="fa-regular fa-comment-dots nav-icon"></i>
+            <span>Comment Bank</span>
           </a>
         </div>
 

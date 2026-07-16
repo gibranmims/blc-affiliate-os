@@ -1601,6 +1601,19 @@ body {
   color: var(--accent);
   text-decoration: underline;
 }
+.creator-handle-link:visited {
+  color: var(--text-muted);
+}
+
+/* IG profile links (Pro Partner Outreach table + detail panel) — never let :visited turn purple */
+.ig-link,
+.ig-link:visited {
+  color: var(--blue);
+  text-decoration: none;
+}
+.ig-link:hover {
+  text-decoration: underline;
+}
 
 .category-cell {
   font-size: 13.5px;
@@ -1867,6 +1880,34 @@ body {
   text-transform: uppercase;
   color: var(--text-muted);
   margin-bottom: 10px;
+}
+
+/* Simple label/value rows used in the Pro Partner detail panel */
+.detail-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+
+.detail-label {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.detail-value {
+  color: var(--text-primary);
+  font-weight: 500;
+  text-align: right;
+}
+
+.divider {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
 }
 
 /* Status row */
@@ -8561,4 +8602,264 @@ h1, h2 { letter-spacing: -0.025em; }
 /* When a cell has tasks, shrink the absence block so chips don't overlap */
 .tc-has-tasks .tc-event-block {
   bottom: 38px;
+}
+
+/* ============================================================
+   MOBILE-FIRST RESPONSIVE LAYER
+   Appended last so it wins the cascade. Desktop is untouched —
+   everything below is gated behind media queries except a few
+   universally-safe touch refinements.
+   ============================================================ */
+
+/* ── Universal touch refinements (safe on desktop) ─────────── */
+html { -webkit-tap-highlight-color: transparent; }
+body { overscroll-behavior-y: none; }
+
+/* Modern viewport units where supported (fixes iOS address-bar jump) */
+@supports (height: 100dvh) {
+  .app-layout { height: 100dvh; }
+}
+
+/* Mobile top bar + scrim — hidden on desktop */
+.mobile-topbar    { display: none; }
+.mobile-nav-scrim { display: none; }
+
+/* ── Tablet and below ──────────────────────────────────────── */
+@media (max-width: 820px) {
+
+  /* -- Top bar ---------------------------------------------- */
+  .mobile-topbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 560;
+    height: calc(52px + env(safe-area-inset-top));
+    padding: env(safe-area-inset-top) 8px 0 8px;
+    background: rgba(10,10,10,0.92);
+    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px);
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+
+  .mobile-menu-btn {
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    color: #fff;
+    cursor: pointer;
+    border-radius: 10px;
+  }
+  .mobile-menu-btn:active { background: rgba(255,255,255,0.1); }
+
+  .mobile-topbar-logo {
+    font-family: var(--font-heading);
+    font-weight: 800;
+    font-size: 17px;
+    letter-spacing: -0.02em;
+    color: #fff;
+  }
+
+  .mobile-topbar-spacer { flex: 1; }
+
+  /* -- Layout: main content below top bar -------------------- */
+  .main-content { padding-top: calc(52px + env(safe-area-inset-top)); }
+
+  .page-content {
+    padding: 20px 16px calc(28px + env(safe-area-inset-bottom));
+  }
+
+  .page-title { font-size: clamp(24px, 6.5vw, 34px) !important; }
+
+  /* -- Sidebar becomes off-canvas drawer ---------------------- */
+  .sidebar {
+    position: fixed;
+    top: 0; left: 0; bottom: 0;
+    z-index: 600;
+    width: min(300px, 84vw) !important;   /* beats .sidebar-hidden { width:0 } */
+    transform: translateX(-102%);
+    transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    box-shadow: 24px 0 64px rgba(0,0,0,0.5);
+  }
+
+  body.mobile-nav-open .sidebar { transform: translateX(0); }
+  body.mobile-nav-open { overflow: hidden; }
+
+  body.mobile-nav-open .mobile-nav-scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 590;
+    background: rgba(0,0,0,0.5);
+    -webkit-backdrop-filter: blur(3px);
+    backdrop-filter: blur(3px);
+  }
+
+  /* Desktop-only sidebar controls are irrelevant on mobile */
+  .sidebar-collapse-bar { display: none !important; }
+  #sidebar-reveal-btn   { display: none !important; }
+
+  /* Comfortable tap targets in the drawer */
+  .nav-item     { min-height: 44px; font-size: 14px; }
+  .nav-sub-item { min-height: 40px; }
+
+  /* -- Buttons & inputs: touch-friendly ----------------------- */
+  .btn { min-height: 44px; }
+  .btn-sm { min-height: 38px; }
+
+  /* 16px inputs prevent iOS Safari focus-zoom */
+  .form-input,
+  input[type="text"], input[type="email"], input[type="number"],
+  input[type="url"], input[type="date"], input[type="password"],
+  select, textarea {
+    font-size: 16px !important;
+  }
+
+  /* -- Stat card grids: 4-up → 2-up ---------------------------- */
+  .stat-cards, .home-qa-grid, .home-qa-grid-4,
+  .bf-stat-grid, .sup-stats-row, .cl-vc-stats-row {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 10px;
+  }
+  .stat-card { padding: 14px 16px; }
+  .stat-value { font-size: 26px; }
+
+  /* -- Tables: horizontal scroll rails ------------------------- */
+  .table-container, .fin-table-wrap, .bf-table-wrap, .sup-table-card {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .table-container .data-table { min-width: 720px; }
+  .fin-table { min-width: 640px; }
+  .sup-table { min-width: 640px; }
+  .bf-table  { min-width: 560px; }
+
+  /* -- Filter tabs: swipeable pill rail ------------------------ */
+  .filter-tabs {
+    flex-wrap: nowrap !important;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    max-width: 100%;
+    scrollbar-width: none;
+  }
+  .filter-tabs::-webkit-scrollbar { display: none; }
+  .filter-tab { white-space: nowrap; flex-shrink: 0; }
+
+  /* -- Detail drawer: full-screen sheet ------------------------ */
+  .detail-drawer {
+    width: 100vw !important;
+    max-width: 100vw;
+  }
+  .detail-drawer-header {
+    padding-top: calc(16px + env(safe-area-inset-top));
+  }
+  .detail-drawer-body {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .detail-close-btn { width: 40px; height: 40px; }
+
+  /* -- Modal: bottom sheet ------------------------------------- */
+  .modal-overlay {
+    padding: 0 !important;
+    align-items: flex-end !important;
+  }
+  .modal {
+    max-width: 100% !important;
+    width: 100%;
+    border-radius: 20px 20px 0 0 !important;
+    max-height: 92vh;
+    max-height: 92dvh;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .modal-close { width: 40px; height: 40px; }
+
+  /* -- Inline two-column grids collapse to one ----------------- */
+  #page-content [style*="grid-template-columns: 1fr 1fr"],
+  #page-content [style*="grid-template-columns:1fr 1fr"],
+  #modal-body [style*="grid-template-columns: 1fr 1fr"],
+  #modal-body [style*="grid-template-columns:1fr 1fr"],
+  #detail-drawer-body [style*="grid-template-columns: 1fr 1fr"],
+  #detail-drawer-body [style*="grid-template-columns:1fr 1fr"],
+  #page-content [style*="grid-template-columns:repeat(4"],
+  #page-content [style*="grid-template-columns: repeat(4"] {
+    grid-template-columns: 1fr !important;
+  }
+  /* Exception: From/Until date pairs stay side-by-side (they fit) */
+  #detail-drawer-body .cc-form-row[style*="1fr 1fr"] {
+    grid-template-columns: 1fr 1fr !important;
+  }
+
+  /* -- Content Calendar: horizontal scroll board --------------- */
+  .cc-page {
+    height: auto !important;
+    overflow: visible !important;
+    flex-direction: column;
+  }
+  .cc-board {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .cc-col-headers, .cc-platform-row { min-width: 860px; }
+
+  /* Idea Bank stacks below the board, full width */
+  .cc-bank {
+    width: 100% !important;
+    order: 2;
+    max-height: 320px;
+  }
+  .cc-bank-collapsed { max-height: 52px; }
+
+  /* -- Team Calendar: horizontal scroll grid -------------------- */
+  .tc-grid-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .tc-col-row, .tc-member-row { min-width: 720px; }
+
+  /* -- Toasts above the home indicator -------------------------- */
+  #toast-container {
+    left: 12px;
+    right: 12px;
+    bottom: calc(12px + env(safe-area-inset-bottom));
+  }
+  .toast { max-width: 100%; }
+
+  /* -- Header rows (title + actions) wrap gracefully ------------ */
+  .page-header, .ideas-header, .tc-header {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  /* -- Home page ------------------------------------------------ */
+  .home-greeting { font-size: clamp(30px, 8.5vw, 44px) !important; }
+  .home-header-row { margin-bottom: 28px !important; flex-wrap: wrap; gap: 14px; }
+
+  .home-goal-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+    padding: 20px;
+  }
+  .home-attention-inline { width: 100%; }
+
+  /* Focus-timer rail stacks below the main column */
+  .home-two-col {
+    grid-template-columns: 1fr !important;
+    gap: 20px;
+  }
+  .home-right-col { position: static; }
+}
+
+/* ── Small phones ──────────────────────────────────────────── */
+@media (max-width: 400px) {
+  .page-content { padding: 16px 12px calc(24px + env(safe-area-inset-bottom)); }
+  .stat-cards, .home-qa-grid, .home-qa-grid-4 { gap: 8px; }
+  .stat-value { font-size: 22px; }
 }

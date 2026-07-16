@@ -13,7 +13,7 @@ const supabase = createClient(
 
 const FIELDS = [
   'ig_handle', 'studio_name', 'esthetician_name', 'city', 'region',
-  'profile_url', 'source_tag', 'found_detail',
+  'profile_url', 'source_tag', 'found_detail', 'follower_count',
   'status', 'template_id',
   'contacted_date', 'followup_due_date', 'followup_sent_date',
   'replied_date', 'applied_date', 'accepted_date', 'portal_applied',
@@ -21,6 +21,7 @@ const FIELDS = [
 ];
 const BOOL_FIELDS = ['portal_applied'];
 const DATE_FIELDS = ['contacted_date', 'followup_due_date', 'followup_sent_date', 'replied_date', 'applied_date', 'accepted_date'];
+const INT_FIELDS  = ['follower_count'];
 
 function addDays(dateStr, n) {
   const d = new Date(dateStr + 'T12:00:00');
@@ -39,6 +40,7 @@ function buildRecord(body) {
     if (f === 'ig_handle')             rec.ig_handle = String(body.ig_handle).replace(/^@/, '').trim();
     else if (BOOL_FIELDS.includes(f))  rec[f] = body[f] === true || body[f] === 'true';
     else if (DATE_FIELDS.includes(f))  rec[f] = body[f] !== '' ? body[f] : null;
+    else if (INT_FIELDS.includes(f))   rec[f] = body[f] !== '' && body[f] !== null ? parseInt(body[f]) : null;
     else rec[f] = body[f] !== '' ? body[f] : null;
   }
   return rec;
@@ -237,6 +239,7 @@ router.post('/import', upload.single('csv'), async (req, res) => {
       profile_url:      n.profile_url || null,
       source_tag:       n.source_tag || null,
       found_detail:     n.found_detail || null,
+      follower_count:   n.follower_count ? parseInt(n.follower_count) || null : null,
       status:           'not_contacted'
     }))
     .filter(r => r.ig_handle);
@@ -247,6 +250,46 @@ router.post('/import', upload.single('csv'), async (req, res) => {
     const { data, error } = await supabase.from('partner_leads').insert(rows).select();
     if (error) throw error;
     res.status(201).json({ imported: data.length, skipped: records.length - rows.length, leads: data });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Bulk add from a parsed paste-list (client parses the freeform text) ──
+
+router.post('/bulk', async (req, res) => {
+  const { leads } = req.body;
+  if (!Array.isArray(leads) || leads.length === 0) return res.status(400).json({ error: 'leads array required' });
+  if (leads.length > 500) return res.status(400).json({ error: 'Max 500 leads per batch' });
+
+  const rows = leads
+    .map(l => {
+      const row = {
+        ig_handle:        String(l.ig_handle || '').replace(/^@/, '').trim(),
+        studio_name:      l.studio_name || null,
+        esthetician_name: l.esthetician_name || null,
+        city:             l.city || null,
+        region:           l.region || null,
+        profile_url:      l.profile_url || null,
+        source_tag:       l.source_tag || null,
+        found_detail:     l.found_detail || null,
+        notes:            l.notes || null,
+        status:           'not_contacted'
+      };
+      // Only include follower_count if provided — the column may not exist yet
+      // in every environment (added in a later migration), and sending it as
+      // null would still trip a "column not found" error on old schemas.
+      if (l.follower_count) row.follower_count = parseInt(l.follower_count) || undefined;
+      return row;
+    })
+    .filter(r => r.ig_handle);
+
+  if (rows.length === 0) return res.status(400).json({ error: 'No valid leads (missing ig_handle)' });
+
+  try {
+    const { data, error } = await supabase.from('partner_leads').insert(rows).select();
+    if (error) throw error;
+    res.status(201).json({ imported: data.length, skipped: leads.length - rows.length, leads: data });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

@@ -711,6 +711,7 @@ function gradeColor(grade) {
 let _onSubmit = null;
 
 function openModal(title, bodyHTML, onSubmit) {
+  closeMobileNav();
   _onSubmit = onSubmit || null;
   document.getElementById('modal-title').textContent = title;
   document.getElementById('modal-body').innerHTML = bodyHTML;
@@ -741,6 +742,7 @@ function handleOverlayClick(e) {
 // ============================================================
 
 function navigate(page) {
+  closeMobileNav();
   if (page === 'outreach') state.outreachView = 'pipeline';
   state.currentPage = page;
   document.querySelectorAll('.nav-item:not(.nav-cl-item)').forEach(el => {
@@ -779,6 +781,15 @@ function updateRosterSubNav() {
   document.querySelectorAll('.nav-sub-item[data-roster-tab]').forEach(el => {
     el.classList.toggle('active', el.dataset.rosterTab === state.rosterTab);
   });
+}
+
+// ── Mobile nav drawer ─────────────────────────────────────────
+function toggleMobileNav() {
+  document.body.classList.toggle('mobile-nav-open');
+}
+
+function closeMobileNav() {
+  document.body.classList.remove('mobile-nav-open');
 }
 
 // ============================================================
@@ -9449,7 +9460,7 @@ function renderPartnerPipelineView() {
         <p class="page-subtitle">Instagram DM outreach to licensed wax specialists &amp; estheticians for the Pro Partner Network</p>
       </div>
       <div style="display:flex;gap:8px;">
-        <button class="btn btn-secondary" onclick="setPartnerView('import')">+ Import CSV</button>
+        <button class="btn btn-secondary" onclick="setPartnerView('import')">+ Import Leads</button>
         <button class="btn btn-primary" onclick="openAddPartnerLeadModal()">+ Add Lead</button>
       </div>
     </div>
@@ -9502,7 +9513,7 @@ function renderPartnerPipelineView() {
             <tr>
               <th>Esthetician / Studio</th>
               <th>IG Handle</th>
-              <th>City</th>
+              <th>Followers</th>
               <th>Template</th>
               <th>Status</th>
               <th>Follow-up Due</th>
@@ -9510,18 +9521,18 @@ function renderPartnerPipelineView() {
             </tr>
           </thead>
           <tbody>
-            ${filtered.map(l => `
+            ${filtered.slice().sort((a, b) => (b.follower_count || 0) - (a.follower_count || 0)).map(l => `
               <tr class="clickable-row ${state.selectedPartnerId === l.id ? 'row-active' : ''}" onclick="openPartnerDetailPanel('${l.id}')">
                 <td>
                   <div class="creator-cell">
                     <div class="creator-name">${esc(l.esthetician_name || l.studio_name || l.ig_handle)}</div>
-                    ${l.studio_name && l.esthetician_name ? `<div style="font-size:12px;color:var(--text-muted)">${esc(l.studio_name)}</div>` : ''}
+                    ${l.studio_name && l.esthetician_name ? `<div style="font-size:12px;color:var(--text-muted)">${esc(l.studio_name)}${l.city ? ' · ' + esc(l.city) : ''}</div>` : (l.city ? `<div style="font-size:12px;color:var(--text-muted)">${esc(l.city)}</div>` : '')}
                   </div>
                 </td>
                 <td>
-                  <a href="https://www.instagram.com/${esc((l.ig_handle||'').replace(/^@/,''))}/" target="_blank" rel="noopener" onclick="event.stopPropagation()">@${esc(l.ig_handle)}</a>
+                  <a class="ig-link" href="https://www.instagram.com/${esc((l.ig_handle||'').replace(/^@/,''))}/" target="_blank" rel="noopener" onclick="event.stopPropagation()">@${esc(l.ig_handle)}</a>
                 </td>
-                <td>${esc(l.city) || '—'}</td>
+                <td>${fmtNum(l.follower_count)}</td>
                 <td>${esc((state.partnerTemplates.find(t => t.id === l.template_id) || {}).name) || '—'}</td>
                 <td onclick="event.stopPropagation()">
                   <select class="inline-status-select status-key-${l.status}" onchange="updatePartnerStatusInline('${l.id}', this.value, this)">
@@ -9530,7 +9541,7 @@ function renderPartnerPipelineView() {
                 </td>
                 <td>${l.status === 'contacted' && l.followup_due_date ? fmtDateShort(l.followup_due_date) : '—'}</td>
                 <td onclick="event.stopPropagation()">
-                  ${l.status === 'not_contacted' ? `<button class="btn btn-secondary btn-sm" onclick="updatePartnerStatusInline('${l.id}','contacted')">Mark Contacted</button>` : ''}
+                  ${!['accepted','not_interested'].includes(l.status) ? `<button class="btn btn-secondary btn-sm" onclick="copyPartnerDM('${l.id}')">${l.status === 'not_contacted' ? 'Copy DM' : 'Copy Follow-up'}</button>` : ''}
                 </td>
               </tr>
             `).join('')}
@@ -9538,6 +9549,63 @@ function renderPartnerPipelineView() {
         </table>
       `}
     </div>`;
+}
+
+// Fills a template's {{name}}/{{studio}}/{{detail}} placeholders with this lead's data
+function fillPartnerTemplate(body, lead) {
+  return (body || '')
+    .replace(/\{\{\s*name\s*\}\}/gi, lead.esthetician_name || 'there')
+    .replace(/\{\{\s*studio\s*\}\}/gi, lead.studio_name || 'your studio')
+    .replace(/\{\{\s*detail\s*\}\}/gi, lead.found_detail || 'your work');
+}
+
+async function copyToClipboard(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch (e) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    let ok = false;
+    try { ok = document.execCommand('copy'); } catch (_) {}
+    document.body.removeChild(ta);
+    return ok;
+  }
+}
+
+// One click: fill the lead's DM, copy it, open their Instagram profile,
+// and (on first contact) mark the lead as contacted with the follow-up date set.
+async function copyPartnerDM(id) {
+  const lead = state.partnerLeads.find(x => x.id === id);
+  if (!lead) return;
+
+  const tpl = state.partnerTemplates.find(t => t.id === lead.template_id && t.active)
+    || state.partnerTemplates.find(t => t.active);
+  if (!tpl) { showToast('Add an active DM template first', 'error'); return; }
+
+  const message = fillPartnerTemplate(tpl.body, lead);
+  const copied = await copyToClipboard(message);
+  window.open(`https://www.instagram.com/${(lead.ig_handle || '').replace(/^@/, '')}/`, '_blank', 'noopener');
+
+  if (lead.status === 'not_contacted') {
+    try {
+      const payload = { status: 'contacted' };
+      if (!lead.template_id) payload.template_id = tpl.id;
+      const rec = await fetchAPI(`${API.partnerOutreach}/${id}`, { method: 'PUT', body: JSON.stringify(payload) });
+      const i = state.partnerLeads.findIndex(x => x.id === id);
+      if (i !== -1) state.partnerLeads[i] = rec;
+      renderPartnerPipelineView();
+      if (state.selectedPartnerId === id) renderPartnerDetailPanel();
+    } catch (err) {
+      console.error('Failed to mark contacted after copying DM:', err.message);
+    }
+  }
+
+  showToast(copied ? 'DM copied — paste it in Instagram' : 'Could not copy — check clipboard permissions', copied ? 'success' : 'error');
 }
 
 function setPartnerFilter(f) {
@@ -9570,6 +9638,10 @@ function openAddPartnerLeadModal() {
         <div class="form-group">
           <label>Instagram Handle *</label>
           <input name="ig_handle" placeholder="@username" required>
+        </div>
+        <div class="form-group">
+          <label>Follower Count</label>
+          <input type="number" name="follower_count" placeholder="e.g. 45000">
         </div>
         <div class="form-group">
           <label>Esthetician Name</label>
@@ -9648,35 +9720,48 @@ function renderPartnerDetailPanel() {
           ${PARTNER_STATUSES.map(s => `<option value="${s.key}" ${l.status === s.key ? 'selected' : ''}>${s.label}</option>`).join('')}
         </select>
       </div>
-      <a href="https://www.instagram.com/${esc((l.ig_handle||'').replace(/^@/,''))}/" target="_blank" rel="noopener">@${esc(l.ig_handle)}</a>
+      <a class="ig-link" href="https://www.instagram.com/${esc((l.ig_handle||'').replace(/^@/,''))}/" target="_blank" rel="noopener">@${esc(l.ig_handle)}</a>
     </div>
 
-    <div class="divider"></div>
-
-    <div class="detail-row"><span class="detail-label">Studio</span><span class="detail-value">${esc(l.studio_name) || '—'}</span></div>
-    <div class="detail-row"><span class="detail-label">City</span><span class="detail-value">${esc(l.city) || '—'}${l.region ? ', ' + esc(l.region) : ''}</span></div>
-    <div class="detail-row"><span class="detail-label">Source</span><span class="detail-value">${esc(l.source_tag) || '—'}</span></div>
-    <div class="detail-row"><span class="detail-label">Detail noticed</span><span class="detail-value">${esc(l.found_detail) || '—'}</span></div>
-    <div class="detail-row"><span class="detail-label">Template used</span><span class="detail-value">${esc((state.partnerTemplates.find(t => t.id === l.template_id) || {}).name) || '—'}</span></div>
-
-    <div class="divider"></div>
-
-    <div class="detail-row"><span class="detail-label">Contacted</span><span class="detail-value">${fmtDate(l.contacted_date)}</span></div>
-    <div class="detail-row"><span class="detail-label">Follow-up due</span><span class="detail-value">${fmtDate(l.followup_due_date)}</span></div>
-    <div class="detail-row"><span class="detail-label">Replied</span><span class="detail-value">${fmtDate(l.replied_date)}</span></div>
-    <div class="detail-row"><span class="detail-label">Applied</span><span class="detail-value">${fmtDate(l.applied_date)}</span></div>
-    <div class="detail-row"><span class="detail-label">Accepted</span><span class="detail-value">${fmtDate(l.accepted_date)}</span></div>
-
-    <div class="divider"></div>
-
-    <div class="form-group">
-      <label>Notes</label>
-      <textarea id="partner-notes-input" rows="4" placeholder="Add notes...">${esc(l.notes) || ''}</textarea>
+    <div class="dp-section" style="padding:0">
+      <div class="detail-row"><span class="detail-label">Followers</span><span class="detail-value">${fmtNum(l.follower_count)}</span></div>
+      <div class="detail-row"><span class="detail-label">Studio</span><span class="detail-value">${esc(l.studio_name) || '—'}</span></div>
+      <div class="detail-row"><span class="detail-label">City</span><span class="detail-value">${esc(l.city) || '—'}${l.region ? ', ' + esc(l.region) : ''}</span></div>
+      <div class="detail-row"><span class="detail-label">Source</span><span class="detail-value">${esc(l.source_tag) || '—'}</span></div>
+      <div class="detail-row" style="border-bottom:none"><span class="detail-label">Detail noticed</span><span class="detail-value">${esc(l.found_detail) || '—'}</span></div>
     </div>
-    <button class="btn btn-secondary btn-sm" onclick="savePartnerNotes('${l.id}')">Save Notes</button>
 
-    <div class="divider"></div>
-    <button class="btn btn-danger btn-sm" onclick="deletePartnerLead('${l.id}')">Delete Lead</button>
+    <div class="dp-section">
+      <div class="dp-section-label">Outreach</div>
+      <div class="form-group">
+        <label>DM Template</label>
+        <select onchange="setPartnerLeadTemplate('${l.id}', this.value)">
+          <option value="">— auto (first active) —</option>
+          ${state.partnerTemplates.map(t => `<option value="${t.id}" ${l.template_id === t.id ? 'selected' : ''}>${esc(t.name)}${t.active ? '' : ' (inactive)'}</option>`).join('')}
+        </select>
+      </div>
+      ${!['accepted','not_interested'].includes(l.status) ? `<button class="btn btn-primary btn-sm" onclick="copyPartnerDM('${l.id}')">${l.status === 'not_contacted' ? 'Copy DM' : 'Copy Follow-up'}</button>` : ''}
+    </div>
+
+    <div class="dp-section" style="padding-top:0;padding-bottom:0">
+      <div class="detail-row"><span class="detail-label">Contacted</span><span class="detail-value">${fmtDate(l.contacted_date)}</span></div>
+      <div class="detail-row"><span class="detail-label">Follow-up due</span><span class="detail-value">${fmtDate(l.followup_due_date)}</span></div>
+      <div class="detail-row"><span class="detail-label">Replied</span><span class="detail-value">${fmtDate(l.replied_date)}</span></div>
+      <div class="detail-row"><span class="detail-label">Applied</span><span class="detail-value">${fmtDate(l.applied_date)}</span></div>
+      <div class="detail-row" style="border-bottom:none"><span class="detail-label">Accepted</span><span class="detail-value">${fmtDate(l.accepted_date)}</span></div>
+    </div>
+
+    <div class="dp-section">
+      <div class="form-group">
+        <label>Notes</label>
+        <textarea id="partner-notes-input" rows="4" placeholder="Add notes...">${esc(l.notes) || ''}</textarea>
+      </div>
+      <button class="btn btn-secondary btn-sm" onclick="savePartnerNotes('${l.id}')">Save Notes</button>
+    </div>
+
+    <div class="dp-section">
+      <button class="btn btn-danger btn-sm" onclick="deletePartnerLead('${l.id}')">Delete Lead</button>
+    </div>
   `;
 }
 
@@ -9690,30 +9775,107 @@ async function savePartnerNotes(id) {
   } catch (err) { showToast(err.message, 'error'); }
 }
 
-// ── CSV import view ───────────────────────────────────────────
+async function setPartnerLeadTemplate(id, templateId) {
+  try {
+    const rec = await fetchAPI(`${API.partnerOutreach}/${id}`, { method: 'PUT', body: JSON.stringify({ template_id: templateId || null }) });
+    const i = state.partnerLeads.findIndex(x => x.id === id);
+    if (i !== -1) state.partnerLeads[i] = rec;
+    renderPartnerPipelineView();
+  } catch (err) { showToast(err.message, 'error'); }
+}
+
+// ── Import view: paste list (primary) + CSV upload ─────────────
 
 function renderPartnerImportView() {
   document.getElementById('page-content').innerHTML = `
     <div class="page-header">
       <div>
         <h1 class="page-title">Import Leads</h1>
-        <p class="page-subtitle">Upload a CSV of Instagram leads found by hashtag/geotag search</p>
+        <p class="page-subtitle">Fastest: paste what you found on Instagram. One lead per line.</p>
       </div>
     </div>
     ${partnerSubnav()}
-    <div class="csv-columns-hint" style="margin-bottom:16px">
-      Supported columns:<br>
-      <code>ig_handle</code> <code>esthetician_name</code> <code>studio_name</code>
-      <code>city</code> <code>region</code> <code>source_tag</code> <code>found_detail</code> <code>profile_url</code>
+
+    <div class="nb-step" style="margin-bottom:16px">
+      <div class="nb-step-header">
+        <span class="nb-step-num">1</span>
+        <span class="nb-step-title">PASTE A LIST</span>
+      </div>
+      <div class="csv-columns-hint" style="margin-bottom:10px">
+        One lead per line, in whatever order you jotted it down. Handle is required — everything else is a bonus:<br>
+        <code>@handle - studio - city</code> &nbsp;or&nbsp; <code>@handle, studio, city</code> &nbsp;or just <code>@handle</code>
+      </div>
+      <textarea id="partner-paste-textarea" rows="8" placeholder="@amywaxes - Glow Wax Studio - Austin&#10;@brazilianbybri&#10;@waxqueen_dallas, Smooth Studio, Dallas"></textarea>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button class="btn btn-primary" onclick="handlePartnerPasteImport()">Add Leads</button>
+      </div>
+      <div id="partner-paste-result"></div>
     </div>
-    <div class="dropzone" id="partner-dropzone" onclick="document.getElementById('partner-file-input').click()">
-      <div class="dropzone-icon">📂</div>
-      <div class="dropzone-label">Click to upload CSV</div>
-      <div class="dropzone-sub">Max 500 leads per import</div>
+
+    <div class="nb-step">
+      <div class="nb-step-header">
+        <span class="nb-step-num">2</span>
+        <span class="nb-step-title">OR UPLOAD A CSV</span>
+      </div>
+      <div class="csv-columns-hint" style="margin-bottom:10px">
+        Supported columns:<br>
+        <code>ig_handle</code> <code>esthetician_name</code> <code>studio_name</code>
+        <code>city</code> <code>region</code> <code>follower_count</code> <code>source_tag</code> <code>found_detail</code> <code>profile_url</code>
+      </div>
+      <div class="dropzone" id="partner-dropzone" onclick="document.getElementById('partner-file-input').click()">
+        <div class="dropzone-icon">📂</div>
+        <div class="dropzone-label">Click to upload CSV</div>
+        <div class="dropzone-sub">Max 500 leads per import</div>
+      </div>
+      <input type="file" id="partner-file-input" accept=".csv" style="display:none" onchange="handlePartnerCsvUpload(event)">
+      <div id="partner-import-result"></div>
     </div>
-    <input type="file" id="partner-file-input" accept=".csv" style="display:none" onchange="handlePartnerCsvUpload(event)">
-    <div id="partner-import-result"></div>
   `;
+}
+
+// Parses freeform pasted lines into lead objects. Only the handle is required —
+// studio/city are best-effort guesses from whatever follows common delimiters.
+function parsePartnerPasteLines(text) {
+  return (text || '')
+    .split('\n')
+    .map(line => line.trim())
+    .filter(Boolean)
+    .map(line => {
+      const handleMatch = line.match(/@?([A-Za-z0-9._]{2,30})/);
+      if (!handleMatch) return null;
+      const ig_handle = handleMatch[1];
+      const rest = line.slice(line.indexOf(handleMatch[0]) + handleMatch[0].length)
+        .replace(/^[\s\-–—,|]+/, '')
+        .trim();
+      const parts = rest.split(/\s*[-–—,|]\s*/).filter(Boolean);
+      return {
+        ig_handle,
+        studio_name: parts[0] || null,
+        city: parts[1] || null,
+        notes: parts.length > 2 ? parts.slice(2).join(', ') : null
+      };
+    })
+    .filter(Boolean);
+}
+
+async function handlePartnerPasteImport() {
+  const text = document.getElementById('partner-paste-textarea').value;
+  const leads = parsePartnerPasteLines(text);
+  if (leads.length === 0) { showToast('No handles found — paste one per line', 'error'); return; }
+  try {
+    const result = await fetchAPI(`${API.partnerOutreach}/bulk`, { method: 'POST', body: JSON.stringify({ leads }) });
+    await loadPartnerOutreach();
+    document.getElementById('partner-paste-result').innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">✅</div>
+        <h3>${result.imported} leads added</h3>
+        <p>${result.skipped ? `${result.skipped} lines skipped (no handle found)` : ''}</p>
+        <button class="btn btn-primary" onclick="setPartnerView('pipeline')">View Pipeline</button>
+      </div>`;
+    showToast(`${result.imported} leads added!`);
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
 }
 
 async function handlePartnerCsvUpload(event) {
