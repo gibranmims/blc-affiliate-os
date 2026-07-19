@@ -3066,20 +3066,19 @@ function renderRosterPage() {
   const isPaid   = state.rosterTab === 'paid';
   const allPaid  = state.roster.filter(r => r.affiliate_type !== 'free');
   const allFree  = state.roster.filter(r => r.affiliate_type === 'free');
-  // For paid tab: filter by month
-  // If contract_month is set, use it directly.
-  // Otherwise derive from start_date: show if they started this month,
-  // or started before this month and still have videos remaining (deal ongoing).
+  const currentMonth = new Date().toISOString().slice(0, 7);
+  // For paid tab: each contract belongs to exactly ONE month — the month it
+  // started (contract_month if set, otherwise derived from start_date). GMV and
+  // posts are cumulative per-creator totals, so attributing a creator to a single
+  // month keeps those numbers scoped to that month instead of carrying the deal
+  // forward and re-counting the same GMV in every subsequent month.
+  const dealMonth = r => r.contract_month || (r.start_date ? r.start_date.slice(0, 7) : null);
   const list = isPaid
     ? allPaid.filter(r => {
-        if (r.contract_month) return r.contract_month === state.rosterMonth;
-        const startMonth = r.start_date ? r.start_date.slice(0, 7) : null;
-        if (!startMonth) return true;
-        const total     = parseInt(r.video_count) || 0;
-        const made      = parseInt(r.content_submitted) || 0;
-        const remaining = total > 0 ? Math.max(0, total - made) : null;
-        const dealOngoing = remaining === null || remaining > 0;
-        return startMonth === state.rosterMonth || (startMonth < state.rosterMonth && dealOngoing);
+        const m = dealMonth(r);
+        // Undated contracts have no month to attribute to — surface them in the
+        // current month so they stay visible/editable rather than disappearing.
+        return m ? m === state.rosterMonth : state.rosterMonth === currentMonth;
       })
     : allFree;
   const active  = list.filter(r => r.status === 'active').length;
@@ -3087,7 +3086,6 @@ function renderRosterPage() {
   const totalPosts = list.reduce((s, r) => s + (parseInt(r.content_submitted) || 0), 0);
   const paidCount  = allPaid.length;
   const freeCount  = allFree.length;
-  const currentMonth = new Date().toISOString().slice(0, 7);
   const isCurrentMonth = state.rosterMonth === currentMonth;
 
   document.getElementById('page-content').innerHTML = `
