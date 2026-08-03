@@ -29,12 +29,6 @@ ALTER TABLE tasks
 
 CREATE INDEX IF NOT EXISTS idx_tasks_project ON tasks (project_id);
 
--- The three initiatives currently in flight. Plain INSERT — a guarded
--- INSERT..SELECT bought nothing on a table CREATE TABLE just made empty,
--- and its VALUES alias was one more thing to get wrong.
--- ON CONFLICT DO NOTHING keeps a re-run from duplicating them.
-INSERT INTO projects (name, description, status, position) VALUES
-  ('Wholesale',                  'Re-launch the wholesale website and land stockists',            'active', 0),
-  ('Pro Partner Network',        'Build the esthetician partner network into a paid membership',  'active', 1),
-  ('TikTok Shop Affiliate Scale','Scale affiliate GMV on TikTok Shop with the agency',            'active', 2)
-ON CONFLICT DO NOTHING;
+-- No seed rows on purpose. Projects are added by hand in the app so the
+-- list is always something a person decided to track, never something a
+-- migration decided for them.

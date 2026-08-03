@@ -14,6 +14,8 @@ const API = {
   taskBuckets: '/api/task-buckets',
   projects:    '/api/projects',
   partners:    '/api/partners',
+  teamMembers:   '/api/team-members',
+  subscriptions: '/api/subscriptions',
   ideas:           '/api/ideas',
   commentBank:     '/api/comment-bank',
   contentCalendar: '/api/content-calendar',
@@ -78,6 +80,8 @@ const state = {
   taskBuckets:        [],
   projects:           [],
   partners:           [],
+  teamMembers:        [],
+  subscriptions:      [],
   activeProjectId:    null,
   ideas:              [],
   commentBank:        [],
@@ -781,7 +785,10 @@ function navigate(page) {
     growth:       () => renderHubPage('growth'),
     operations:   () => renderHubPage('operations'),
     projects:     renderProjectsPage,
+    project:      renderProjectDetailPage,
     partners:     renderPartnersPage,
+    team:         renderTeamPage,
+    subscriptions: renderSubscriptionsPage,
     tasks:        renderTasksPage,
     ideas:        renderIdeasPage,
     'comment-bank': renderCommentBankPage,
@@ -824,7 +831,8 @@ const HUB_ICONS = {
   eye:       '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>',
   chart:     '<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>',
   handshake: '<path d="M8 21V9a2 2 0 012-2h4a2 2 0 012 2v12"/><path d="M2 21h20"/><path d="M4 21V11l4-3M20 21V11l-4-3"/>',
-  plus:      '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>'
+  plus:      '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>',
+  card:      '<rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/>'
 };
 
 function hubIcon(key) {
@@ -896,7 +904,9 @@ const HUBS = {
       { page: 'support',       icon: 'headset',   name: 'Customer Support', desc: 'Log and track customer issues',        cta: 'Handle →' },
       { page: 'review',        icon: 'eye',       name: 'For Review',       desc: 'Payments and shipments needing a yes',  cta: 'Review →' },
       { page: 'brand-finance', icon: 'chart',     name: 'Financials',       desc: 'Revenue, inventory, pricing and cash',  cta: 'Open →' },
-      { page: 'partners',      icon: 'handshake', name: 'Partners',         desc: 'Manufacturing, Amazon, accounting, agencies', cta: 'Open →' }
+      { page: 'partners',      icon: 'handshake', name: 'Partners',         desc: 'Manufacturing, Amazon, accounting, agencies', cta: 'Open →' },
+      { page: 'subscriptions', icon: 'card',      name: 'Subscriptions',    desc: 'What we pay for every month, and the total', cta: 'Track →' },
+      { page: 'team',          icon: 'users',     name: 'Team',             desc: 'Add people and give them a task column',    cta: 'Manage →' }
     ]
   }
 };
@@ -909,6 +919,7 @@ const PAGE_PARENT_HUB = (() => {
   Object.entries(HUBS).forEach(([key, hub]) => {
     [hub.hero, ...hub.cards].forEach(c => { if (c.page) map[c.page] = key; });
   });
+  map.project = 'projects';   // a single project page sits under Projects
   return map;
 })();
 
@@ -1034,45 +1045,136 @@ function renderProjectsPage() {
   `;
 }
 
+// Each project gets its own page rather than a modal — a project is a
+// place you work out of, not something you glance at and dismiss.
 function openProjectDetail(id) {
-  const p = state.projects.find(x => x.id === id);
-  if (!p) return;
-  const tasks = projectTasks(id).sort((a, b) => {
+  state.activeProjectId = id;
+  navigate('project');
+}
+
+function renderProjectDetailPage() {
+  const p = state.projects.find(x => x.id === state.activeProjectId);
+  if (!p) { navigate('projects'); return; }
+
+  const tasks = projectTasks(p.id).sort((a, b) => {
     if (a.completed !== b.completed) return a.completed ? 1 : -1;
     return deadlineSortKey(a.deadline) - deadlineSortKey(b.deadline);
   });
-  const pr = projectProgress(id);
-  const who = { founder: 'Gibran', tamar: 'Tamar', 'for-founder': 'For Founder' };
+  const pr   = projectProgress(p.id);
+  const st   = PROJECT_STATUSES.find(s => s.key === p.status) || PROJECT_STATUSES[1];
+  const due  = p.target_date ? fmtDeadline(p.target_date) : null;
+  const who  = { founder: 'Gibran', tamar: 'Tamar', 'for-founder': 'For Founder' };
+  const open = tasks.filter(t => !t.completed).length;
 
-  openModal(esc(p.name), `
-    <div style="display:flex;flex-direction:column;gap:16px">
-      <div>
-        <div class="proj-bar"><div class="proj-bar-fill" style="width:${pr.pct}%"></div></div>
-        <div class="proj-meta" style="margin-top:8px">
-          <span>${pr.total ? `${pr.done} of ${pr.total} tasks done` : 'No tasks linked yet'}</span>
-          <span>${p.target_date ? 'Target ' + p.target_date : ''}</span>
+  document.getElementById('page-content').innerHTML = `
+    <button class="proj-back" onclick="navigate('projects')">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+      All projects
+    </button>
+
+    <div class="hub-banner">
+      <span class="proj-status proj-status-${p.status}" style="top:26px;right:30px">${st.label}</span>
+      <h1 class="hub-title">${esc(p.name)}</h1>
+      ${p.description ? `<div class="hub-sub" style="margin-top:8px;max-width:62ch">${esc(p.description)}</div>` : ''}
+      <div class="proj-bar" style="margin-top:18px;max-width:520px"><div class="proj-bar-fill" style="width:${pr.pct}%"></div></div>
+      <div class="hub-stats">
+        <div class="hub-stat"><div class="hub-stat-value">${pr.pct}%</div><div class="hub-stat-label">Complete</div></div>
+        <div class="hub-stat"><div class="hub-stat-value">${open}</div><div class="hub-stat-label">Open</div></div>
+        <div class="hub-stat"><div class="hub-stat-value">${pr.done}</div><div class="hub-stat-label">Done</div></div>
+        <div class="hub-stat">
+          <div class="hub-stat-value" style="font-size:18px;padding-top:10px">${p.owner ? esc(who[p.owner] || p.owner) : '—'}</div>
+          <div class="hub-stat-label">Owner</div>
         </div>
-      </div>
-
-      <div>
-        <div class="form-label" style="margin-bottom:8px">Tasks in this project</div>
-        <div class="proj-task-list">
-          ${tasks.length
-            ? tasks.map(t => `
-              <div class="proj-task${t.completed ? ' proj-task-done' : ''}">
-                <span class="proj-task-title">${esc(t.title)}</span>
-                <span class="proj-task-who">${esc(who[t.assignee] || t.assignee)}</span>
-              </div>`).join('')
-            : `<div class="focus-empty">Nothing linked yet — open a task and pick this project.</div>`}
+        <div class="hub-stat">
+          <div class="hub-stat-value" style="font-size:18px;padding-top:10px">${p.target_date || '—'}</div>
+          <div class="hub-stat-label">Target${due ? ` · ${due.text}` : ''}</div>
         </div>
-      </div>
-
-      <div style="display:flex;gap:8px;justify-content:space-between;padding-top:4px">
-        <button class="btn btn-danger btn-sm" onclick="deleteProject('${id}')">Delete</button>
-        <button class="btn btn-primary btn-sm" onclick="openProjectEditor('${id}')">Edit project</button>
       </div>
     </div>
-  `);
+
+    <div class="proj-page-actions">
+      <button class="btn btn-secondary btn-sm" onclick="openProjectEditor('${p.id}')">Edit project</button>
+      <button class="btn btn-danger btn-sm" onclick="deleteProject('${p.id}')">Delete</button>
+    </div>
+
+    <div class="home-section-heading-lg" style="margin:26px 0 12px">Work in this project</div>
+    <div class="proj-page-tasks" id="proj-page-tasks">
+      ${tasks.length
+        ? tasks.map(t => {
+            const dl = fmtDeadline(t.deadline);
+            return `
+            <div class="focus-task${t.completed ? ' focus-done' : ''}">
+              <button class="focus-check${t.completed ? ' focus-checked' : ''}" onclick="toggleProjectTask('${t.id}')">
+                ${t.completed ? `<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5"><polyline points="20 6 9 17 4 12"/></svg>` : ''}
+              </button>
+              <span class="focus-task-title" onclick="openTaskDetail('${t.id}')">${esc(t.title)}</span>
+              ${taskTagBadge(t.tag)}
+              <span class="proj-task-who">${esc(who[t.assignee] || t.assignee)}</span>
+              ${dl ? `<span class="task-deadline ${dl.cls}">${dl.text}</span>` : ''}
+            </div>`;
+          }).join('')
+        : `<div class="focus-empty">Nothing here yet — add the first piece of work below.</div>`}
+    </div>
+    <button class="focus-add-btn" style="max-width:260px" onclick="startAddProjectTask('${p.id}')">
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Add task to this project
+    </button>
+  `;
+}
+
+// Toggling from the project page re-renders here rather than the board
+async function toggleProjectTask(id) {
+  const task = state.tasks.find(t => t.id === id);
+  if (!task) return;
+  try {
+    const updated = await fetchAPI(`${API.tasks}/${id}`, {
+      method: 'PUT', body: JSON.stringify({ completed: !task.completed })
+    });
+    const i = state.tasks.findIndex(t => t.id === id);
+    if (i !== -1) state.tasks[i] = updated;
+    renderProjectDetailPage();
+    updateTasksUrgentBadge();
+  } catch (err) { showToast(err.message, 'error'); }
+}
+
+// New work starts on the project owner's board, falling back to Gibran
+function startAddProjectTask(projectId) {
+  const listEl = document.getElementById('proj-page-tasks');
+  if (!listEl || listEl.querySelector('.focus-add-row')) return;
+  listEl.querySelector('.focus-empty')?.remove();
+  const project = state.projects.find(p => p.id === projectId);
+  const row = document.createElement('div');
+  row.className = 'focus-task focus-add-row';
+  row.innerHTML = `
+    <span class="focus-check"></span>
+    <input class="focus-add-input" type="text" placeholder="What needs doing?" maxlength="120">
+  `;
+  listEl.appendChild(row);
+  const input = row.querySelector('input');
+  input.focus();
+
+  let settled = false;
+  async function commit() {
+    if (settled) return;
+    settled = true;
+    const title = input.value.trim();
+    row.remove();
+    if (!title) { renderProjectDetailPage(); return; }
+    try {
+      const task = await fetchAPI(API.tasks, {
+        method: 'POST',
+        body: JSON.stringify({ title, assignee: project?.owner || 'founder', project_id: projectId })
+      });
+      state.tasks.push(task);
+      renderProjectDetailPage();
+      updateTasksUrgentBadge();
+    } catch (err) { showToast(err.message, 'error'); }
+  }
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter')  commit();
+    if (e.key === 'Escape') { settled = true; row.remove(); renderProjectDetailPage(); }
+  });
+  input.addEventListener('blur', () => setTimeout(commit, 150));
 }
 
 function openProjectEditor(id) {
@@ -1098,8 +1200,7 @@ function openProjectEditor(id) {
           <label class="form-label">Owner</label>
           <select class="form-input" id="pj-owner">
             <option value="">Unassigned</option>
-            <option value="founder" ${p && p.owner === 'founder' ? 'selected' : ''}>Gibran</option>
-            <option value="tamar"   ${p && p.owner === 'tamar'   ? 'selected' : ''}>Tamar</option>
+            ${activeMembers().map(m => `<option value="${m.member_key}" ${p && p.owner === m.member_key ? 'selected' : ''}>${esc(m.name)}</option>`).join('')}
           </select>
         </div>
         <div class="form-group" style="margin:0">
@@ -1134,7 +1235,8 @@ async function saveProject(id) {
       state.projects.push(await fetchAPI(API.projects, { method: 'POST', body: JSON.stringify(body) }));
     }
     closeModal();
-    renderProjectsPage();
+    // Editing from a project's own page should land you back on it
+    if (state.currentPage === 'project') renderProjectDetailPage(); else renderProjectsPage();
     showToast('Saved');
   } catch (err) { showToast(err.message, 'error'); }
 }
@@ -1148,7 +1250,8 @@ async function deleteProject(id) {
     state.projects = state.projects.filter(x => x.id !== id);
     state.tasks.forEach(t => { if (t.project_id === id) t.project_id = null; });
     closeModal();
-    renderProjectsPage();
+    if (state.activeProjectId === id) state.activeProjectId = null;
+    navigate('projects');            // its page no longer exists
     showToast('Project deleted');
   } catch (err) { showToast(err.message, 'error'); }
 }
@@ -1282,6 +1385,293 @@ async function deletePartner(id) {
     closeModal();
     renderPartnersPage();
     showToast('Partner removed');
+  } catch (err) { showToast(err.message, 'error'); }
+}
+
+// ============================================================
+// TEAM
+// The roster is data, not columns in the code. Adding someone here
+// gives them a Team Tasks column, a Team Calendar row, and a slot in
+// every assignee and owner dropdown.
+// ============================================================
+
+function renderTeamPage() {
+  const members = [...state.teamMembers].sort((a, b) => a.position - b.position);
+  const load = key => state.tasks.filter(t => t.assignee === key && !t.completed && !t.archived).length;
+
+  document.getElementById('page-content').innerHTML = `
+    <div class="hub-banner">
+      <h1 class="hub-title">Team</h1>
+      <div class="hub-promise">Who's on the inside.</div>
+      <div class="hub-sub">Everyone here gets a column on the task board and a row on the team calendar. Sign-in uses one shared password, so this is about assigning work, not accounts.</div>
+      <div class="hub-stats">
+        <div class="hub-stat"><div class="hub-stat-value">${members.filter(m => m.active).length}</div><div class="hub-stat-label">Active</div></div>
+        <div class="hub-stat"><div class="hub-stat-value">${state.tasks.filter(t => !t.completed && !t.archived).length}</div><div class="hub-stat-label">Open tasks</div></div>
+      </div>
+    </div>
+
+    <div class="hub-grid">
+      ${members.map(m => `
+        <button class="hub-card partner-card${m.active ? '' : ' is-inactive'}" onclick="openMemberEditor('${m.id}')">
+          <span class="partner-cat">${m.active ? 'Active' : 'Inactive'}</span>
+          <div class="team-row">
+            <span class="focus-avatar">${esc(m.initials || m.name[0].toUpperCase())}</span>
+            <div class="hub-card-name">${esc(m.name)}</div>
+          </div>
+          <div class="hub-card-desc">${load(m.member_key)} open task${load(m.member_key) === 1 ? '' : 's'}</div>
+          <div class="hub-card-cta">Edit →</div>
+        </button>`).join('')}
+
+      <button class="hub-card partner-card proj-card-new" onclick="openMemberEditor()">
+        <div class="hub-ico">${hubIcon('plus')}</div>
+        <div class="hub-card-name">Add team member</div>
+        <div class="hub-card-desc">They'll get their own column straight away</div>
+      </button>
+    </div>
+  `;
+}
+
+function openMemberEditor(id) {
+  const m = id ? state.teamMembers.find(x => x.id === id) : null;
+  openModal(m ? 'Edit Team Member' : 'Add Team Member', `
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div style="display:grid;grid-template-columns:2fr 1fr;gap:12px">
+        <div class="form-group" style="margin:0">
+          <label class="form-label">Name</label>
+          <input class="form-input" id="tm-name" value="${m ? esc(m.name) : ''}" placeholder="e.g. Nia" maxlength="60">
+        </div>
+        <div class="form-group" style="margin:0">
+          <label class="form-label">Initials</label>
+          <input class="form-input" id="tm-initials" value="${m ? esc(m.initials || '') : ''}" placeholder="Auto" maxlength="3">
+        </div>
+      </div>
+      ${m ? `
+      <div class="form-group">
+        <label class="form-label">Status</label>
+        <select class="form-input" id="tm-active">
+          <option value="1" ${m.active ? 'selected' : ''}>Active — shows on the board</option>
+          <option value="0" ${!m.active ? 'selected' : ''}>Inactive — hidden, work preserved</option>
+        </select>
+      </div>` : ''}
+      <div style="display:flex;gap:8px;justify-content:space-between;padding-top:4px">
+        ${m ? `<button class="btn btn-danger btn-sm" onclick="deleteMember('${id}')">Remove</button>` : '<span></span>'}
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-secondary btn-sm" onclick="closeModal()">Cancel</button>
+          <button class="btn btn-primary btn-sm" onclick="saveMember(${m ? `'${id}'` : 'null'})">Save</button>
+        </div>
+      </div>
+    </div>
+  `);
+  setTimeout(() => document.getElementById('tm-name')?.focus(), 60);
+}
+
+async function saveMember(id) {
+  const name     = document.getElementById('tm-name')?.value.trim();
+  const initials = document.getElementById('tm-initials')?.value.trim();
+  const activeEl = document.getElementById('tm-active');
+  if (!name) { showToast('Name is required', 'error'); return; }
+  const body = { name, initials: initials || undefined };
+  if (activeEl) body.active = activeEl.value === '1';
+  try {
+    if (id) {
+      const updated = await fetchAPI(`${API.teamMembers}/${id}`, { method: 'PUT', body: JSON.stringify(body) });
+      const i = state.teamMembers.findIndex(x => x.id === id);
+      if (i !== -1) state.teamMembers[i] = updated;
+    } else {
+      state.teamMembers.push(await fetchAPI(API.teamMembers, { method: 'POST', body: JSON.stringify(body) }));
+    }
+    closeModal();
+    renderTeamPage();
+    showToast('Saved');
+  } catch (err) { showToast(err.message, 'error'); }
+}
+
+async function deleteMember(id) {
+  const m = state.teamMembers.find(x => x.id === id);
+  if (!confirm(`Remove ${m?.name} from the team?`)) return;
+  try {
+    await fetchAPI(`${API.teamMembers}/${id}`, { method: 'DELETE' });
+    state.teamMembers = state.teamMembers.filter(x => x.id !== id);
+    closeModal();
+    renderTeamPage();
+    showToast('Removed');
+  } catch (err) {
+    // The API refuses while work is still assigned — surface why
+    showToast(err.message, 'error');
+  }
+}
+
+// ============================================================
+// SUBSCRIPTIONS
+// What the business pays for every month, and what that adds up to.
+// ============================================================
+
+const SUB_CYCLES = [
+  { key: 'weekly',  label: 'Weekly',  perMonth: 52 / 12 },
+  { key: 'monthly', label: 'Monthly', perMonth: 1 },
+  { key: 'yearly',  label: 'Yearly',  perMonth: 1 / 12 }
+];
+
+// Everything normalises to a monthly figure so totals are comparable
+function subMonthly(s) {
+  const c = SUB_CYCLES.find(c => c.key === s.cycle) || SUB_CYCLES[1];
+  return (parseFloat(s.amount) || 0) * c.perMonth;
+}
+
+const money = n => '$' + n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+
+function renderSubscriptionsPage() {
+  const subs    = [...state.subscriptions].sort((a, b) => a.position - b.position);
+  const active  = subs.filter(s => s.status === 'active');
+  const monthly = active.reduce((t, s) => t + subMonthly(s), 0);
+
+  // Renewing inside the next week, soonest first
+  const soon = active
+    .filter(s => s.renews_on && deadlineSortKey(s.renews_on) <= 7)
+    .sort((a, b) => deadlineSortKey(a.renews_on) - deadlineSortKey(b.renews_on));
+
+  document.getElementById('page-content').innerHTML = `
+    <div class="hub-banner">
+      <h1 class="hub-title">Subscriptions</h1>
+      <div class="hub-promise">What we pay for every month.</div>
+      <div class="hub-sub">Software and services on recurring billing, so the total is visible without digging through a card statement.</div>
+      <div class="hub-stats">
+        <div class="hub-stat"><div class="hub-stat-value">${money(monthly)}</div><div class="hub-stat-label">Per month</div></div>
+        <div class="hub-stat"><div class="hub-stat-value">${money(monthly * 12)}</div><div class="hub-stat-label">Per year</div></div>
+        <div class="hub-stat"><div class="hub-stat-value">${active.length}</div><div class="hub-stat-label">Active</div></div>
+        <div class="hub-stat"><div class="hub-stat-value">${soon.length}</div><div class="hub-stat-label">Renewing soon</div></div>
+      </div>
+    </div>
+
+    <div class="hub-grid">
+      ${subs.map(s => {
+        const due = s.renews_on ? fmtDeadline(s.renews_on) : null;
+        const cyc = SUB_CYCLES.find(c => c.key === s.cycle) || SUB_CYCLES[1];
+        return `
+        <button class="hub-card sub-card${s.status === 'cancelled' ? ' is-inactive' : ''}" onclick="openSubscriptionEditor('${s.id}')">
+          ${s.category ? `<span class="partner-cat">${esc(s.category)}</span>` : ''}
+          <div class="hub-card-name">${esc(s.name)}</div>
+          <div class="sub-amount">${money(parseFloat(s.amount) || 0)}<span class="sub-cycle"> / ${cyc.label.toLowerCase()}</span></div>
+          ${s.cycle !== 'monthly' ? `<div class="partner-line">${money(subMonthly(s))} a month equivalent</div>` : ''}
+          ${s.paid_with ? `<div class="partner-line">${esc(s.paid_with)}</div>` : ''}
+          <div class="proj-meta">
+            <span>${s.status === 'cancelled' ? 'Cancelled' : 'Active'}</span>
+            ${due ? `<span class="task-deadline ${due.cls}">Renews ${due.text}</span>` : ''}
+          </div>
+        </button>`;
+      }).join('')}
+
+      <button class="hub-card sub-card proj-card-new" onclick="openSubscriptionEditor()">
+        <div class="hub-ico">${hubIcon('plus')}</div>
+        <div class="hub-card-name">Add subscription</div>
+        <div class="hub-card-desc">Anything billing on a recurring basis</div>
+      </button>
+    </div>
+  `;
+}
+
+function openSubscriptionEditor(id) {
+  const s = id ? state.subscriptions.find(x => x.id === id) : null;
+  const known = [...new Set(state.subscriptions.map(x => x.category).filter(Boolean))];
+  openModal(s ? 'Edit Subscription' : 'Add Subscription', `
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div style="display:grid;grid-template-columns:2fr 1fr;gap:12px">
+        <div class="form-group" style="margin:0">
+          <label class="form-label">Name</label>
+          <input class="form-input" id="sb-name" value="${s ? esc(s.name) : ''}" placeholder="e.g. Shopify" maxlength="80">
+        </div>
+        <div class="form-group" style="margin:0">
+          <label class="form-label">Category</label>
+          <input class="form-input" id="sb-category" list="sb-cats" value="${s ? esc(s.category || '') : ''}" placeholder="e.g. Software">
+          <datalist id="sb-cats">${known.map(c => `<option value="${esc(c)}"></option>`).join('')}</datalist>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+        <div class="form-group" style="margin:0">
+          <label class="form-label">Amount</label>
+          <input class="form-input" id="sb-amount" type="number" min="0" step="0.01" value="${s ? (s.amount ?? '') : ''}" placeholder="0.00">
+        </div>
+        <div class="form-group" style="margin:0">
+          <label class="form-label">Billing cycle</label>
+          <select class="form-input" id="sb-cycle">
+            ${SUB_CYCLES.map(c => `<option value="${c.key}" ${s && s.cycle === c.key ? 'selected' : ''}>${c.label}</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-group" style="margin:0">
+          <label class="form-label">Next renewal</label>
+          <input type="date" class="form-input" id="sb-renews" value="${s ? (s.renews_on || '') : ''}">
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+        <div class="form-group" style="margin:0">
+          <label class="form-label">Paid with</label>
+          <input class="form-input" id="sb-paid" value="${s ? esc(s.paid_with || '') : ''}" placeholder="e.g. Amex">
+        </div>
+        <div class="form-group" style="margin:0">
+          <label class="form-label">Owner</label>
+          <select class="form-input" id="sb-owner">
+            <option value="">Unassigned</option>
+            ${activeMembers().map(m => `<option value="${m.member_key}" ${s && s.owner === m.member_key ? 'selected' : ''}>${esc(m.name)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-group" style="margin:0">
+          <label class="form-label">Status</label>
+          <select class="form-input" id="sb-status">
+            <option value="active"    ${s && s.status === 'active'    ? 'selected' : ''}>Active</option>
+            <option value="cancelled" ${s && s.status === 'cancelled' ? 'selected' : ''}>Cancelled</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Notes</label>
+        <textarea class="form-input" id="sb-notes" rows="2" placeholder="Plan, seats, what it's for">${s ? esc(s.notes || '') : ''}</textarea>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:space-between;padding-top:4px">
+        ${s ? `<button class="btn btn-danger btn-sm" onclick="deleteSubscription('${id}')">Delete</button>` : '<span></span>'}
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-secondary btn-sm" onclick="closeModal()">Cancel</button>
+          <button class="btn btn-primary btn-sm" onclick="saveSubscription(${s ? `'${id}'` : 'null'})">Save</button>
+        </div>
+      </div>
+    </div>
+  `);
+  setTimeout(() => document.getElementById('sb-name')?.focus(), 60);
+}
+
+async function saveSubscription(id) {
+  const v = i => document.getElementById(i)?.value.trim() || null;
+  const body = {
+    name: v('sb-name'), category: v('sb-category'), paid_with: v('sb-paid'),
+    owner: v('sb-owner'), notes: v('sb-notes'),
+    amount: parseFloat(document.getElementById('sb-amount')?.value) || 0,
+    cycle: document.getElementById('sb-cycle')?.value,
+    status: document.getElementById('sb-status')?.value,
+    renews_on: v('sb-renews')
+  };
+  if (!body.name) { showToast('Name is required', 'error'); return; }
+  try {
+    if (id) {
+      const updated = await fetchAPI(`${API.subscriptions}/${id}`, { method: 'PUT', body: JSON.stringify(body) });
+      const i = state.subscriptions.findIndex(x => x.id === id);
+      if (i !== -1) state.subscriptions[i] = updated;
+    } else {
+      state.subscriptions.push(await fetchAPI(API.subscriptions, { method: 'POST', body: JSON.stringify(body) }));
+    }
+    closeModal();
+    renderSubscriptionsPage();
+    showToast('Saved');
+  } catch (err) { showToast(err.message, 'error'); }
+}
+
+async function deleteSubscription(id) {
+  const s = state.subscriptions.find(x => x.id === id);
+  if (!confirm(`Delete "${s?.name}"?`)) return;
+  try {
+    await fetchAPI(`${API.subscriptions}/${id}`, { method: 'DELETE' });
+    state.subscriptions = state.subscriptions.filter(x => x.id !== id);
+    closeModal();
+    renderSubscriptionsPage();
+    showToast('Deleted');
   } catch (err) { showToast(err.message, 'error'); }
 }
 
@@ -6630,6 +7020,41 @@ async function loadPartners() {
   state.partners = await fetchAPI(API.partners).catch(() => []) || [];
 }
 
+async function loadTeamMembers() {
+  state.teamMembers = await fetchAPI(API.teamMembers).catch(() => []) || [];
+}
+
+async function loadSubscriptions() {
+  state.subscriptions = await fetchAPI(API.subscriptions).catch(() => []) || [];
+}
+
+// The two people the board assumed before the team table existed. Used only
+// as a fallback so an unmigrated or unreachable table can't empty the board
+// and hide everyone's work.
+const IMPLICIT_MEMBERS = [
+  { member_key: 'founder', name: 'Gibran', initials: 'G', active: true, position: 0 },
+  { member_key: 'tamar',   name: 'Tamar',  initials: 'T', active: true, position: 1 }
+];
+
+// Active people, in board order. Everything that needs "who is on the team"
+// reads this, so adding someone never means touching code.
+function activeMembers() {
+  const rows = state.teamMembers.filter(m => m.active);
+  if (!rows.length) return IMPLICIT_MEMBERS;
+  return rows.sort((a, b) => a.position - b.position);
+}
+
+function memberName(key) {
+  if (key === 'for-founder') return 'For Founder';
+  return state.teamMembers.find(m => m.member_key === key)?.name || key;
+}
+
+function memberInitials(key) {
+  if (key === 'for-founder') return 'F';
+  const m = state.teamMembers.find(m => m.member_key === key);
+  return m?.initials || (m?.name || key || '?')[0].toUpperCase();
+}
+
 function updateTasksUrgentBadge() {
   const urgentCount = state.tasks.filter(t =>
     !t.completed && !t.archived && t.deadline && deadlineSortKey(t.deadline) <= 1
@@ -7022,11 +7447,11 @@ async function deleteBucket(id) {
 }
 
 function refreshTaskBoard() {
-  const gEl = document.getElementById('tasks-founder');
-  const tEl = document.getElementById('tasks-tamar');
+  activeMembers().forEach(m => {
+    const el = document.getElementById(`tasks-${m.member_key}`);
+    if (el) el.innerHTML = renderBucketedColumn(m.member_key);
+  });
   const rEl = document.getElementById('tasks-for-founder');
-  if (gEl) gEl.innerHTML = renderBucketedColumn('founder');
-  if (tEl) tEl.innerHTML = renderBucketedColumn('tamar');
   if (rEl) rEl.innerHTML = renderTaskList('for-founder');   // a queue, not a workload — stays flat
   // Update "For Founder" column badge count
   const pending = state.tasks.filter(t => t.assignee === 'for-founder' && !t.archived && !t.completed).length;
@@ -7216,40 +7641,24 @@ function renderTasksPage() {
         </div>
       </div>
       <div class="tasks-focus-grid">
+        ${activeMembers().map(m => `
         <div class="focus-col">
           <div class="focus-col-head">
-            <span class="focus-avatar">G</span>
-            <span class="focus-col-name">Gibran</span>
+            <span class="focus-avatar">${esc(m.initials || m.name[0].toUpperCase())}</span>
+            <span class="focus-col-name">${esc(m.name)}</span>
           </div>
-          <div class="focus-list" id="tasks-founder">${renderBucketedColumn('founder')}</div>
+          <div class="focus-list" id="tasks-${m.member_key}">${renderBucketedColumn(m.member_key)}</div>
           <div class="focus-col-actions">
-            <button class="focus-add-btn" onclick="startAddTask('founder')">
+            <button class="focus-add-btn" onclick="startAddTask('${m.member_key}')">
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
               Add task
             </button>
-            <button class="focus-add-btn focus-add-bucket" onclick="startAddBucket('founder')">
+            <button class="focus-add-btn focus-add-bucket" onclick="startAddBucket('${m.member_key}')">
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
               Add bucket
             </button>
           </div>
-        </div>
-        <div class="focus-col">
-          <div class="focus-col-head">
-            <span class="focus-avatar">T</span>
-            <span class="focus-col-name">Tamar</span>
-          </div>
-          <div class="focus-list" id="tasks-tamar">${renderBucketedColumn('tamar')}</div>
-          <div class="focus-col-actions">
-            <button class="focus-add-btn" onclick="startAddTask('tamar')">
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-              Add task
-            </button>
-            <button class="focus-add-btn focus-add-bucket" onclick="startAddBucket('tamar')">
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-              Add bucket
-            </button>
-          </div>
-        </div>
+        </div>`).join('')}
         <div class="focus-col focus-col-review">
           <div class="focus-col-head">
             <span class="focus-avatar focus-avatar-review">
@@ -7362,12 +7771,13 @@ function renderHomePage() {
               <div class="home-urgent-list">
                 ${urgentTasks.map(t => {
                   const dl = fmtDeadline(t.deadline);
-                  const aMap = {
-                    founder:      { lbl: 'G', name: 'Gibran',     cls: 'ua-gibran'  },
-                    tamar:        { lbl: 'T', name: 'Tamar',      cls: 'ua-tamar'   },
-                    'for-founder':{ lbl: 'F', name: 'For Review', cls: 'ua-founder' }
+                  // Reads the team table, so a new member shows up here
+                  // without anyone editing a map
+                  const av = {
+                    lbl:  memberInitials(t.assignee),
+                    name: t.assignee === 'for-founder' ? 'For Review' : memberName(t.assignee),
+                    cls:  t.assignee === 'for-founder' ? 'ua-founder' : 'ua-gibran'
                   };
-                  const av = aMap[t.assignee] || { lbl: '?', name: 'Unknown', cls: '' };
                   return `<div class="home-urgent-item" onclick="navigate('tasks')">
                     <div class="home-urgent-who">
                       <span class="home-urgent-avatar ${av.cls}">${av.lbl}</span>
@@ -8583,6 +8993,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     loadTasks().catch(() => {}),
     loadProjects().catch(() => {}),
     loadPartners().catch(() => {}),
+    loadTeamMembers().catch(() => {}),
+    loadSubscriptions().catch(() => {}),
     loadHomeSettings().catch(() => {}),
     loadIdeas().catch(() => {}),
     loadCommentBank().catch(() => {}),
@@ -9965,10 +10377,16 @@ function bf_saveAccs(e) {
    TEAM CALENDAR
    ============================================================ */
 
-const TEAM_MEMBERS = [
-  { key: 'gibran', name: 'Gibran', color: '#0a0a0a', initials: 'G' },
-  { key: 'tamar',  name: 'Tamar',  color: '#db2777', initials: 'T' },
-];
+// The calendar draws from the same team table as the task board, so a
+// person added once appears in both.
+function teamCalendarMembers() {
+  return activeMembers().map(m => ({
+    key:      m.member_key,
+    name:     m.name,
+    color:    m.color || '#f2f4f9',
+    initials: m.initials || m.name[0].toUpperCase()
+  }));
+}
 
 const ABSENCE_TYPES = [
   { key: 'vacation', label: 'Vacation',      color: '#0d9488' },
@@ -10025,11 +10443,10 @@ async function renderTeamCalendarPage() {
   const DOW      = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
   const outToday = state.teamCalendar.filter(a => a.start_date <= today && a.end_date >= today);
 
-  // Which task assignees map to each team member
-  const TASK_ASSIGNEE_MAP = {
-    gibran: ['founder', 'for-founder'],
-    tamar:  ['tamar'],
-  };
+  // Calendar rows are keyed by member_key now, which is the same value
+  // tasks.assignee stores — so no translation table is needed. The founder
+  // additionally sees the shared "For Founder" queue on their row.
+  const assigneesFor = key => key === 'founder' ? [key, 'for-founder'] : [key];
 
   function dayCell(member, d) {
     const isToday  = d === today;
@@ -10042,7 +10459,7 @@ async function renderTeamCalendarPage() {
     // Tasks with a deadline on this day for this member
     const dayTasks = (state.tasks || []).filter(t =>
       !t.completed && !t.archived && t.deadline === d &&
-      (TASK_ASSIGNEE_MAP[member.key] || []).includes(t.assignee)
+      assigneesFor(member.key).includes(t.assignee)
     );
     const hasTasks = dayTasks.length > 0;
 
@@ -10088,7 +10505,7 @@ async function renderTeamCalendarPage() {
   const bannerHtml = outToday.length === 0
     ? '<span class="tc-banner-dot tc-dot-green"></span><span class="tc-banner-text">Everyone\'s available today</span>'
     : outToday.map(function(a) {
-        const m  = TEAM_MEMBERS.find(t => t.key === a.member_key);
+        const m  = teamCalendarMembers().find(t => t.key === a.member_key);
         const at = ABSENCE_TYPES.find(t => t.key === a.absence_type);
         return '<div class="tc-banner-chip">' +
           '<div class="tc-chip-avatar" style="background:' + (m ? m.color : '#444') + '">' + (m ? m.initials : '?') + '</div>' +
@@ -10110,7 +10527,7 @@ async function renderTeamCalendarPage() {
     '</div>';
   }).join('');
 
-  const memberRows = TEAM_MEMBERS.map(function(member) {
+  const memberRows = teamCalendarMembers().map(function(member) {
     return '<div class="tc-member-row">' +
       '<div class="tc-name-col">' +
         '<div class="tc-avatar" style="background:' + member.color + '">' + member.initials + '</div>' +
@@ -10161,7 +10578,7 @@ let tcSelMember = null, tcSelType = null;
 
 function tcOpenDrawer(memberKey, dateStr, existingId) {
   const entry    = existingId ? state.teamCalendar.find(a => a.id === existingId) : null;
-  tcSelMember    = entry ? entry.member_key    : (memberKey || TEAM_MEMBERS[0].key);
+  tcSelMember    = entry ? entry.member_key    : (memberKey || (teamCalendarMembers()[0] || {}).key);
   tcSelType      = entry ? entry.absence_type  : 'vacation';
   const curStart = entry ? entry.start_date    : (dateStr || '');
   const curEnd   = entry ? entry.end_date      : (dateStr || '');
@@ -10174,7 +10591,7 @@ function tcOpenDrawer(memberKey, dateStr, existingId) {
       '<div class="cc-form-row">' +
         '<label class="cc-label">Team Member</label>' +
         '<div class="cc-type-pills">' +
-          TEAM_MEMBERS.map(function(m) {
+          teamCalendarMembers().map(function(m) {
             return '<button class="cc-type-pill' + (tcSelMember === m.key ? ' cc-type-active' : '') + '" ' +
               'data-tc-field="member" data-tc-val="' + m.key + '" ' +
               'onclick="tcPickField(this,\'member\')">' +
@@ -10235,7 +10652,7 @@ function tcPickField(btn, field) {
 }
 
 async function tcSave(existingId) {
-  const member_key   = tcSelMember || TEAM_MEMBERS[0].key;
+  const member_key   = tcSelMember || (teamCalendarMembers()[0] || {}).key;
   const absence_type = tcSelType   || 'vacation';
   const start_date   = (document.getElementById('tc-start') || {}).value;
   const end_date     = (document.getElementById('tc-end')   || {}).value;

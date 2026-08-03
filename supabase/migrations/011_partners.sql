@@ -26,11 +26,4 @@ ALTER TABLE partners DISABLE ROW LEVEL SECURITY;
 GRANT ALL ON TABLE partners TO anon;
 GRANT ALL ON TABLE partners TO authenticated;
 
--- Starter rows. Ordinary records — rename, recategorise or delete freely.
-INSERT INTO partners (name, category, position) VALUES
-  ('Manufacturing',    'Supply chain', 0),
-  ('Amazon',           'Marketplace',  1),
-  ('Accounting Team',  'Finance',      2),
-  ('Affiliate Agency', 'Growth',       3),
-  ('Customer Support', 'Contractor',   4)
-ON CONFLICT DO NOTHING;
+-- No seed rows on purpose. Partners are added by hand in the app.

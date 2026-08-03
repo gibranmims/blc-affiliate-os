@@ -9569,3 +9569,67 @@ body { overscroll-behavior-y: none; }
 }
 
 .home-project-empty { opacity: 0.6; }
+
+/* ── Project detail page ────────────────────────────────────── */
+.proj-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 16px;
+  padding: 0;
+  background: none;
+  border: none;
+  font-family: var(--font);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.12s;
+}
+
+.proj-back:hover { color: var(--text-primary); }
+
+.proj-page-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.proj-page-tasks {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-primary);
+  padding: 4px 16px;
+}
+
+.proj-page-tasks .focus-task { padding: 10px 0; }
+.proj-page-tasks .proj-task-who { margin-left: auto; }
+
+/* ── Team & Subscriptions ───────────────────────────────────── */
+.team-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.hub-card.is-inactive { opacity: 0.55; }
+
+.sub-amount {
+  font-family: var(--font-heading);
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.sub-cycle {
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0;
+  color: var(--text-muted);
+}
+
+.sub-card { gap: 6px; }
+.sub-card .hub-card-name { padding-right: 90px; }
