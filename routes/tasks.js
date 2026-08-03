@@ -24,12 +24,13 @@ router.get('/', async (req, res) => {
 // POST /api/tasks
 router.post('/', async (req, res) => {
   try {
-    const { title, assignee, tag, deadline, bucket_id } = req.body;
+    const { title, assignee, tag, deadline, bucket_id, project_id } = req.body;
     if (!title?.trim()) return res.status(400).json({ error: 'Title required' });
     const row = { title: title.trim(), assignee: assignee || 'founder' };
-    if (tag)       row.tag       = tag;
-    if (deadline)  row.deadline  = deadline;
-    if (bucket_id) row.bucket_id = bucket_id;
+    if (tag)        row.tag        = tag;
+    if (deadline)   row.deadline   = deadline;
+    if (bucket_id)  row.bucket_id  = bucket_id;
+    if (project_id) row.project_id = project_id;
     const { data, error } = await supabase()
       .from('tasks')
       .insert(row)
