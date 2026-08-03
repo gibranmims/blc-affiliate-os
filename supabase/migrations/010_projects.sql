@@ -29,12 +29,12 @@ ALTER TABLE tasks
 
 CREATE INDEX IF NOT EXISTS idx_tasks_project ON tasks (project_id);
 
--- The three initiatives currently in flight.
-INSERT INTO projects (name, description, status, position)
-SELECT v.name, v.description, 'active', v.position
-FROM (VALUES
-  ('Wholesale',                 'Re-launch the wholesale website and land stockists', 0),
-  ('Pro Partner Network',       'Build the esthetician partner network into a paid membership', 1),
-  ('TikTok Shop Affiliate Scale','Scale affiliate GMV on TikTok Shop with the agency', 2)
-) AS v(name, description, position)
-WHERE NOT EXISTS (SELECT 1 FROM projects);
+-- The three initiatives currently in flight. Plain INSERT — a guarded
+-- INSERT..SELECT bought nothing on a table CREATE TABLE just made empty,
+-- and its VALUES alias was one more thing to get wrong.
+-- ON CONFLICT DO NOTHING keeps a re-run from duplicating them.
+INSERT INTO projects (name, description, status, position) VALUES
+  ('Wholesale',                  'Re-launch the wholesale website and land stockists',            'active', 0),
+  ('Pro Partner Network',        'Build the esthetician partner network into a paid membership',  'active', 1),
+  ('TikTok Shop Affiliate Scale','Scale affiliate GMV on TikTok Shop with the agency',            'active', 2)
+ON CONFLICT DO NOTHING;

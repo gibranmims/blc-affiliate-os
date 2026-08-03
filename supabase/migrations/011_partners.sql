@@ -27,13 +27,10 @@ GRANT ALL ON TABLE partners TO anon;
 GRANT ALL ON TABLE partners TO authenticated;
 
 -- Starter rows. Ordinary records — rename, recategorise or delete freely.
-INSERT INTO partners (name, category, position)
-SELECT v.name, v.category, v.position
-FROM (VALUES
+INSERT INTO partners (name, category, position) VALUES
   ('Manufacturing',    'Supply chain', 0),
   ('Amazon',           'Marketplace',  1),
   ('Accounting Team',  'Finance',      2),
   ('Affiliate Agency', 'Growth',       3),
   ('Customer Support', 'Contractor',   4)
-) AS v(name, category, position)
-WHERE NOT EXISTS (SELECT 1 FROM partners);
+ON CONFLICT DO NOTHING;
