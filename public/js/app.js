@@ -769,6 +769,9 @@ function navigate(page) {
   }
   const renderers = {
     home:         renderHomePage,
+    marketing:    () => renderHubPage('marketing'),
+    growth:       () => renderHubPage('growth'),
+    operations:   () => renderHubPage('operations'),
     tasks:        renderTasksPage,
     ideas:        renderIdeasPage,
     'comment-bank': renderCommentBankPage,
@@ -786,6 +789,188 @@ function navigate(page) {
   };
   if (renderers[page]) renderers[page]();
 }
+
+// ============================================================
+// HUBS
+// A hub is a section landing page: banner with live stats, a hero
+// card for the day's main action, then a grid of cards that drill
+// into the tools. The sidebar holds one entry per hub, so finding
+// something is "pick the area, then pick the tool" rather than
+// scanning eighteen flat links.
+// ============================================================
+
+// Stroke icons, lucide-ish, sized by the container
+const HUB_ICONS = {
+  calendar:  '<path d="M8 2v4M16 2v4M3 10h18"/><rect x="3" y="4" width="18" height="18" rx="2"/>',
+  calCheck:  '<path d="M8 2v4M16 2v4M3 10h18"/><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M9 16l2 2 4-4"/>',
+  comment:   '<path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>',
+  flask:     '<path d="M9 3h6M10 3v6L5 19a2 2 0 002 2h10a2 2 0 002-2l-5-10V3"/>',
+  images:    '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="M21 15l-5-5L5 21"/>',
+  envelope:  '<path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>',
+  users:     '<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/>',
+  dollar:    '<line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>',
+  tasks:     '<path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>',
+  headset:   '<path d="M3 18v-6a9 9 0 0118 0v6"/><path d="M21 19a2 2 0 01-2 2h-1a2 2 0 01-2-2v-3a2 2 0 012-2h3zM3 19a2 2 0 002 2h1a2 2 0 002-2v-3a2 2 0 00-2-2H3z"/>',
+  eye:       '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>',
+  chart:     '<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>'
+};
+
+function hubIcon(key) {
+  return `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">${HUB_ICONS[key] || ''}</svg>`;
+}
+
+// Counts shown on the banner. Each returns [value, label] pairs and is
+// called at render time so the numbers are always live.
+const HUBS = {
+  marketing: {
+    title:   'Marketing',
+    promise: 'Make the content that sells.',
+    sub:     'Everything that goes into planning, writing and publishing.',
+    stats: () => [
+      [state.contentCalendar.length,                                        'Scheduled'],
+      [state.contentIdeas.length,                                           'Ideas'],
+      [state.commentBank.filter(c => c.status !== 'replied').length,        'To reply'],
+      [state.challengers.length,                                            'Challengers']
+    ],
+    hero: {
+      page: 'content-calendar', icon: 'calendar', eyebrow: 'THIS WEEK',
+      name: 'Content Calendar', desc: 'Plan what goes out and when', cta: 'Plan the week →'
+    },
+    cards: [
+      { page: 'team-calendar', icon: 'calCheck', name: 'Team Calendar',  desc: "Who's out, off, or slow to reply", cta: 'Check →' },
+      { page: 'comment-bank',  icon: 'comment',  name: 'Comment Bank',   desc: 'Comments worth replying to',       cta: 'Reply →' },
+      { page: 'scripts',       icon: 'flask',    name: 'Creative Lab',   desc: 'Write, rewrite and analyse scripts', cta: 'Open →' },
+      { page: 'challenge',     icon: 'images',   name: 'Before & Afters', desc: 'The BBL challenge and its results', cta: 'View →' }
+    ]
+  },
+
+  growth: {
+    title:   'Growth',
+    promise: 'More people selling for us.',
+    sub:     'Partners, affiliates, and what they actually produce.',
+    stats: () => [
+      [state.partnerLeads.filter(l => ['contacted','replied','applied'].includes(l.status)).length, 'In pipeline'],
+      [state.roster.filter(r => r.status === 'active').length,                                      'Active affiliates'],
+      [`$${Math.round(state.roster.reduce((s, r) => s + (parseFloat(r.gmv) || 0), 0)).toLocaleString('en-US')}`, 'Total GMV'],
+      [state.roster.filter(r => r.affiliate_type === 'paid' && !r.payment_sent).length,             'Unpaid']
+    ],
+    hero: {
+      page: 'partner-outreach', icon: 'envelope', eyebrow: "TODAY'S OUTREACH",
+      name: 'Pro Partner Outreach', desc: 'Reach the estheticians who move product', cta: 'Send today\'s DMs →'
+    },
+    cards: [
+      { page: 'roster', rosterTab: 'paid', icon: 'users',  name: 'Paid Affiliates', desc: 'Contracted creators and their output', cta: 'Track →' },
+      { page: 'roster', rosterTab: 'free', icon: 'users',  name: 'Free Affiliates', desc: 'Gifted creators posting on their own', cta: 'Track →' },
+      { page: 'finance',                   icon: 'dollar', name: 'Affiliate Payments', desc: "What we owe and what we've paid",   cta: 'Pay →' }
+    ]
+  },
+
+  operations: {
+    title:   'Operations',
+    promise: 'Keep the business running.',
+    sub:     'The work, the customers, and the money behind it.',
+    stats: () => [
+      [state.tasks.filter(t => !t.completed && !t.archived).length,                                    'Open tasks'],
+      [state.tasks.filter(t => !t.completed && !t.archived && t.deadline && deadlineSortKey(t.deadline) < 0).length, 'Overdue'],
+      [state.tasks.filter(t => t.assignee === 'for-founder' && !t.completed && !t.archived).length,    'For review'],
+      [state.support.filter(i => (i.issue_date || '').startsWith(new Date().toISOString().slice(0, 7))).length, 'Issues this month']
+    ],
+    hero: {
+      page: 'tasks', icon: 'tasks', eyebrow: 'TODAY',
+      name: 'Team Tasks', desc: 'What everyone is working on, by person', cta: 'Open the board →'
+    },
+    cards: [
+      { page: 'support',       icon: 'headset', name: 'Customer Support', desc: 'Log and track customer issues',        cta: 'Handle →' },
+      { page: 'review',        icon: 'eye',     name: 'For Review',       desc: 'Payments and shipments needing a yes',  cta: 'Review →' },
+      { page: 'brand-finance', icon: 'chart',   name: 'Financials',       desc: 'Revenue, inventory, pricing and cash',  cta: 'Open →' }
+    ]
+  }
+};
+
+function hubCardHTML(card, opts = {}) {
+  const nav = card.rosterTab
+    ? `state.rosterTab='${card.rosterTab}';navigate('${card.page}')`
+    : `navigate('${card.page}')`;
+  if (card.comingSoon) {
+    return `
+      <div class="hub-card is-soon">
+        <span class="hub-soon-tag">Coming soon</span>
+        <div class="hub-ico">${hubIcon(card.icon)}</div>
+        <div class="hub-card-name">${esc(card.name)}</div>
+        <div class="hub-card-desc">${esc(card.desc)}</div>
+      </div>`;
+  }
+  return `
+    <button class="hub-card${opts.hero ? ' hub-card-hero' : ''}" onclick="${nav}">
+      <div class="hub-ico">${hubIcon(card.icon)}</div>
+      <div class="hub-card-body">
+        ${card.eyebrow ? `<div class="hub-eyebrow">${esc(card.eyebrow)}</div>` : ''}
+        <div class="hub-card-name">${esc(card.name)}</div>
+        <div class="hub-card-desc">${esc(card.desc)}</div>
+      </div>
+      <div class="hub-card-cta">${esc(card.cta)}</div>
+    </button>`;
+}
+
+function renderHubPage(key) {
+  const hub = HUBS[key];
+  if (!hub) return;
+  document.getElementById('page-content').innerHTML = `
+    <div class="hub-banner">
+      <h1 class="hub-title">${esc(hub.title)}</h1>
+      <div class="hub-promise">${esc(hub.promise)}</div>
+      <div class="hub-sub">${esc(hub.sub)}</div>
+      <div class="hub-stats">
+        ${hub.stats().map(([value, label]) => `
+          <div class="hub-stat">
+            <div class="hub-stat-value">${esc(String(value))}</div>
+            <div class="hub-stat-label">${esc(label)}</div>
+          </div>`).join('')}
+      </div>
+    </div>
+    <div class="hub-grid">
+      ${hubCardHTML(hub.hero, { hero: true })}
+      ${hub.cards.map(c => hubCardHTML(c)).join('')}
+    </div>
+  `;
+}
+
+// ── The Glow — one rAF-throttled listener drives every glass card ──
+// Sets --glow-x/--glow-y in element-local coordinates so the border
+// light tracks the cursor. Cards far from the pointer are parked once
+// and then skipped. Fine pointers only; no-op under reduced motion.
+(function initGlow() {
+  const SELECTOR = '.hub-card, .hub-banner, .glow-surface';
+  const REACH = 340;
+  let raf = 0, lastX = -9999, lastY = -9999;
+
+  function tick() {
+    raf = 0;
+    document.querySelectorAll(SELECTOR).forEach(el => {
+      const r = el.getBoundingClientRect();
+      const near = lastX > r.left - REACH && lastX < r.right + REACH &&
+                   lastY > r.top  - REACH && lastY < r.bottom + REACH && r.width > 0;
+      if (near) {
+        el.style.setProperty('--glow-x', (lastX - r.left).toFixed(0) + 'px');
+        el.style.setProperty('--glow-y', (lastY - r.top).toFixed(0) + 'px');
+        el._glowParked = false;
+      } else if (!el._glowParked) {
+        el.style.setProperty('--glow-x', '-9999px');
+        el.style.setProperty('--glow-y', '-9999px');
+        el._glowParked = true;
+      }
+    });
+  }
+
+  if (typeof window === 'undefined') return;
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
+  window.addEventListener('pointermove', e => {
+    lastX = e.clientX; lastY = e.clientY;
+    if (!raf) raf = requestAnimationFrame(tick);
+  }, { passive: true });
+})();
 
 function updateRosterSubNav() {
   document.querySelectorAll('.nav-sub-item[data-roster-tab]').forEach(el => {
@@ -6892,9 +7077,6 @@ function renderHomePage() {
             </div>
           </div>
 
-        </div>
-        <div class="home-right-col">
-          ${_tmrHTML()}
         </div>
       </div>
 

@@ -1,63 +1,82 @@
 /* ============================================================
-   BLC Affiliate OS — Light UI Stylesheet
+   BLC Affiliate OS — Dark UI Stylesheet
+
+   Monochrome adaptation of the CoWorlds design system: glass
+   surfaces over ink, hairline strokes, a cursor-tracking border
+   glow. CoWorlds tints each district a different colour; BLC is
+   deliberately black and white, so the single accent is white
+   and the glow is white everywhere.
+
+   Surfaces are translucent white over the ink canvas rather than
+   solid greys — that is what makes the glass and the glow read.
    ============================================================ */
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
   /* ── Foundation ───────────────────────────────────────── */
-  --black:          #0a0a0a;
-  --near-black:     #1a1a1a;
+  --black:          #06070c;   /* the ink canvas */
+  --near-black:     #0d0e15;
   --white:          #ffffff;
-  --gray-bg:        #f4f4f4;
-  --gray-border:    rgba(0,0,0,0.08);
-  --gray-mid:       rgba(0,0,0,0.35);
-  --gray-text:      #666666;
+  --gray-bg:        rgba(255,255,255,0.03);
+  --gray-border:    rgba(255,255,255,0.09);
+  --gray-mid:       rgba(255,255,255,0.35);
+  --gray-text:      rgba(242,244,249,0.68);
   --sidebar-width:  240px;
 
-  /* ── Surfaces ─────────────────────────────────────────── */
-  --bg-primary:    #ffffff;
-  --bg-secondary:  #f4f4f4;
-  --bg-tertiary:   #ebebeb;
-  --bg-elevated:   #ffffff;
-  --bg-hover:      #f4f4f4;
-  --bg-canvas:     #ffffff;
-  --border:        rgba(0,0,0,0.08);
-  --border-light:  rgba(0,0,0,0.05);
+  /* ── Surfaces — glass over ink ────────────────────────── */
+  --bg-primary:    rgba(255,255,255,0.03);   /* THE card */
+  --bg-secondary:  rgba(255,255,255,0.05);   /* nested well — no blur */
+  --bg-tertiary:   rgba(255,255,255,0.08);
+  --bg-elevated:   #12131b;                  /* modals & popovers — opaque */
+  --bg-hover:      rgba(255,255,255,0.07);
+  --bg-canvas:     #06070c;
+  --border:        rgba(255,255,255,0.09);   /* the hairline */
+  --border-light:  rgba(255,255,255,0.05);
 
-  /* ── Primary — monochrome ─────────────────────────────── */
-  --accent:        #0a0a0a;
-  --accent-dim:    rgba(0,0,0,0.06);
-  --accent-hover:  #2a2a2a;
-  --blue:          #0a0a0a;
-  --blue-light:    rgba(0,0,0,0.05);
-  --blue-dim:      rgba(0,0,0,0.05);
+  /* ── Primary — white on ink ───────────────────────────── */
+  --accent:        #ffffff;
+  --accent-dim:    rgba(255,255,255,0.08);
+  --accent-hover:  rgba(255,255,255,0.86);
+
+  /* Selected / primary fill. On light this was ink-with-white-text;
+     inverted here so a chosen pill still reads as "filled". One pair,
+     so every selected state stays consistent. */
+  --fill-strong:    #ffffff;
+  --on-fill-strong: #06070c;
+  --fill-strong-hover: rgba(255,255,255,0.86);
+  --blue:          #ffffff;
+  --blue-light:    rgba(255,255,255,0.06);
+  --blue-dim:      rgba(255,255,255,0.06);
 
   /* ── Typography ───────────────────────────────────────── */
-  --text-primary:  #0a0a0a;
-  --text-secondary:#444444;
-  --text-muted:    #9e9e9e;
+  --text-primary:  #f2f4f9;
+  --text-secondary:rgba(242,244,249,0.68);
+  --text-muted:    rgba(242,244,249,0.45);
 
-  /* ── Semantic colors ──────────────────────────────────── */
-  --green:         #16a34a;
-  --green-light:   rgba(22,163,74,0.12);
-  --green-dim:     rgba(22,163,74,0.10);
-  --yellow:        #ca8a04;
-  --yellow-light:  rgba(202,138,4,0.12);
-  --yellow-dim:    rgba(202,138,4,0.10);
-  --orange:        #ea580c;
-  --orange-light:  rgba(234,88,12,0.12);
-  --orange-dim:    rgba(234,88,12,0.10);
-  --red:           #dc2626;
-  --red-light:     rgba(220,38,38,0.12);
-  --red-dim:       rgba(220,38,38,0.10);
-  --purple:        #7c3aed;
-  --purple-light:  rgba(124,58,237,0.12);
-  --purple-dim:    rgba(124,58,237,0.10);
-  --pink:          #db2777;
-  --pink-light:    rgba(219,39,119,0.10);
-  --teal:          #0d9488;
-  --teal-light:    rgba(13,148,136,0.10);
+  /* ── Status colours ───────────────────────────────────────
+     The chrome is monochrome; these carry meaning (overdue,
+     revenue, blocked) so they survive, but muted well down for
+     the dark canvas — signal, not decoration. */
+  --green:         #4ade80;
+  --green-light:   rgba(74,222,128,0.14);
+  --green-dim:     rgba(74,222,128,0.10);
+  --yellow:        #facc15;
+  --yellow-light:  rgba(250,204,21,0.14);
+  --yellow-dim:    rgba(250,204,21,0.10);
+  --orange:        #fb923c;
+  --orange-light:  rgba(251,146,60,0.14);
+  --orange-dim:    rgba(251,146,60,0.10);
+  --red:           #f87171;
+  --red-light:     rgba(248,113,113,0.14);
+  --red-dim:       rgba(248,113,113,0.10);
+  --purple:        rgba(242,244,249,0.75);
+  --purple-light:  rgba(255,255,255,0.10);
+  --purple-dim:    rgba(255,255,255,0.08);
+  --pink:          rgba(242,244,249,0.75);
+  --pink-light:    rgba(255,255,255,0.10);
+  --teal:          rgba(242,244,249,0.75);
+  --teal-light:    rgba(255,255,255,0.10);
 
   /* ── Radius ───────────────────────────────────────────── */
   --radius-xs:     6px;
@@ -66,12 +85,16 @@
   --radius-lg:     20px;
   --radius-xl:     28px;
 
-  /* ── Shadows ──────────────────────────────────────────── */
-  --shadow-xs:  0 1px 2px rgba(0,0,0,0.05);
-  --shadow-sm:  0 1px 3px rgba(0,0,0,0.07), 0 1px 2px rgba(0,0,0,0.04);
-  --shadow-md:  0 4px 6px -1px rgba(0,0,0,0.08), 0 2px 4px -2px rgba(0,0,0,0.04);
-  --shadow-lg:  0 10px 15px -3px rgba(0,0,0,0.08), 0 4px 6px -4px rgba(0,0,0,0.04);
-  --shadow-xl:  0 20px 60px rgba(0,0,0,0.14);
+  /* ── Glass & shadow — the Night whisper ───────────────── */
+  --glass-blur:   blur(18px) saturate(1.2);
+  --glass-inset:  inset 0 1px 0 rgba(255,255,255,0.05);
+  --shadow-night: 0 24px 48px rgba(0,0,0,0.45);
+
+  --shadow-xs:  0 1px 2px rgba(0,0,0,0.30);
+  --shadow-sm:  0 2px 6px rgba(0,0,0,0.35);
+  --shadow-md:  0 8px 20px rgba(0,0,0,0.40);
+  --shadow-lg:  0 16px 34px rgba(0,0,0,0.45);
+  --shadow-xl:  0 28px 56px rgba(0,0,0,0.55);
 
   /* ── Typography ───────────────────────────────────────── */
   --font:          'Poppins', -apple-system, BlinkMacSystemFont, sans-serif;
@@ -761,7 +784,7 @@ body {
   background-repeat: no-repeat;
   background-position: right 7px center;
   background-size: 8px 5px;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 5'%3E%3Cpath fill='rgba(0,0,0,0.35)' d='M0 0l4 5 4-5z'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 5'%3E%3Cpath fill='rgba(255,255,255,0.45)' d='M0 0l4 5 4-5z'/%3E%3C/svg%3E");
 }
 /* Status dropdowns: green = done/positive, red = urgent, gray = everything else */
 .inline-status-select.status-key-drafted        { background-color: var(--bg-secondary); color: var(--text-muted); }
@@ -812,16 +835,16 @@ body {
 }
 
 .btn-primary {
-  background: var(--black);
-  color: #ffffff;
-  border-color: var(--black);
+  background: var(--fill-strong);
+  color: var(--on-fill-strong);
+  border-color: var(--fill-strong);
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: var(--near-black);
-  border-color: var(--near-black);
+  background: var(--fill-strong-hover);
+  border-color: var(--fill-strong-hover);
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  box-shadow: 0 6px 20px rgba(255,255,255,0.14);
 }
 
 .btn-primary:active:not(:disabled) {
@@ -838,7 +861,7 @@ body {
 
 .btn-secondary:hover:not(:disabled) {
   background: var(--bg-hover);
-  border-color: rgba(0,0,0,0.15);
+  border-color: rgba(255,255,255,0.203);
   transform: translateY(-1px);
 }
 
@@ -1764,7 +1787,7 @@ body {
 
 .detail-overlay {
   flex: 1;
-  background: rgba(0,0,0,0.45);
+  background: rgba(255,255,255,0.45);
   backdrop-filter: blur(2px);
   cursor: pointer;
 }
@@ -2491,7 +2514,7 @@ body {
 
 /* Counter offer section — prominent */
 .dp-section-counter {
-  border: 1px solid rgba(0,0,0,0.07);
+  border: 1px solid rgba(255,255,255,0.095);
   border-radius: var(--radius-md);
   background: var(--bg-elevated);
 }
@@ -2565,7 +2588,7 @@ body {
   align-items: center;
   gap: 12px;
   background: var(--accent-dim);
-  border: 1px solid rgba(0,0,0,0.08);
+  border: 1px solid rgba(255,255,255,0.108);
   border-radius: var(--radius-md);
   padding: 10px 14px;
   margin-bottom: 10px;
@@ -2600,7 +2623,7 @@ body {
 .sortable-th:hover { color: var(--text-primary); }
 .sort-active {
   color: var(--accent);
-  background: rgba(0,0,0,0.04);
+  background: rgba(255,255,255,0.064);
   border-radius: 4px;
 }
 .sort-arrow {
@@ -2620,7 +2643,7 @@ body {
 }
 
 .row-selected {
-  background: rgba(0,0,0,0.03) !important;
+  background: rgba(255,255,255,0.048) !important;
 }
 
 /* ============================================================
@@ -3104,8 +3127,8 @@ body {
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  background: rgba(0,0,0,0.06);
-  border: 1px solid rgba(0,0,0,0.1);
+  background: rgba(255,255,255,0.096);
+  border: 1px solid rgba(255,255,255,0.135);
   color: var(--accent);
   font-size: 11px;
   font-weight: 700;
@@ -3205,7 +3228,7 @@ body {
 .draft-modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.75);
+  background: rgba(255,255,255,0.75);
   backdrop-filter: blur(4px);
   z-index: 1000;
   display: flex;
@@ -5062,7 +5085,7 @@ a.cl-profile-handle:hover {
   font-weight: 700;
   color: #fff;
   text-shadow: 0 1px 4px rgba(0,0,0,0.7);
-  background: rgba(0,0,0,0.45);
+  background: rgba(255,255,255,0.45);
   padding: 2px 8px;
   border-radius: 99px;
   backdrop-filter: blur(4px);
@@ -5447,8 +5470,8 @@ a.cl-profile-handle:hover {
 }
 .sup-filter-pill:hover  { background:var(--bg-hover); color:var(--text-primary); }
 .sup-filter-pill.active {
-  background:var(--accent); border-color:var(--accent);
-  color:#fff;
+  background:var(--fill-strong); border-color:var(--fill-strong);
+  color:var(--on-fill-strong);
 }
 .sup-count-label { font-size:12px; color:var(--text-muted); white-space:nowrap; }
 
@@ -5683,7 +5706,7 @@ a.cl-profile-handle:hover {
 .home-action:hover {
   box-shadow: var(--shadow-md);
   transform: translateY(-1px);
-  border-color: rgba(0,0,0,0.14);
+  border-color: rgba(255,255,255,0.189);
 }
 
 .home-action-icon {
@@ -5754,7 +5777,7 @@ a.cl-profile-handle:hover {
   width: 22px;
   height: 22px;
   border-radius: 50%;
-  background: rgba(0,0,0,0.07);
+  background: rgba(255,255,255,0.095);
   color: var(--text-secondary);
   font-size: 10px;
   font-weight: 700;
@@ -5949,8 +5972,8 @@ a.cl-profile-handle:hover {
 }
 
 .filter-tab.active {
-  background: var(--black);
-  color: #ffffff;
+  background: var(--fill-strong);
+  color: var(--on-fill-strong);
   box-shadow: var(--shadow-xs);
 }
 
@@ -5998,7 +6021,7 @@ input[type="text"]:focus,
 input[type="email"]:focus,
 select:focus,
 textarea:focus {
-  border-color: rgba(0,0,0,0.3) !important;
+  border-color: rgba(255,255,255,0.3) !important;
   box-shadow: 0 0 0 3px rgba(0,0,0,0.07) !important;
   outline: none !important;
 }
@@ -6061,8 +6084,8 @@ textarea:focus {
 
 /* ── Toast notifications ──────────────────────────────────── */
 .toast {
-  background: var(--black) !important;
-  color: #ffffff !important;
+  background: var(--fill-strong) !important;
+  color: var(--on-fill-strong) !important;
   border: none !important;
   box-shadow: var(--shadow-xl) !important;
   border-radius: var(--radius-md) !important;
@@ -6407,7 +6430,7 @@ textarea:focus {
   display: flex;
   align-items: center;
   gap: 24px;
-  background: #fff;
+  background: var(--bg-primary);
   border: 1.5px solid var(--border);
   border-radius: 16px;
   padding: 20px 28px;
@@ -6466,7 +6489,7 @@ textarea:focus {
   cursor: pointer;
   transition: background 0.12s ease;
 }
-.home-goal-edit-btn:hover { background: rgba(0,0,0,0.06); }
+.home-goal-edit-btn:hover { background: rgba(255,255,255,0.096); }
 .home-attention-inline {
   flex-shrink: 0;
   display: flex;
@@ -6495,7 +6518,7 @@ textarea:focus {
   min-height: 148px;
 }
 .home-qa-card:hover {
-  border-color: rgba(0,0,0,0.1);
+  border-color: rgba(255,255,255,0.135);
   background: var(--bg-primary);
   box-shadow: var(--shadow-md);
   transform: translateY(-2px);
@@ -6982,7 +7005,7 @@ textarea:focus {
   flex-shrink: 0;
   padding: 1px 6px;
   border-radius: 9px;
-  background: rgba(0,0,0,0.05);
+  background: rgba(255,255,255,0.08);
   font-size: 10px;
   font-weight: 600;
   color: var(--text-muted);
@@ -7438,7 +7461,7 @@ textarea:focus {
 .bf-net-hero-val   { font-family: 'DM Mono', monospace; font-size: 38px; font-weight: 700; line-height: 1.1; }
 
 /* Scan banner */
-.bf-scan-banner { display: flex; align-items: center; justify-content: space-between; gap: 12px; background: rgba(0,0,0,0.04); border: 1px solid rgba(0,0,0,0.08); border-radius: var(--radius-md); padding: 12px 16px; margin-bottom: 16px; }
+.bf-scan-banner { display: flex; align-items: center; justify-content: space-between; gap: 12px; background: rgba(255,255,255,0.064); border: 1px solid rgba(255,255,255,0.108); border-radius: var(--radius-md); padding: 12px 16px; margin-bottom: 16px; }
 .bf-scan-text   { font-size: 13px; color: var(--text-secondary); flex: 1; }
 
 /* Charts */
@@ -7615,8 +7638,8 @@ textarea:focus {
 .cc-col-today .cc-col-day { color: var(--text-primary); }
 
 .cc-col-date-today {
-  background: var(--black);
-  color: #ffffff !important;
+  background: var(--fill-strong);
+  color: var(--on-fill-strong) !important;
   width: 34px;
   height: 34px;
   border-radius: 50%;
@@ -7662,7 +7685,7 @@ textarea:focus {
   font-family: inherit;
   letter-spacing: 0.01em;
   color: var(--text-primary);
-  background: rgba(0,0,0,0.06);
+  background: rgba(255,255,255,0.096);
   border: none;
   border-radius: 6px;
   padding: 3px 6px;
@@ -7690,7 +7713,7 @@ textarea:focus {
 
 .cc-cell-empty {
   background: rgba(255,255,255,0.38);
-  border: 1.5px dashed rgba(0,0,0,0.08);
+  border: 1.5px dashed rgba(255,255,255,0.108);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -7698,21 +7721,21 @@ textarea:focus {
 
 .cc-cell-empty:hover {
   background: rgba(255,255,255,0.72);
-  border-color: rgba(0,0,0,0.16);
+  border-color: rgba(255,255,255,0.216);
 }
 
 .cc-cell-add {
   font-size: 11.5px;
-  color: rgba(0,0,0,0.2);
+  color: rgba(255,255,255,0.22);
   font-weight: 500;
   transition: color 0.12s;
 }
 
-.cc-cell-empty:hover .cc-cell-add { color: rgba(0,0,0,0.42); }
+.cc-cell-empty:hover .cc-cell-add { color: rgba(255,255,255,0.42); }
 
 .cc-cell-filled {
   background: rgba(255,255,255,0.9);
-  border: 1px solid rgba(0,0,0,0.06);
+  border: 1px solid rgba(255,255,255,0.096);
   border-top-color: rgba(255,255,255,0.95);
   box-shadow: 0 1px 3px rgba(0,0,0,0.05);
   display: flex;
@@ -7801,7 +7824,7 @@ textarea:focus {
 .cc-type-pill {
   padding: 5px 13px;
   border-radius: 99px;
-  border: 1.5px solid rgba(0,0,0,0.1);
+  border: 1.5px solid rgba(255,255,255,0.135);
   background: transparent;
   font-size: 12.5px;
   font-weight: 500;
@@ -7811,11 +7834,11 @@ textarea:focus {
   transition: all 0.12s;
 }
 
-.cc-type-pill:hover { border-color: rgba(0,0,0,0.2); }
+.cc-type-pill:hover { border-color: rgba(255,255,255,0.22); }
 
 .cc-type-pill.cc-type-active {
-  background: var(--black);
-  color: #ffffff;
+  background: var(--fill-strong);
+  color: var(--on-fill-strong);
   border-color: var(--black);
 }
 
@@ -7860,7 +7883,7 @@ textarea:focus {
   font-size: 11px;
   font-weight: 600;
   color: var(--text-muted);
-  background: rgba(0,0,0,0.05);
+  background: rgba(255,255,255,0.08);
   border: none;
   border-radius: 6px;
   padding: 3px 10px;
@@ -7868,7 +7891,7 @@ textarea:focus {
   font-family: inherit;
   transition: background 0.12s, color 0.12s;
 }
-.cc-doc-embed-btn:hover { background: rgba(0,0,0,0.1); color: var(--text-primary); }
+.cc-doc-embed-btn:hover { background: rgba(255,255,255,0.135); color: var(--text-primary); }
 
 .cc-doc-iframe-wrap {
   margin-top: 10px;
@@ -7931,8 +7954,8 @@ textarea:focus {
   font-family: inherit;
 }
 .tmr-tab.tmr-tab-active {
-  background: var(--black);
-  color: #ffffff;
+  background: var(--fill-strong);
+  color: var(--on-fill-strong);
   box-shadow: none;
 }
 
@@ -8141,18 +8164,12 @@ textarea:focus {
   flex-shrink: 0;
 }
 
-/* ── Home: two-column layout ───────────────────────────────── */
+/* ── Home: single column since the focus timer was removed ─── */
 .home-two-col {
-  display: grid;
-  grid-template-columns: 1fr 284px;
-  gap: 24px;
-  align-items: start;
+  display: block;
   margin-top: 28px;
 }
 .home-left-col { display: flex; flex-direction: column; min-width: 0; }
-.home-right-col { position: sticky; top: 0; }
-.home-right-col .home-timer-section { margin-top: 0; }
-.home-right-col .home-timer-card { max-width: 100% !important; border-radius: 20px !important; width: 100%; }
 
 /* ── Home: large section headings ──────────────────────────── */
 .home-section-heading-lg {
@@ -8202,12 +8219,12 @@ textarea:focus {
 }
 .home-qa-card:hover {
   transform: translateY(-3px) !important;
-  border-color: rgba(0,0,0,0.10) !important;
+  border-color: rgba(255,255,255,0.135) !important;
   box-shadow: var(--shadow-md) !important;
 }
 .home-qa-card:hover .home-qa-icon {
-  background: var(--black) !important;
-  color: #ffffff !important;
+  background: var(--fill-strong) !important;
+  color: var(--on-fill-strong) !important;
 }
 
 /* ── Global: stat cards rounder + elevated ─────────────────── */
@@ -8243,11 +8260,13 @@ textarea:focus {
   border-color: rgba(255,255,255,0.1) !important;
 }
 
-/* ── Timer: black glass island ──────────────────────────────── */
+/* ── Timer: glass island ────────────────────────────────────
+   Was a black card on a white page; on the ink canvas it needs to
+   lift off the background rather than sink into it. */
 .home-timer-card {
-  background: #0a0a0a !important;
-  border: 1px solid rgba(255,255,255,0.08) !important;
-  box-shadow: 0 8px 40px rgba(0,0,0,0.18) !important;
+  background: var(--bg-secondary) !important;
+  border: 1px solid var(--border) !important;
+  box-shadow: var(--shadow-night) !important;
 }
 .tmr-display { color: #ffffff !important; }
 .tmr-mode-label { color: rgba(255,255,255,0.38) !important; }
@@ -8310,7 +8329,7 @@ textarea:focus {
   border-color: rgba(255,255,255,0.3) !important;
   box-shadow: none !important;
 }
-.home-section-label { color: rgba(0,0,0,0.35) !important; }
+.home-section-label { color: rgba(255,255,255,0.35) !important; }
 
 /* ── Headings: tight Poppins ──────────────────────────────── */
 .home-greeting { letter-spacing: -0.04em !important; }
@@ -8318,11 +8337,11 @@ textarea:focus {
 h1, h2 { letter-spacing: -0.025em; }
 
 /* ── Cards: subtle 1px glass border depth ────────────────── */
-.home-urgent-card { border: 1px solid rgba(0,0,0,0.07) !important; }
-.stat-card { border: 1px solid rgba(0,0,0,0.06) !important; }
+.home-urgent-card { border: 1px solid rgba(255,255,255,0.095) !important; }
+.stat-card { border: 1px solid rgba(255,255,255,0.096) !important; }
 
 /* ── QA cards: tighter glass style ───────────────────────── */
-.home-qa-card { border: 1px solid rgba(0,0,0,0.07) !important; }
+.home-qa-card { border: 1px solid rgba(255,255,255,0.095) !important; }
 
 /* ── Urgent list: more air ────────────────────────────────── */
 .home-urgent-card .home-urgent-item { padding: 17px 20px !important; }
@@ -8331,24 +8350,26 @@ h1, h2 { letter-spacing: -0.025em; }
    BRAND POLISH — Final 10%
    ============================================================ */
 
-/* ── Canvas: subtle grey so glass cards actually float ──────── */
-:root { --bg-canvas: #f0f0f0; }
-.main-content { background: var(--bg-canvas); }
+/* ── Canvas: ink, with a faint horizon so glass cards float ─── */
+.main-content {
+  background:
+    radial-gradient(ellipse 130% 90% at 50% 0%, rgba(255,255,255,0.04) 0%, transparent 62%),
+    var(--bg-canvas);
+}
 
-/* ── Glass surface: all light cards ────────────────────────── */
+/* ── Glass surface: the Night whisper ──────────────────────── */
 .home-urgent-card,
 .home-qa-card,
 .stat-card,
 .fin-stat-card {
-  background: rgba(255,255,255,0.88) !important;
-  backdrop-filter: blur(12px) !important;
-  -webkit-backdrop-filter: blur(12px) !important;
-  border: 1px solid rgba(0,0,0,0.06) !important;
-  border-top-color: rgba(255,255,255,0.96) !important;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.05) !important;
+  background: var(--bg-primary) !important;
+  backdrop-filter: var(--glass-blur) !important;
+  -webkit-backdrop-filter: var(--glass-blur) !important;
+  border: 1px solid var(--border) !important;
+  box-shadow: var(--shadow-night), var(--glass-inset) !important;
 }
 
-/* ── Dark cards: glass highlight edge ──────────────────────── */
+/* ── Glass highlight edge — catches the light from above ───── */
 .home-goal-row {
   border-top: 1px solid rgba(255,255,255,0.12) !important;
 }
@@ -8362,9 +8383,9 @@ h1, h2 { letter-spacing: -0.025em; }
 
 /* ── 'Current' month chip: clean monochrome ────────────────── */
 .month-nav-current-chip {
-  background: rgba(0,0,0,0.07) !important;
+  background: rgba(255,255,255,0.095) !important;
   color: var(--text-secondary) !important;
-  border: 1px solid rgba(0,0,0,0.1) !important;
+  border: 1px solid rgba(255,255,255,0.135) !important;
 }
 
 /* ── Semantic status pills: surgical — border only, no heavy bg */
@@ -8372,7 +8393,7 @@ h1, h2 { letter-spacing: -0.025em; }
 .fin-status-due     { background: transparent !important; border-left: 2px solid var(--yellow) !important; border-top: none !important; border-right: none !important; border-bottom: none !important; border-radius: 0 !important; padding-left: 8px !important; }
 .fin-status-deposit { background: transparent !important; border-left: 2px solid var(--orange) !important; border-top: none !important; border-right: none !important; border-bottom: none !important; border-radius: 0 !important; padding-left: 8px !important; }
 .fin-status-final   { background: transparent !important; border-left: 2px solid var(--red) !important; border-top: none !important; border-right: none !important; border-bottom: none !important; border-radius: 0 !important; padding-left: 8px !important; }
-.fin-status-pending { background: transparent !important; border-left: 2px solid rgba(0,0,0,0.15) !important; border-top: none !important; border-right: none !important; border-bottom: none !important; border-radius: 0 !important; padding-left: 8px !important; color: var(--text-muted) !important; }
+.fin-status-pending { background: transparent !important; border-left: 2px solid rgba(255,255,255,0.203) !important; border-top: none !important; border-right: none !important; border-bottom: none !important; border-radius: 0 !important; padding-left: 8px !important; color: var(--text-muted) !important; }
 
 /* ── Page title on grey canvas ──────────────────────────────── */
 .page-hero { background: transparent; }
@@ -8421,7 +8442,7 @@ h1, h2 { letter-spacing: -0.025em; }
   border-radius: 6px;
   transition: background 0.12s;
 }
-.tc-nav-btn:hover { background: rgba(0,0,0,0.06); }
+.tc-nav-btn:hover { background: rgba(255,255,255,0.096); }
 
 .tc-nav-label {
   font-size: 13px;
@@ -8463,7 +8484,7 @@ h1, h2 { letter-spacing: -0.025em; }
   display: flex;
   align-items: center;
   gap: 9px;
-  background: rgba(0,0,0,0.04);
+  background: rgba(255,255,255,0.064);
   border-radius: 10px;
   padding: 6px 12px;
 }
@@ -8513,7 +8534,7 @@ h1, h2 { letter-spacing: -0.025em; }
 }
 
 .tc-member-row {
-  border-top: 1px solid rgba(0,0,0,0.05);
+  border-top: 1px solid rgba(255,255,255,0.08);
 }
 
 /* Column header: day + date */
@@ -8528,7 +8549,7 @@ h1, h2 { letter-spacing: -0.025em; }
 }
 
 .tc-col-weekend {
-  background: rgba(0,0,0,0.018);
+  background: rgba(255,255,255,0.029);
 }
 
 .tc-dow {
@@ -8553,8 +8574,8 @@ h1, h2 { letter-spacing: -0.025em; }
 }
 
 .tc-date-today {
-  background: var(--accent);
-  color: #fff !important;
+  background: var(--fill-strong);
+  color: var(--on-fill-strong) !important;
 }
 
 /* ── Name column ──────────────────────────────────────────── */
@@ -8563,7 +8584,7 @@ h1, h2 { letter-spacing: -0.025em; }
   align-items: center;
   gap: 9px;
   padding: 0 14px;
-  border-right: 1px solid rgba(0,0,0,0.05);
+  border-right: 1px solid rgba(255,255,255,0.08);
 }
 
 .tc-avatar {
@@ -8592,13 +8613,13 @@ h1, h2 { letter-spacing: -0.025em; }
   position: relative;
   height: 110px;
   cursor: pointer;
-  border-right: 1px solid rgba(0,0,0,0.04);
+  border-right: 1px solid rgba(255,255,255,0.064);
   transition: background 0.1s;
 }
 
-.tc-empty-cell:hover { background: rgba(0,0,0,0.025); }
+.tc-empty-cell:hover { background: rgba(255,255,255,0.04); }
 .tc-today-col        { background: rgba(10,10,10,0.025); }
-.tc-weekend-col      { background: rgba(0,0,0,0.018); }
+.tc-weekend-col      { background: rgba(255,255,255,0.029); }
 
 /* ── Absence event blocks (absolutely positioned in cell) ─── */
 .tc-event-block {
@@ -8736,7 +8757,7 @@ h1, h2 { letter-spacing: -0.025em; }
 .ib-card:hover {
   box-shadow: 0 2px 8px rgba(0,0,0,0.08);
   transform: translateY(-1px);
-  border-color: rgba(0,0,0,0.14);
+  border-color: rgba(255,255,255,0.189);
 }
 .ib-card:active { cursor: grabbing; transform: translateY(0); }
 
@@ -8795,7 +8816,7 @@ h1, h2 { letter-spacing: -0.025em; }
   font-size: 10px;
   font-weight: 500;
   background: rgba(255,255,255,0.92);
-  border: 1px solid rgba(0,0,0,0.1);
+  border: 1px solid rgba(255,255,255,0.135);
   color: var(--text-primary);
   border-radius: 4px;
   padding: 2px 5px;
@@ -8920,7 +8941,7 @@ body { overscroll-behavior-y: none; }
     position: fixed;
     inset: 0;
     z-index: 590;
-    background: rgba(0,0,0,0.5);
+    background: rgba(255,255,255,0.5);
     -webkit-backdrop-filter: blur(3px);
     backdrop-filter: blur(3px);
   }
@@ -9085,4 +9106,279 @@ body { overscroll-behavior-y: none; }
   .page-content { padding: 16px 12px calc(24px + env(safe-area-inset-bottom)); }
   .stat-cards, .home-qa-grid, .home-qa-grid-4 { gap: 8px; }
   .stat-value { font-size: 22px; }
+}
+
+/* ════════════════════════════════════════════════════════════
+   HUB SYSTEM
+   Adapted from the CoWorlds design system. A hub is a landing
+   page for a section: banner with live stats, a hero card for
+   the day's main action, then a grid of cards that drill into
+   the actual tools.
+
+   CoWorlds tints each district a different colour. BLC is
+   deliberately monochrome, so there is one tint — white — and
+   the glow is white everywhere.
+   ════════════════════════════════════════════════════════════ */
+
+/* ── Layout ─────────────────────────────────────────────────── */
+.hub-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+@media (max-width: 1100px) { .hub-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 700px) { .hub-grid { grid-template-columns: 1fr; } }
+
+/* ── Banner ─────────────────────────────────────────────────── */
+.hub-banner {
+  position: relative;
+  overflow: hidden;
+  background: var(--bg-primary);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  padding: 26px 30px;
+  margin-bottom: 22px;
+  box-shadow: var(--shadow-night), var(--glass-inset);
+}
+
+/* the horizon — light pooling at the bottom edge */
+.hub-banner::after {
+  content: '';
+  position: absolute;
+  left: -10%; right: -10%; bottom: -55%;
+  height: 90%;
+  background: radial-gradient(ellipse at 50% 100%, rgba(255,255,255,0.07) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.hub-banner > * { position: relative; z-index: 1; }
+
+.hub-title {
+  font-family: var(--font-heading);
+  font-size: clamp(28px, 3.4vw, 38px);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  color: var(--text-primary);
+}
+
+.hub-promise {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-top: 6px;
+}
+
+.hub-sub {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.hub-stats {
+  display: flex;
+  gap: 36px;
+  flex-wrap: wrap;
+  margin-top: 18px;
+}
+
+.hub-stat { display: flex; flex-direction: column; gap: 2px; }
+
+.hub-stat-value {
+  font-family: var(--font-heading);
+  font-size: clamp(24px, 2.4vw, 34px);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.hub-stat-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* ── Cards ──────────────────────────────────────────────────── */
+.hub-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 20px;
+  background: var(--bg-primary);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  box-shadow: var(--shadow-night), var(--glass-inset);
+  color: var(--text-primary);
+  cursor: pointer;
+  text-align: left;
+  font-family: var(--font);
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Lift only where hover exists — on touch, :hover sticks after a tap
+   and cards feel jammed mid-animation. */
+@media (hover: hover) {
+  .hub-card:hover {
+    transform: translateY(-2px);
+    border-color: rgba(255,255,255,0.18);
+    box-shadow: 0 28px 56px rgba(0,0,0,0.50), var(--glass-inset);
+  }
+}
+
+.hub-card:active { transform: translateY(0) scale(0.995); }
+
+/* Featured / hero — today's main action */
+.hub-card-hero {
+  grid-column: 1 / -1;
+  flex-direction: row;
+  align-items: center;
+  gap: 16px;
+  border-color: rgba(255,255,255,0.18);
+  box-shadow: 0 0 40px rgba(255,255,255,0.05), var(--shadow-night), var(--glass-inset);
+}
+
+.hub-card-hero .hub-card-body { flex: 1; }
+
+.hub-eyebrow {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 3px;
+}
+
+/* Icon ring — thin circle with a faint radial fill */
+.hub-ico {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: 999px;
+  border: 1.5px solid rgba(255,255,255,0.22);
+  background: radial-gradient(closest-side, rgba(255,255,255,0.10), transparent 88%);
+  box-shadow: 0 0 26px rgba(255,255,255,0.05);
+  color: var(--text-primary);
+}
+
+.hub-card-name {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+}
+
+.hub-card-desc {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+.hub-card-cta {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-top: auto;
+  padding-top: 6px;
+  transition: color 0.15s;
+}
+
+.hub-card:hover .hub-card-cta { color: var(--text-primary); }
+
+/* Coming soon — present but visibly not ready */
+.hub-card.is-soon { cursor: default; opacity: 0.5; }
+.hub-card.is-soon:hover { transform: none; box-shadow: var(--shadow-night), var(--glass-inset); }
+
+.hub-soon-tag {
+  position: absolute;
+  top: 18px; right: 18px;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 2px 9px;
+}
+
+/* Count badge — e.g. how many items live behind this card */
+.hub-card-count {
+  position: absolute;
+  top: 18px; right: 18px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── The Glow — cursor-tracked border light ──────────────────
+   One rAF listener in app.js sets --glow-x/--glow-y per card.
+   CoWorlds travels the hue sky→pink with cursor X; here it stays
+   white. Only the -webkit-mask form renders the ring in Blink and
+   WebKit; Firefox skips it and the cards are simply unglowed. */
+.hub-card, .hub-banner, .glow-surface { position: relative; }
+
+.hub-card::before, .hub-card::after,
+.glow-surface::before, .glow-surface::after,
+.hub-banner::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1.5px;
+  pointer-events: none;
+  background: radial-gradient(
+    240px 240px at var(--glow-x, -9999px) var(--glow-y, -9999px),
+    rgba(255,255,255,0.55), transparent 62%
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}
+
+.hub-card::after, .glow-surface::after {
+  padding: 2.5px;
+  filter: blur(7px);
+  opacity: 0.55;
+}
+
+@media (prefers-reduced-motion: reduce), (hover: none) {
+  .hub-card::before, .hub-card::after,
+  .glow-surface::before, .glow-surface::after,
+  .hub-banner::before { display: none; }
+}
+
+/* ── Phone ───────────────────────────────────────────────────
+   Must come after .hub-card-hero above — same specificity, so
+   source order decides. */
+@media (max-width: 700px) {
+  /* The hero's icon-beside-text row squeezes the copy into a
+     narrow column on a phone. Stack it like every other card. */
+  .hub-card-hero {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .hub-stats { gap: 18px 26px; }
+  .hub-banner { padding: 22px 20px; border-radius: 20px; }
 }

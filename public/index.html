@@ -43,117 +43,24 @@
           <i class="fa-solid fa-house nav-icon"></i>
           <span>Home</span>
         </a>
-        <a href="#" class="nav-item" data-page="tasks">
-          <i class="fa-solid fa-list-check nav-icon"></i>
-          <span>Team Tasks</span>
+
+        <div class="nav-divider"></div>
+
+        <!-- One entry per hub. Each opens a landing page of cards that
+             drill into the actual tools, so the sidebar stays short. -->
+        <a href="#" class="nav-item" data-page="marketing">
+          <i class="fa-solid fa-bullhorn nav-icon"></i>
+          <span>Marketing</span>
+        </a>
+        <a href="#" class="nav-item" data-page="growth">
+          <i class="fa-solid fa-arrow-trend-up nav-icon"></i>
+          <span>Growth</span>
+        </a>
+        <a href="#" class="nav-item" data-page="operations">
+          <i class="fa-solid fa-gear nav-icon"></i>
+          <span>Operations</span>
           <span class="nav-review-badge" id="tasks-nav-badge" style="display:none">0</span>
         </a>
-
-        <div class="nav-divider"></div>
-
-        <!-- MARKETING — everything involved in making content -->
-        <div class="nav-section-label nav-section-toggle" onclick="toggleNavSection('marketing')">MARKETING <svg class="nav-section-chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg></div>
-        <div class="nav-section-body" id="nav-section-marketing">
-          <a href="#" class="nav-item" data-page="content-calendar">
-            <i class="fa-regular fa-calendar nav-icon"></i>
-            <span>Content Calendar</span>
-          </a>
-          <a href="#" class="nav-item" data-page="team-calendar">
-            <i class="fa-regular fa-calendar-check nav-icon"></i>
-            <span>Team Calendar</span>
-          </a>
-          <a href="#" class="nav-item" data-page="comment-bank">
-            <i class="fa-regular fa-comment-dots nav-icon"></i>
-            <span>Comment Bank</span>
-          </a>
-          <div class="nav-group" id="nav-group-creative">
-            <a href="#" class="nav-item nav-group-trigger" data-page="scripts">
-              <i class="fa-solid fa-flask nav-icon"></i>
-              <span>Creative Lab</span>
-              <span class="nav-chevron">
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
-              </span>
-            </a>
-            <div class="nav-sub" id="nav-sub-creative">
-              <a href="#" class="nav-item nav-cl-item" data-scripts-tab="creators">
-                <i class="fa-solid fa-user-group nav-icon"></i>
-                <span>Creators</span>
-              </a>
-              <a href="#" class="nav-item nav-cl-item" data-scripts-tab="write">
-                <i class="fa-regular fa-pen-to-square nav-icon"></i>
-                <span>Write Script</span>
-                <span class="nav-badge">AI</span>
-              </a>
-              <a href="#" class="nav-item nav-cl-item" data-scripts-tab="rewrite">
-                <i class="fa-solid fa-rotate nav-icon"></i>
-                <span>Rewrite Script</span>
-                <span class="nav-badge">AI</span>
-              </a>
-              <a href="#" class="nav-item nav-cl-item" data-scripts-tab="analyzer">
-                <i class="fa-solid fa-chart-bar nav-icon"></i>
-                <span>Script Analyzer</span>
-                <span class="nav-badge">AI</span>
-              </a>
-              <a href="#" class="nav-item nav-cl-item" data-scripts-tab="library">
-                <i class="fa-solid fa-book nav-icon"></i>
-                <span>Script Library</span>
-              </a>
-            </div>
-          </div>
-          <a href="#" class="nav-item" data-page="challenge">
-            <i class="fa-regular fa-images nav-icon"></i>
-            <span>Before & Afters</span>
-          </a>
-        </div>
-
-        <div class="nav-divider"></div>
-
-        <!-- GROWTH — anything that increases distribution -->
-        <div class="nav-section-label nav-section-toggle" onclick="toggleNavSection('growth')">GROWTH <svg class="nav-section-chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg></div>
-        <div class="nav-section-body" id="nav-section-growth">
-          <a href="#" class="nav-item" data-page="partner-outreach">
-            <i class="fa-solid fa-envelope-open-text nav-icon"></i>
-            <span>Pro Partner Outreach</span>
-          </a>
-          <div class="nav-group" id="nav-group-roster">
-            <a href="#" class="nav-item nav-group-trigger" data-page="roster">
-              <i class="fa-solid fa-users nav-icon"></i>
-              <span>Affiliate Performance</span>
-              <span class="nav-chevron">
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
-              </span>
-            </a>
-            <div class="nav-sub" id="nav-sub-roster">
-              <a href="#" class="nav-sub-item" data-roster-tab="paid">Paid Affiliates</a>
-              <a href="#" class="nav-sub-item" data-roster-tab="free">Free Affiliates</a>
-            </div>
-          </div>
-          <a href="#" class="nav-item" data-page="finance">
-            <i class="fa-solid fa-dollar-sign nav-icon"></i>
-            <span>Affiliate Payments</span>
-          </a>
-        </div>
-
-        <div class="nav-divider"></div>
-
-        <!-- OPERATIONS — the engine of the business -->
-        <div class="nav-section-label nav-section-toggle" onclick="toggleNavSection('operations')">OPERATIONS <svg class="nav-section-chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg></div>
-        <div class="nav-section-body" id="nav-section-operations">
-          <a href="#" class="nav-item" data-page="support">
-            <i class="fa-solid fa-headset nav-icon"></i>
-            <span>Customer Support</span>
-            <span class="nav-support-badge" id="support-badge" style="display:none">0</span>
-          </a>
-          <a href="#" class="nav-item" data-page="review">
-            <i class="fa-regular fa-eye nav-icon"></i>
-            <span>For Review</span>
-            <span class="nav-review-badge" id="review-badge" style="display:none">0</span>
-          </a>
-          <a href="#" class="nav-item" data-page="brand-finance">
-            <i class="fa-solid fa-chart-line nav-icon"></i>
-            <span>Financials</span>
-          </a>
-        </div>
       </nav>
 
       <div class="sidebar-footer">
