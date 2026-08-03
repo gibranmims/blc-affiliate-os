@@ -759,6 +759,7 @@ body {
 .inline-status-select.status-key-accepted       { background-color: var(--green-dim);     color: var(--green); }
 .inline-status-select.status-key-not_interested { background-color: var(--red-dim);       color: var(--red); }
 .inline-status-select.status-key-no_response    { background-color: var(--bg-secondary);  color: var(--text-muted); }
+.inline-status-select.status-key-archived       { background-color: var(--bg-secondary);  color: var(--text-muted); }
 
 /* ============================================================
    BUTTONS
@@ -2803,7 +2804,7 @@ body {
 .dp-adjust-rate-btn:hover:not(:disabled) { background: rgba(124,58,237,0.15); }
 .dp-adjust-rate-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
-/* Counter Approved card (shown to Lu in counter_approved status) */
+/* Counter Approved card (shown in counter_approved status) */
 .dp-approved-counter-card {
   border: 2px solid var(--green) !important;
   border-radius: 10px;
@@ -6196,7 +6197,7 @@ textarea:focus {
 
 /* Per-person avatar tint */
 .ua-gibran  { background: rgba(79,70,229,0.12);  color: var(--accent); }
-.ua-lu      { background: rgba(20,184,166,0.12);  color: #0d9488; }
+.ua-tamar   { background: rgba(219,39,119,0.12);  color: #db2777; }
 .ua-founder { background: rgba(124,58,237,0.12);  color: var(--purple); }
 
 .home-urgent-who {
@@ -6892,6 +6893,205 @@ textarea:focus {
 .tasks-focus-grid .focus-list {
   max-height: none;   /* no cap — let tasks breathe */
   min-height: 80px;
+}
+
+/* ── Task buckets ─────────────────────────────────────────────
+   Per-person groupings inside a column. Unsorted sits at the top
+   with no header; each named bucket below it is a drop target.  */
+.bucket-zone {
+  border-radius: var(--radius-sm);
+  transition: background 0.12s;
+}
+
+.bucket-zone.bucket-drag-over {
+  background: var(--accent-dim);
+  outline: 1px dashed var(--gray-mid);
+  outline-offset: 2px;
+}
+
+.bucket-head {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  padding: 8px 0 4px;
+  border-top: 1px solid var(--border);
+  cursor: grab;
+}
+
+.bucket-head:active { cursor: grabbing; }
+
+.bucket-caret {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: transform 0.12s;
+}
+
+.bucket-caret-closed { transform: rotate(-90deg); }
+
+.bucket-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  cursor: text;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bucket-name:hover { color: var(--text-secondary); }
+
+.bucket-count {
+  flex-shrink: 0;
+  padding: 1px 6px;
+  border-radius: 9px;
+  background: rgba(0,0,0,0.05);
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.bucket-menu-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  background: none;
+  border: none;
+  color: transparent;   /* revealed on hover — quiet until wanted */
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.bucket-head:hover .bucket-menu-btn { color: var(--text-muted); }
+.bucket-menu-btn:hover { color: var(--text-primary); }
+
+.bucket-menu {
+  display: none;
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 40;
+  min-width: 132px;
+  padding: 4px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md);
+}
+
+.bucket-menu.open { display: block; }
+
+.bucket-menu button {
+  display: block;
+  width: 100%;
+  padding: 6px 8px;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  font-family: var(--font);
+  font-size: 12px;
+  color: var(--text-secondary);
+  text-align: left;
+  cursor: pointer;
+}
+
+.bucket-menu button:hover:not(:disabled) {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.bucket-menu button:disabled {
+  color: var(--text-muted);
+  opacity: 0.5;
+  cursor: default;
+}
+
+.bucket-menu .bucket-menu-danger { color: var(--red); }
+
+.bucket-body { min-height: 26px; }
+
+.bucket-drop-hint {
+  padding: 6px 0;
+  font-size: 11.5px;
+  font-style: italic;
+  color: var(--text-muted);
+  opacity: 0.6;
+}
+
+.bucket-add-task {
+  padding: 2px 0 6px;
+  background: none;
+  border: none;
+  font-family: var(--font);
+  font-size: 11px;
+  color: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.bucket-zone:hover .bucket-add-task { color: var(--text-muted); }
+.bucket-add-task:hover { color: var(--text-secondary); }
+
+.bucket-name-input {
+  width: 100%;
+  padding: 3px 6px;
+  background: var(--bg-primary);
+  border: 1px solid var(--text-primary);
+  border-radius: 4px;
+  font-family: var(--font);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-primary);
+  outline: none;
+}
+
+.bucket-add-row { padding: 8px 0 2px; }
+
+.focus-task.is-dragging { opacity: 0.4; }
+
+/* Column footer: add a task (into Unsorted) or add a bucket */
+.focus-col-actions {
+  display: flex;
+  gap: 16px;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.focus-col-actions .focus-add-btn {
+  width: auto;
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+
+/* Three columns don't fit a phone — at ~125px wide a bucket header has no
+   room for its name, count and menu, which is the only way to move a task
+   on touch (dragging isn't available there). Stack them instead. */
+@media (max-width: 820px) {
+  .tasks-focus-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+  .bucket-menu-btn { color: var(--text-muted); }  /* no hover on touch */
+  .bucket-add-task { color: var(--text-muted); }
 }
 
 /* ── Home QA grid: 4-across when team focus is gone ─────── */

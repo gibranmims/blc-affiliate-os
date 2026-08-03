@@ -24,11 +24,12 @@ router.get('/', async (req, res) => {
 // POST /api/tasks
 router.post('/', async (req, res) => {
   try {
-    const { title, assignee, tag, deadline } = req.body;
+    const { title, assignee, tag, deadline, bucket_id } = req.body;
     if (!title?.trim()) return res.status(400).json({ error: 'Title required' });
     const row = { title: title.trim(), assignee: assignee || 'founder' };
-    if (tag)      row.tag      = tag;
-    if (deadline) row.deadline = deadline;
+    if (tag)       row.tag       = tag;
+    if (deadline)  row.deadline  = deadline;
+    if (bucket_id) row.bucket_id = bucket_id;
     const { data, error } = await supabase()
       .from('tasks')
       .insert(row)
@@ -51,6 +52,7 @@ router.put('/:id', async (req, res) => {
     if (req.body.archived  !== undefined) updates.archived  = req.body.archived;
     if (req.body.tag       !== undefined) updates.tag       = req.body.tag || null;
     if (req.body.deadline  !== undefined) updates.deadline  = req.body.deadline || null;
+    if (req.body.bucket_id !== undefined) updates.bucket_id = req.body.bucket_id || null;
     const { data, error } = await supabase()
       .from('tasks')
       .update(updates)

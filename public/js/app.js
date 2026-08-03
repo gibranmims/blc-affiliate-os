@@ -11,6 +11,7 @@ const API = {
   support:     '/api/support',
   settings:    '/api/settings',
   tasks:       '/api/tasks',
+  taskBuckets: '/api/task-buckets',
   ideas:           '/api/ideas',
   commentBank:     '/api/comment-bank',
   contentCalendar: '/api/content-calendar',
@@ -20,6 +21,10 @@ const API = {
   partnerOutreachGen: '/api/partner-outreach-gen'
 };
 
+// Outreach signs as the brand, not a person — the team can change without
+// rewriting a single email template. Mirrored in routes/outreach-gen.js.
+const OUTREACH_SENDER = 'The Bikini Line Co.';
+
 const PARTNER_STATUSES = [
   { key: 'not_contacted',  label: 'Not Contacted',  color: 'gray'   },
   { key: 'contacted',      label: 'Contacted',      color: 'blue'   },
@@ -27,7 +32,8 @@ const PARTNER_STATUSES = [
   { key: 'applied',        label: 'Applied',        color: 'purple' },
   { key: 'accepted',       label: 'Accepted',       color: 'green'  },
   { key: 'not_interested', label: 'Not Interested', color: 'red'    },
-  { key: 'no_response',    label: 'No Response',    color: 'gray'   }
+  { key: 'no_response',    label: 'No Response',    color: 'gray'   },
+  { key: 'archived',       label: 'Archived',       color: 'gray'   }
 ];
 
 const STATUSES = [
@@ -67,6 +73,7 @@ const state = {
   support:            [],
   customIssueTypes:   [],
   tasks:              [],
+  taskBuckets:        [],
   ideas:              [],
   commentBank:        [],
   commentBankFilter:  'pending',  // 'all' | 'pending' | 'replied'
@@ -477,25 +484,25 @@ function renderFUCell(r, num) {
 // Returns pre-written follow-up message text for a given outreach record
 function fuMessageText(r, num) {
   const firstName = (r.name || r.handle || 'there').split(' ')[0];
-  const sender = r.sender || 'Tamar';
+  const sender = r.sender || OUTREACH_SENDER;
 
   // Counter-offer follow-ups use different copy
   if (r.status === 'counter_offered') {
     if (num === 1) return [
       `Hey ${firstName},`,
       ``,
-      `Just wanted to follow up on my last message — would love to hear if these rates work for you.`,
+      `Just wanted to follow up on our last message — would love to hear if these rates work for you.`,
       ``,
-      `Let me know.`,
+      `Let us know.`,
       ``,
       sender
     ].join('\n');
     return [
       `Hey ${firstName},`,
       ``,
-      `Before I close the loop on this one, just wanted to reach out one last time.`,
+      `Before we close the loop on this one, just wanted to reach out one last time.`,
       ``,
-      `Let me know if these rates work for you.`,
+      `Let us know if these rates work for you.`,
       ``,
       sender
     ].join('\n');
@@ -505,26 +512,26 @@ function fuMessageText(r, num) {
   if (num === 1) return [
     `Hey ${firstName},`,
     ``,
-    `Just wanted to follow up on my last message in case it got buried.`,
+    `Just wanted to follow up on our last message in case it got buried.`,
     ``,
     `We'd love to hear your rates if this is something you'd be open to.`,
     ``,
-    `Let me know!`,
+    `Let us know!`,
     ``,
     `Warmly,`,
-    `Lu`
+    OUTREACH_SENDER
   ].join('\n');
   return [
     `Hey ${firstName},`,
     ``,
-    `Before I close the loop on this one, just wanted to reach out one last time.`,
+    `Before we close the loop on this one, just wanted to reach out one last time.`,
     ``,
     `We'd love to hear your rates for 3, 5, or 10 videos a month.`,
     ``,
     `Hope to hear from you.`,
     ``,
     `Warmly,`,
-    `Lu`
+    OUTREACH_SENDER
   ].join('\n');
 }
 
@@ -1595,13 +1602,13 @@ function renderDetailPanel() {
         </button>
       </div>
       <div style="font-size:11px;color:var(--text-muted);text-align:center;margin-top:8px;">
-        Both move to Ctr. Reviewed · Lu generates &amp; sends from there
+        Both move to Ctr. Reviewed · generate &amp; send from there
       </div>
     </div>
 
     ` : r.status === 'counter_approved' ? `
 
-    <!-- === COUNTER APPROVED: Lu generates & sends from here === -->
+    <!-- === COUNTER APPROVED: generate & send from here === -->
     <div class="dp-section dp-approved-counter-card">
       <div class="dp-approved-counter-header">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
@@ -1632,7 +1639,7 @@ function renderDetailPanel() {
           Generate &amp; Send Counter →
         </button>
         <div style="font-size:11px;color:var(--text-muted);text-align:center;margin-top:6px;">
-          Signs email from Lu · moves to Counter Sent
+          Signs email from ${OUTREACH_SENDER} · moves to Counter Sent
         </div>`;
       })()}
     </div>
@@ -2224,7 +2231,7 @@ async function approveAtAMRate(id) {
     if (i !== -1) state.outreach[i] = saved;
     renderDetailPanel();
     renderOutreachPage();
-    showToast('Approved at AM rate ✓ — Lu can now generate & send');
+    showToast('Approved at AM rate ✓ — ready to generate & send');
   } catch (err) {
     showToast(err.message, 'error');
     if (btn) { btn.disabled = false; }
@@ -2250,7 +2257,7 @@ async function approveAtFounderRate(id) {
     if (i !== -1) state.outreach[i] = saved;
     renderDetailPanel();
     renderOutreachPage();
-    showToast('Rate adjusted ✓ — Lu can see your reasoning and send');
+    showToast('Rate adjusted ✓ — your reasoning is attached, ready to send');
   } catch (err) {
     showToast(err.message, 'error');
     if (btn) { btn.disabled = false; }
@@ -2302,7 +2309,7 @@ async function generateFinalCounter(id) {
         counterTotal:         total,
         counterPerVid:        perVid,
         tier:                 r.tier,
-        sender:               'Lu'
+        sender:               OUTREACH_SENDER
       })
     });
     await fetchAPI(`${API.outreach}/${id}`, {
@@ -6069,7 +6076,12 @@ async function deleteSupportIssue(id) {
 // ============================================================
 
 async function loadTasks() {
-  state.tasks = await fetchAPI(API.tasks);
+  const [tasks, buckets] = await Promise.all([
+    fetchAPI(API.tasks),
+    fetchAPI(API.taskBuckets).catch(() => [])   // board still works if buckets fail
+  ]);
+  state.tasks       = tasks;
+  state.taskBuckets = buckets || [];
   updateTasksUrgentBadge();
 }
 
@@ -6111,22 +6123,27 @@ function deadlineSortKey(deadline) {
   return Math.round((new Date(deadline + 'T00:00:00') - today) / 86400000);
 }
 
-function renderTaskList(assignee) {
-  const tasks = state.tasks
+// Tasks for one person, optionally narrowed to a single bucket.
+//   bucketId undefined → every task in the column (flat, used by "For Founder")
+//   bucketId null      → Unsorted (no bucket assigned)
+//   bucketId '<uuid>'  → that bucket
+function tasksIn(assignee, bucketId) {
+  return state.tasks
     .filter(t => t.assignee === assignee && !t.archived)
+    .filter(t => bucketId === undefined || (t.bucket_id || null) === bucketId)
     .sort((a, b) => {
       // completed always last
       if (a.completed !== b.completed) return a.completed ? 1 : -1;
       // sort by urgency: overdue first, then soonest, then no-deadline
       return deadlineSortKey(a.deadline) - deadlineSortKey(b.deadline);
     });
-  if (tasks.length === 0) {
-    return `<div class="focus-empty">Nothing yet</div>`;
-  }
-  return tasks.map(t => {
-    const dl = fmtDeadline(t.deadline);
-    return `
-    <div class="focus-task${t.completed ? ' focus-done' : ''}">
+}
+
+function renderTaskItem(t) {
+  const dl = fmtDeadline(t.deadline);
+  return `
+    <div class="focus-task${t.completed ? ' focus-done' : ''}" draggable="true"
+         ondragstart="taskDragStart(event,'${t.id}')" ondragend="boardDragEnd(event)">
       <button class="focus-check${t.completed ? ' focus-checked' : ''}" onclick="toggleTask('${t.id}')">
         ${t.completed ? `<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5"><polyline points="20 6 9 17 4 12"/></svg>` : ''}
       </button>
@@ -6138,16 +6155,334 @@ function renderTaskList(assignee) {
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
       </button>
     </div>`;
+}
+
+// Flat, unbucketed list — used by the "For Founder" queue
+function renderTaskList(assignee) {
+  const tasks = tasksIn(assignee);
+  if (tasks.length === 0) return `<div class="focus-empty">Nothing yet</div>`;
+  return tasks.map(renderTaskItem).join('');
+}
+
+// ============================================================
+// TASK BUCKETS
+// Per-person groupings inside a column. Gibran's "Today" and
+// Tamar's "Today" are separate rows — renaming one never touches
+// the other. A task with no bucket sits in the Unsorted zone.
+// ============================================================
+
+const BUCKET_COLLAPSE_KEY = 'blc_collapsed_buckets';
+
+function collapsedBuckets() {
+  try { return new Set(JSON.parse(localStorage.getItem(BUCKET_COLLAPSE_KEY) || '[]')); }
+  catch { return new Set(); }
+}
+
+// Collapse is a view preference, not a fact about the team — it stays local
+function toggleBucketCollapse(id) {
+  const set = collapsedBuckets();
+  set.has(id) ? set.delete(id) : set.add(id);
+  localStorage.setItem(BUCKET_COLLAPSE_KEY, JSON.stringify([...set]));
+  refreshTaskBoard();
+}
+
+function bucketsFor(assignee) {
+  return state.taskBuckets
+    .filter(b => b.assignee === assignee)
+    .sort((a, b) => a.position - b.position);
+}
+
+function renderBucketedColumn(assignee) {
+  const buckets   = bucketsFor(assignee);
+  const collapsed = collapsedBuckets();
+  const unsorted  = tasksIn(assignee, null);
+
+  const unsortedHtml = `
+    <div class="bucket-zone bucket-unsorted" data-bucket=""
+         ondragover="bucketDragOver(event)" ondragleave="bucketDragLeave(event)"
+         ondrop="bucketDrop(event,'${assignee}','')">
+      <div class="bucket-body" id="unsorted-${assignee}">
+        ${unsorted.length
+          ? unsorted.map(renderTaskItem).join('')
+          : buckets.length
+            ? `<div class="bucket-drop-hint">Drop here to unsort</div>`
+            : `<div class="focus-empty">Nothing yet</div>`}
+      </div>
+    </div>`;
+
+  const bucketsHtml = buckets.map((b, i) => {
+    const tasks       = tasksIn(assignee, b.id);
+    const openCount   = tasks.filter(t => !t.completed).length;
+    const isCollapsed = collapsed.has(b.id);
+    return `
+    <div class="bucket-zone" data-bucket="${b.id}"
+         ondragover="bucketDragOver(event)" ondragleave="bucketDragLeave(event)"
+         ondrop="bucketDrop(event,'${assignee}','${b.id}')">
+      <div class="bucket-head" draggable="true"
+           ondragstart="bucketDragStart(event,'${b.id}','${assignee}')" ondragend="boardDragEnd(event)">
+        <button class="bucket-caret${isCollapsed ? ' bucket-caret-closed' : ''}"
+                onclick="toggleBucketCollapse('${b.id}')" title="${isCollapsed ? 'Expand' : 'Collapse'}">
+          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <span class="bucket-name" onclick="startRenameBucket('${b.id}')" title="Click to rename">${esc(b.name)}</span>
+        <span class="bucket-count">${openCount}</span>
+        <button class="bucket-menu-btn" onclick="toggleBucketMenu(event,'${b.id}')" title="Bucket options">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>
+        </button>
+        <div class="bucket-menu" id="bmenu-${b.id}">
+          <button onclick="startRenameBucket('${b.id}')">Rename</button>
+          <button onclick="moveBucket('${b.id}','${assignee}',-1)"${i === 0 ? ' disabled' : ''}>Move up</button>
+          <button onclick="moveBucket('${b.id}','${assignee}',1)"${i === buckets.length - 1 ? ' disabled' : ''}>Move down</button>
+          <button class="bucket-menu-danger" onclick="deleteBucket('${b.id}')">Delete</button>
+        </div>
+      </div>
+      ${isCollapsed ? '' : `
+      <div class="bucket-body">
+        ${tasks.length
+          ? tasks.map(renderTaskItem).join('')
+          : `<div class="bucket-drop-hint">Empty</div>`}
+      </div>
+      <button class="bucket-add-task" onclick="startAddTask('${assignee}','${b.id}')">＋ Add here</button>`}
+    </div>`;
   }).join('');
+
+  return unsortedHtml + bucketsHtml;
+}
+
+// ── Bucket menu ─────────────────────────────────────────────────
+function closeBucketMenus() {
+  document.querySelectorAll('.bucket-menu.open').forEach(m => m.classList.remove('open'));
+}
+
+function toggleBucketMenu(e, id) {
+  e.stopPropagation();
+  const menu    = document.getElementById(`bmenu-${id}`);
+  const wasOpen = menu?.classList.contains('open');
+  closeBucketMenus();
+  if (menu && !wasOpen) menu.classList.add('open');
+}
+
+document.addEventListener('click', closeBucketMenus);
+
+// ── Drag & drop (desktop; touch devices use the menus and dropdown) ──
+let bucketDragPayload = null;
+
+function taskDragStart(e, id) {
+  e.stopPropagation();
+  bucketDragPayload = { type: 'task', id };
+  e.dataTransfer.effectAllowed = 'move';
+  try { e.dataTransfer.setData('text/plain', id); } catch (_) {}
+  e.currentTarget.classList.add('is-dragging');
+}
+
+function bucketDragStart(e, id, assignee) {
+  bucketDragPayload = { type: 'bucket', id, assignee };
+  e.dataTransfer.effectAllowed = 'move';
+  try { e.dataTransfer.setData('text/plain', id); } catch (_) {}
+}
+
+function boardDragEnd() {
+  bucketDragPayload = null;
+  document.querySelectorAll('.is-dragging').forEach(el => el.classList.remove('is-dragging'));
+  document.querySelectorAll('.bucket-drag-over').forEach(el => el.classList.remove('bucket-drag-over'));
+}
+
+function bucketDragOver(e) {
+  if (!bucketDragPayload) return;
+  e.preventDefault();
+  e.stopPropagation();
+  e.dataTransfer.dropEffect = 'move';
+  e.currentTarget.classList.add('bucket-drag-over');
+}
+
+function bucketDragLeave(e) {
+  e.currentTarget.classList.remove('bucket-drag-over');
+}
+
+async function bucketDrop(e, assignee, bucketId) {
+  e.preventDefault();
+  e.stopPropagation();
+  const payload = bucketDragPayload;
+  boardDragEnd();
+  if (!payload) return;
+  if (payload.type === 'task') {
+    await moveTaskToBucket(payload.id, bucketId || null);
+  } else if (payload.type === 'bucket' && payload.assignee === assignee) {
+    await dropBucketOnto(payload.id, bucketId, assignee);
+  }
+}
+
+async function moveTaskToBucket(taskId, bucketId) {
+  const task = state.tasks.find(t => t.id === taskId);
+  if (!task || (task.bucket_id || null) === bucketId) return;
+  const previous = task.bucket_id || null;
+  task.bucket_id = bucketId;          // optimistic — the board feels instant
+  refreshTaskBoard();
+  try {
+    const updated = await fetchAPI(`${API.tasks}/${taskId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ bucket_id: bucketId })
+    });
+    const i = state.tasks.findIndex(t => t.id === taskId);
+    if (i !== -1) state.tasks[i] = updated;
+  } catch (err) {
+    task.bucket_id = previous;       // put it back where it was
+    refreshTaskBoard();
+    showToast(err.message, 'error');
+  }
+}
+
+function applyBucketOrder(ids) {
+  ids.forEach((id, i) => {
+    const b = state.taskBuckets.find(x => x.id === id);
+    if (b) b.position = i;
+  });
+}
+
+async function persistBucketOrder(ids) {
+  try {
+    await fetchAPI(`${API.taskBuckets}/reorder`, {
+      method: 'POST',
+      body: JSON.stringify({ ids })
+    });
+  } catch (err) {
+    showToast(err.message, 'error');
+    await loadTasks();
+    refreshTaskBoard();
+  }
+}
+
+async function dropBucketOnto(draggedId, targetId, assignee) {
+  if (!targetId || draggedId === targetId) return;
+  const ids  = bucketsFor(assignee).map(b => b.id);
+  const from = ids.indexOf(draggedId);
+  const to   = ids.indexOf(targetId);
+  if (from === -1 || to === -1) return;
+  ids.splice(to, 0, ids.splice(from, 1)[0]);
+  applyBucketOrder(ids);
+  refreshTaskBoard();
+  await persistBucketOrder(ids);
+}
+
+async function moveBucket(id, assignee, dir) {
+  closeBucketMenus();
+  const ids  = bucketsFor(assignee).map(b => b.id);
+  const from = ids.indexOf(id);
+  const to   = from + dir;
+  if (from === -1 || to < 0 || to >= ids.length) return;
+  [ids[from], ids[to]] = [ids[to], ids[from]];
+  applyBucketOrder(ids);
+  refreshTaskBoard();
+  await persistBucketOrder(ids);
+}
+
+// ── Create / rename / delete ────────────────────────────────────
+function startAddBucket(assignee) {
+  const listEl = document.getElementById(`tasks-${assignee}`);
+  if (!listEl || listEl.querySelector('.bucket-add-row')) return;
+  const row = document.createElement('div');
+  row.className = 'bucket-add-row';
+  row.innerHTML = `<input class="bucket-name-input" type="text" placeholder="Bucket name…" maxlength="40">`;
+  listEl.appendChild(row);
+  const input = row.querySelector('input');
+  input.focus();
+
+  let settled = false;
+  async function commit() {
+    if (settled) return;
+    settled = true;
+    const name = input.value.trim();
+    row.remove();
+    if (!name) return;
+    try {
+      const bucket = await fetchAPI(API.taskBuckets, {
+        method: 'POST',
+        body: JSON.stringify({ assignee, name })
+      });
+      state.taskBuckets.push(bucket);
+      refreshTaskBoard();
+    } catch (err) { showToast(err.message, 'error'); }
+  }
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter')  commit();
+    if (e.key === 'Escape') { settled = true; row.remove(); }
+  });
+  input.addEventListener('blur', () => setTimeout(commit, 150));
+}
+
+function startRenameBucket(id) {
+  closeBucketMenus();
+  const bucket = state.taskBuckets.find(b => b.id === id);
+  if (!bucket) return;
+  const nameEl = document.querySelector(`.bucket-zone[data-bucket="${id}"] .bucket-name`);
+  if (!nameEl) return;
+
+  const input = document.createElement('input');
+  input.className = 'bucket-name-input';
+  input.type      = 'text';
+  input.value     = bucket.name;
+  input.maxLength = 40;
+  nameEl.replaceWith(input);
+  // A draggable ancestor blocks text selection inside the input in some
+  // browsers — the re-render after commit restores it.
+  const head = input.closest('.bucket-head');
+  if (head) head.draggable = false;
+  input.focus();
+  input.select();
+
+  let settled = false;
+  async function commit(save) {
+    if (settled) return;
+    settled = true;
+    const name = input.value.trim();
+    if (!save || !name || name === bucket.name) { refreshTaskBoard(); return; }
+    const previous = bucket.name;
+    bucket.name = name;              // optimistic
+    refreshTaskBoard();
+    try {
+      const updated = await fetchAPI(`${API.taskBuckets}/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ name })
+      });
+      const i = state.taskBuckets.findIndex(b => b.id === id);
+      if (i !== -1) state.taskBuckets[i] = updated;
+    } catch (err) {
+      bucket.name = previous;
+      refreshTaskBoard();
+      showToast(err.message, 'error');
+    }
+  }
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter')  commit(true);
+    if (e.key === 'Escape') commit(false);
+  });
+  input.addEventListener('blur', () => commit(true));
+}
+
+async function deleteBucket(id) {
+  closeBucketMenus();
+  const bucket = state.taskBuckets.find(b => b.id === id);
+  if (!bucket) return;
+  const inside = state.tasks.filter(t => t.bucket_id === id && !t.archived).length;
+  const word   = inside === 1 ? 'task' : 'tasks';
+  if (inside > 0 &&
+      !confirm(`Delete "${bucket.name}"?\n\n${inside} ${word} will move back to Unsorted. Nothing is deleted.`)) return;
+  try {
+    await fetchAPI(`${API.taskBuckets}/${id}`, { method: 'DELETE' });
+    state.taskBuckets = state.taskBuckets.filter(b => b.id !== id);
+    state.tasks.forEach(t => { if (t.bucket_id === id) t.bucket_id = null; });
+    refreshTaskBoard();
+    showToast(inside > 0 ? `Bucket deleted — ${inside} ${word} moved to Unsorted` : 'Bucket deleted');
+  } catch (err) { showToast(err.message, 'error'); }
 }
 
 function refreshTaskBoard() {
-  const fEl = document.getElementById('tasks-founder');
-  const lEl = document.getElementById('tasks-lu');
-  const gEl = document.getElementById('tasks-for-founder');
-  if (fEl) fEl.innerHTML = renderTaskList('founder');
-  if (lEl) lEl.innerHTML = renderTaskList('lu');
-  if (gEl) gEl.innerHTML = renderTaskList('for-founder');
+  const gEl = document.getElementById('tasks-founder');
+  const tEl = document.getElementById('tasks-tamar');
+  const rEl = document.getElementById('tasks-for-founder');
+  if (gEl) gEl.innerHTML = renderBucketedColumn('founder');
+  if (tEl) tEl.innerHTML = renderBucketedColumn('tamar');
+  if (rEl) rEl.innerHTML = renderTaskList('for-founder');   // a queue, not a workload — stays flat
   // Update "For Founder" column badge count
   const pending = state.tasks.filter(t => t.assignee === 'for-founder' && !t.archived && !t.completed).length;
   const badge = document.querySelector('.focus-col-review .focus-col-badge');
@@ -6156,9 +6491,13 @@ function refreshTaskBoard() {
   updateTasksUrgentBadge();
 }
 
-function startAddTask(assignee) {
-  const listEl = document.getElementById(`tasks-${assignee}`);
+function startAddTask(assignee, bucketId) {
+  // Land in the bucket you clicked from; otherwise in Unsorted
+  const listEl = bucketId
+    ? document.querySelector(`#tasks-${assignee} .bucket-zone[data-bucket="${bucketId}"] .bucket-body`)
+    : (document.getElementById(`unsorted-${assignee}`) || document.getElementById(`tasks-${assignee}`));
   if (!listEl || listEl.querySelector('.focus-add-row')) return;
+  listEl.querySelector('.bucket-drop-hint, .focus-empty')?.remove();
   const row = document.createElement('div');
   row.className = 'focus-task focus-add-row';
   row.innerHTML = `
@@ -6171,11 +6510,11 @@ function startAddTask(assignee) {
   async function commit() {
     const title = input.value.trim();
     row.remove();
-    if (!title) return;
+    if (!title) { refreshTaskBoard(); return; }
     try {
       const task = await fetchAPI(API.tasks, {
         method: 'POST',
-        body: JSON.stringify({ title, assignee })
+        body: JSON.stringify({ title, assignee, bucket_id: bucketId || null })
       });
       state.tasks.push(task);
       refreshTaskBoard();
@@ -6183,9 +6522,11 @@ function startAddTask(assignee) {
   }
   input.addEventListener('keydown', e => {
     if (e.key === 'Enter') commit();
-    if (e.key === 'Escape') row.remove();
+    if (e.key === 'Escape') { row.remove(); refreshTaskBoard(); }
   });
-  input.addEventListener('blur', () => setTimeout(() => { if (row.parentNode) row.remove(); }, 150));
+  input.addEventListener('blur', () => setTimeout(() => {
+    if (row.parentNode) { row.remove(); refreshTaskBoard(); }
+  }, 150));
 }
 
 async function toggleTask(id) {
@@ -6226,12 +6567,21 @@ async function archiveTask(id) {
 function openTaskDetail(id) {
   const t = state.tasks.find(t => t.id === id);
   if (!t) return;
+  const buckets = bucketsFor(t.assignee);
   openModal('Task', `
     <div style="display:flex;flex-direction:column;gap:16px">
       <div class="form-group">
         <label class="form-label">Title</label>
         <input class="form-input" id="td-title" value="${esc(t.title)}" placeholder="Task name" maxlength="120">
       </div>
+      ${buckets.length ? `
+      <div class="form-group">
+        <label class="form-label">Bucket</label>
+        <select class="form-input" id="td-bucket">
+          <option value="">Unsorted</option>
+          ${buckets.map(b => `<option value="${b.id}" ${t.bucket_id === b.id ? 'selected' : ''}>${esc(b.name)}</option>`).join('')}
+        </select>
+      </div>` : ''}
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
         <div class="form-group" style="margin:0">
           <label class="form-label">Tag</label>
@@ -6267,11 +6617,16 @@ async function saveTaskDetail(id) {
   const notes    = document.getElementById('td-notes')?.value.trim();
   const tag      = document.getElementById('td-tag')?.value || null;
   const deadline = document.getElementById('td-deadline')?.value || null;
+  const bucketEl = document.getElementById('td-bucket');
   if (!title) { showToast('Title is required', 'error'); return; }
+  const body = { title, notes: notes || null, tag, deadline };
+  // Only send bucket_id when the column actually has buckets — otherwise a
+  // missing dropdown would read as "move to Unsorted".
+  if (bucketEl) body.bucket_id = bucketEl.value || null;
   try {
     const updated = await fetchAPI(`${API.tasks}/${id}`, {
       method: 'PUT',
-      body: JSON.stringify({ title, notes: notes || null, tag, deadline })
+      body: JSON.stringify(body)
     });
     const i = state.tasks.findIndex(t => t.id === id);
     if (i !== -1) state.tasks[i] = updated;
@@ -6310,22 +6665,34 @@ function renderTasksPage() {
             <span class="focus-avatar">G</span>
             <span class="focus-col-name">Gibran</span>
           </div>
-          <div class="focus-list" id="tasks-founder">${renderTaskList('founder')}</div>
-          <button class="focus-add-btn" onclick="startAddTask('founder')">
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            Add task
-          </button>
+          <div class="focus-list" id="tasks-founder">${renderBucketedColumn('founder')}</div>
+          <div class="focus-col-actions">
+            <button class="focus-add-btn" onclick="startAddTask('founder')">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Add task
+            </button>
+            <button class="focus-add-btn focus-add-bucket" onclick="startAddBucket('founder')">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Add bucket
+            </button>
+          </div>
         </div>
         <div class="focus-col">
           <div class="focus-col-head">
-            <span class="focus-avatar">L</span>
-            <span class="focus-col-name">Lu</span>
+            <span class="focus-avatar">T</span>
+            <span class="focus-col-name">Tamar</span>
           </div>
-          <div class="focus-list" id="tasks-lu">${renderTaskList('lu')}</div>
-          <button class="focus-add-btn" onclick="startAddTask('lu')">
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            Add task
-          </button>
+          <div class="focus-list" id="tasks-tamar">${renderBucketedColumn('tamar')}</div>
+          <div class="focus-col-actions">
+            <button class="focus-add-btn" onclick="startAddTask('tamar')">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Add task
+            </button>
+            <button class="focus-add-btn focus-add-bucket" onclick="startAddBucket('tamar')">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Add bucket
+            </button>
+          </div>
         </div>
         <div class="focus-col focus-col-review">
           <div class="focus-col-head">
@@ -6471,7 +6838,7 @@ function renderHomePage() {
                   const dl = fmtDeadline(t.deadline);
                   const aMap = {
                     founder:      { lbl: 'G', name: 'Gibran',     cls: 'ua-gibran'  },
-                    lu:           { lbl: 'L', name: 'Lu',         cls: 'ua-lu'      },
+                    tamar:        { lbl: 'T', name: 'Tamar',      cls: 'ua-tamar'   },
                     'for-founder':{ lbl: 'F', name: 'For Review', cls: 'ua-founder' }
                   };
                   const av = aMap[t.assignee] || { lbl: '?', name: 'Unknown', cls: '' };
@@ -9076,7 +9443,6 @@ function bf_saveAccs(e) {
 
 const TEAM_MEMBERS = [
   { key: 'gibran', name: 'Gibran', color: '#0a0a0a', initials: 'G' },
-  { key: 'lu',     name: 'Lu',     color: '#7c3aed', initials: 'L' },
   { key: 'tamar',  name: 'Tamar',  color: '#db2777', initials: 'T' },
 ];
 
@@ -9138,7 +9504,6 @@ async function renderTeamCalendarPage() {
   // Which task assignees map to each team member
   const TASK_ASSIGNEE_MAP = {
     gibran: ['founder', 'for-founder'],
-    lu:     ['lu'],
     tamar:  ['tamar'],
   };
 
@@ -9438,17 +9803,18 @@ function setPartnerView(view) {
 // ── Pipeline view ──────────────────────────────────────────────
 
 function renderPartnerPipelineView() {
+  const pipelineStatuses = PARTNER_STATUSES.filter(s => s.key !== 'archived');
   const counts = PARTNER_STATUSES.reduce((acc, s) => {
     acc[s.key] = state.partnerLeads.filter(l => l.status === s.key).length;
     return acc;
   }, {});
-  const allCount = state.partnerLeads.length;
-  const contactedOrLater = state.partnerLeads.filter(l => l.status !== 'not_contacted').length;
+  const allCount = state.partnerLeads.filter(l => l.status !== 'archived').length;
+  const contactedOrLater = state.partnerLeads.filter(l => l.status !== 'not_contacted' && l.status !== 'archived').length;
   const repliedOrLater   = state.partnerLeads.filter(l => ['replied','applied','accepted'].includes(l.status)).length;
   const applied          = state.partnerLeads.filter(l => ['applied','accepted'].includes(l.status)).length;
 
   const filtered = state.partnerFilter === 'all'
-    ? state.partnerLeads
+    ? state.partnerLeads.filter(l => l.status !== 'archived')
     : state.partnerLeads.filter(l => l.status === state.partnerFilter);
 
   document.getElementById('page-content').innerHTML = `
@@ -9489,11 +9855,14 @@ function renderPartnerPipelineView() {
         <button class="filter-tab ${state.partnerFilter === 'all' ? 'active' : ''}" onclick="setPartnerFilter('all')">
           All <span class="filter-count">${allCount}</span>
         </button>
-        ${PARTNER_STATUSES.map(s => `
+        ${pipelineStatuses.map(s => `
           <button class="filter-tab ${state.partnerFilter === s.key ? 'active' : ''}" onclick="setPartnerFilter('${s.key}')">
             ${s.label} <span class="filter-count">${counts[s.key] || 0}</span>
           </button>
         `).join('')}
+        <button class="filter-tab filter-tab-archive ${state.partnerFilter === 'archived' ? 'active' : ''}" onclick="setPartnerFilter('archived')">
+          Archived <span class="filter-count">${counts.archived || 0}</span>
+        </button>
       </div>
     </div>
 
@@ -9538,8 +9907,9 @@ function renderPartnerPipelineView() {
                   </select>
                 </td>
                 <td>${l.status === 'contacted' && l.followup_due_date ? fmtDateShort(l.followup_due_date) : '—'}</td>
-                <td onclick="event.stopPropagation()">
-                  ${!['accepted','not_interested'].includes(l.status) ? `<button class="btn btn-secondary btn-sm" onclick="copyPartnerDM('${l.id}')">${l.status === 'not_contacted' ? 'Copy DM' : 'Copy Follow-up'}</button>` : ''}
+                <td onclick="event.stopPropagation()" style="display:flex;gap:6px;">
+                  ${!['accepted','not_interested','archived'].includes(l.status) ? `<button class="btn btn-secondary btn-sm" onclick="copyPartnerDM('${l.id}')">${l.status === 'not_contacted' ? 'Copy DM' : 'Copy Follow-up'}</button>` : ''}
+                  ${l.status !== 'archived' ? `<button class="btn btn-secondary btn-sm" title="Not a real/relevant lead" onclick="updatePartnerStatusInline('${l.id}','archived')">Archive</button>` : ''}
                 </td>
               </tr>
             `).join('')}

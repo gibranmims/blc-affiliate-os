@@ -50,7 +50,10 @@ async function persistTokens(tokens, email) {
 
 loadPersistedTokens();
 
-const SENDERS = ['Lu'];
+// Outreach signs as the brand, not a person — the team can change without
+// rewriting a single email template. Mirrored in public/js/app.js.
+const SENDER_NAME = 'The Bikini Line Co.';
+const SENDERS = [SENDER_NAME];
 
 function getBaseUrl() {
   return process.env.BASE_URL || 'http://localhost:3000';
@@ -253,7 +256,7 @@ router.post('/counter-offer', async (req, res) => {
 
   const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
   const firstName  = cleanFirstName(name);
-  const senderName = sender || 'Tamar';
+  const senderName = sender || SENDER_NAME;
   const perVid     = counterPerVid || (counterTotal / counterVideos);
 
   const pvd = (total, n) => `$${Number(total).toLocaleString('en-US')} total ($${Math.round(total/n).toLocaleString('en-US')}/vid avg)`;
@@ -280,16 +283,16 @@ Hey Jayden,
 
 Appreciate you sending this over.
 
-I was thinking we could start with a batch to test what actually hits and then scale from there.
+We were thinking we could start with a batch to test what actually hits and then scale from there.
 
 Would you be open to doing 10 videos for $1,000 to start?
 
 We'll also help guide on angles we've seen convert well so you can maximize what you make on commission.
 
-Let me know your thoughts.
+Let us know your thoughts.
 
 Best,
-Lu
+${SENDER_NAME}
 
 ---
 
@@ -300,11 +303,12 @@ Their asked rates: ${ratesLine}
 Our counter offer: ${counterVideos} videos for $${Number(counterTotal).toLocaleString('en-US')} total
 
 Rules:
-- Replace "Jayden" with "${firstName}" and "Lu" with "${senderName}"
+- Replace "Jayden" with "${firstName}" and sign off as "${senderName}"
 - Replace the video count and dollar amount with the actual numbers above
 - You may vary the exact wording slightly so it doesn't sound copy-pasted, but keep every paragraph as short as in the example
 - NEVER use em dashes or en dashes
-- Do NOT say "I'd like" — say "I was thinking we could" or "Would you be open to"
+- The message is signed by a company, so write in first person plural. Use "we" and "us", never "I" or "me"
+- Do NOT say "We'd like" — say "We were thinking we could" or "Would you be open to"
 - Do NOT mention their rate or negotiate against them. Frame it as a test batch.
 - Output only the message. No subject line. No extra commentary.`
       }]
@@ -610,7 +614,7 @@ router.post('/sign-flow', async (req, res) => {
       ``,
       `1. Please send us an invoice for 50% of your first month's rate. We can send payment via PayPal or wire transfer — just include your preferred payment details on the invoice.`,
       ``,
-      `2. Also go ahead and send me your shipping address so we can get a fresh BBL Serum sent out to you. We want to make sure you have a new one to work with before you start posting.`,
+      `2. Also go ahead and send us your shipping address so we can get a fresh BBL Serum sent out to you. We want to make sure you have a new one to work with before you start posting.`,
       ``,
       `3. Join our Discord using this link: ${discordLink}. Once you're in, send us a DM and we'll move all future communication there.`,
       ``,
@@ -619,7 +623,7 @@ router.post('/sign-flow', async (req, res) => {
       `Can't wait to get started.`,
       ``,
       `Warmly,`,
-      `Lu`
+      SENDER_NAME
     ].join('\n');
 
     // 5. Create Gmail draft with PDF attached (RFC 2822 MIME message)
