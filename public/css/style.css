@@ -14,6 +14,11 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
+  /* Tells the browser to draw its own controls dark — number spinners,
+     date pickers, select popups, scrollbars. Cheaper and more correct
+     than restyling each one by hand. */
+  color-scheme: dark;
+
   /* ── Foundation ───────────────────────────────────────── */
   --black:          #06070c;   /* the ink canvas */
   --near-black:     #0d0e15;
@@ -1787,7 +1792,7 @@ body {
 
 .detail-overlay {
   flex: 1;
-  background: rgba(255,255,255,0.45);
+  background: rgba(0,0,0,0.62);
   backdrop-filter: blur(2px);
   cursor: pointer;
 }
@@ -3228,7 +3233,7 @@ body {
 .draft-modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(255,255,255,0.75);
+  background: rgba(0,0,0,0.62);
   backdrop-filter: blur(4px);
   z-index: 1000;
   display: flex;
@@ -5085,7 +5090,7 @@ a.cl-profile-handle:hover {
   font-weight: 700;
   color: #fff;
   text-shadow: 0 1px 4px rgba(0,0,0,0.7);
-  background: rgba(255,255,255,0.45);
+  background: rgba(0,0,0,0.62);
   padding: 2px 8px;
   border-radius: 99px;
   backdrop-filter: blur(4px);
@@ -5977,13 +5982,14 @@ a.cl-profile-handle:hover {
   box-shadow: var(--shadow-xs);
 }
 
+/* The active tab is a white fill now, so its count has to darken with
+   it — white-on-white otherwise. */
 .filter-tab.active .filter-count {
-  background: rgba(255,255,255,0.15);
-  color: #ffffff;
+  background: rgba(0,0,0,0.10);
+  color: var(--on-fill-strong);
 }
 
 /* ── Status pills ─────────────────────────────────────────── */
-/* All pills get stronger contrast on white */
 [class*="pill-"] {
   font-weight: 600 !important;
   letter-spacing: 0.01em;
@@ -7569,7 +7575,7 @@ textarea:focus {
 }
 
 .cc-week-btn {
-  background: rgba(255,255,255,0.88);
+  background: var(--bg-secondary);
   border: 1px solid var(--border);
   border-radius: 9px;
   color: var(--text-primary);
@@ -7712,7 +7718,7 @@ textarea:focus {
 }
 
 .cc-cell-empty {
-  background: rgba(255,255,255,0.38);
+  background: var(--bg-secondary);
   border: 1.5px dashed rgba(255,255,255,0.108);
   display: flex;
   align-items: center;
@@ -7720,21 +7726,23 @@ textarea:focus {
 }
 
 .cc-cell-empty:hover {
-  background: rgba(255,255,255,0.72);
+  background: var(--bg-secondary);
   border-color: rgba(255,255,255,0.216);
 }
 
+/* Quiet until you go looking for it. 0.22 was legible against the old
+   white cell but disappears on ink, so both states step up. */
 .cc-cell-add {
   font-size: 11.5px;
-  color: rgba(255,255,255,0.22);
+  color: rgba(255,255,255,0.34);
   font-weight: 500;
   transition: color 0.12s;
 }
 
-.cc-cell-empty:hover .cc-cell-add { color: rgba(255,255,255,0.42); }
+.cc-cell-empty:hover .cc-cell-add { color: rgba(255,255,255,0.66); }
 
 .cc-cell-filled {
-  background: rgba(255,255,255,0.9);
+  background: var(--bg-secondary);
   border: 1px solid rgba(255,255,255,0.096);
   border-top-color: rgba(255,255,255,0.95);
   box-shadow: 0 1px 3px rgba(0,0,0,0.05);
@@ -8424,7 +8432,7 @@ h1, h2 { letter-spacing: -0.025em; }
   display: flex;
   align-items: center;
   gap: 6px;
-  background: rgba(255,255,255,0.88);
+  background: var(--bg-primary);
   backdrop-filter: blur(12px);
   border: 1px solid var(--border);
   border-radius: 10px;
@@ -8457,7 +8465,7 @@ h1, h2 { letter-spacing: -0.025em; }
   display: flex;
   align-items: center;
   gap: 10px;
-  background: rgba(255,255,255,0.88);
+  background: var(--bg-primary);
   backdrop-filter: blur(12px);
   border: 1px solid var(--border-light);
   border-radius: 14px;
@@ -8517,7 +8525,7 @@ h1, h2 { letter-spacing: -0.025em; }
 
 /* ── Calendar Grid ────────────────────────────────────────── */
 .tc-grid-wrap {
-  background: rgba(255,255,255,0.88);
+  background: var(--bg-primary);
   backdrop-filter: blur(12px);
   border: 1px solid var(--border-light);
   border-radius: 18px;
@@ -8681,7 +8689,7 @@ h1, h2 { letter-spacing: -0.025em; }
   overflow: hidden;
   border-radius: 16px;
   border: 1px solid var(--border);
-  background: rgba(255,255,255,0.88);
+  background: var(--bg-primary);
   backdrop-filter: blur(12px);
   transition: width 0.2s ease;
 }
@@ -8815,7 +8823,7 @@ h1, h2 { letter-spacing: -0.025em; }
 .tc-task-chip {
   font-size: 10px;
   font-weight: 500;
-  background: rgba(255,255,255,0.92);
+  background: var(--bg-tertiary);
   border: 1px solid rgba(255,255,255,0.135);
   color: var(--text-primary);
   border-radius: 4px;
@@ -8941,7 +8949,7 @@ body { overscroll-behavior-y: none; }
     position: fixed;
     inset: 0;
     z-index: 590;
-    background: rgba(255,255,255,0.5);
+    background: rgba(0,0,0,0.62);
     -webkit-backdrop-filter: blur(3px);
     backdrop-filter: blur(3px);
   }
