@@ -83,6 +83,8 @@ const state = {
   teamMembers:        [],
   subscriptions:      [],
   activeProjectId:    null,
+  activePartnerId:    null,
+  activeSubscriptionId: null,
   ideas:              [],
   commentBank:        [],
   commentBankFilter:  'pending',  // 'all' | 'pending' | 'replied'
@@ -787,8 +789,10 @@ function navigate(page) {
     projects:     renderProjectsPage,
     project:      renderProjectDetailPage,
     partners:     renderPartnersPage,
+    partner:      renderPartnerDetailPage,
     team:         renderTeamPage,
     subscriptions: renderSubscriptionsPage,
+    subscription:  renderSubscriptionDetailPage,
     tasks:        renderTasksPage,
     ideas:        renderIdeasPage,
     'comment-bank': renderCommentBankPage,
@@ -920,6 +924,9 @@ const PAGE_PARENT_HUB = (() => {
     [hub.hero, ...hub.cards].forEach(c => { if (c.page) map[c.page] = key; });
   });
   map.project = 'projects';   // a single project page sits under Projects
+  // Detail pages keep their parent hub lit
+  map.partner      = map.partners;
+  map.subscription = map.subscriptions;
   return map;
 })();
 
@@ -1283,14 +1290,14 @@ function renderPartnersPage() {
 
     <div class="hub-grid">
       ${partners.map(p => `
-        <button class="hub-card partner-card" onclick="openPartnerEditor('${p.id}')">
+        <button class="hub-card partner-card" onclick="openPartnerDetail('${p.id}')">
           ${p.category ? `<span class="partner-cat">${esc(p.category)}</span>` : ''}
           <div class="hub-card-name">${esc(p.name)}</div>
           ${p.contact_name  ? `<div class="partner-line">${esc(p.contact_name)}</div>` : ''}
           ${p.contact_email ? `<div class="partner-line partner-mono">${esc(p.contact_email)}</div>` : ''}
           ${p.contact_phone ? `<div class="partner-line partner-mono">${esc(p.contact_phone)}</div>` : ''}
           ${p.notes ? `<div class="hub-card-desc">${esc(p.notes)}</div>` : ''}
-          <div class="hub-card-cta">Edit →</div>
+          <div class="hub-card-cta">Open →</div>
         </button>`).join('')}
 
       <button class="hub-card partner-card proj-card-new" onclick="openPartnerEditor()">
@@ -1298,6 +1305,119 @@ function renderPartnersPage() {
         <div class="hub-card-name">Add partner</div>
         <div class="hub-card-desc">Anyone outside the company we work with</div>
       </button>
+    </div>
+  `;
+}
+
+// A row of label/value pairs, skipping anything blank so a sparse record
+// reads as a short page rather than a wall of dashes.
+function detailFields(pairs) {
+  const filled = pairs.filter(([, v]) => v);
+  if (!filled.length) return '';
+  return `<div class="detail-grid">${filled.map(([label, value, mono]) => `
+    <div class="detail-field">
+      <div class="detail-label">${esc(label)}</div>
+      <div class="detail-value${mono ? ' partner-mono' : ''}">${value}</div>
+    </div>`).join('')}</div>`;
+}
+
+function openPartnerDetail(id) {
+  state.activePartnerId = id;
+  navigate('partner');
+}
+
+function renderPartnerDetailPage() {
+  const p = state.partners.find(x => x.id === state.activePartnerId);
+  if (!p) { navigate('partners'); return; }
+  const link = p.link
+    ? `<a href="${esc(p.link)}" target="_blank" rel="noopener noreferrer" class="detail-link">${esc(p.link)}</a>`
+    : null;
+
+  document.getElementById('page-content').innerHTML = `
+    <button class="proj-back" onclick="navigate('partners')">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+      All partners
+    </button>
+
+    <div class="hub-banner">
+      ${p.category ? `<span class="partner-cat" style="top:26px;right:30px">${esc(p.category)}</span>` : ''}
+      <h1 class="hub-title">${esc(p.name)}</h1>
+      ${p.contact_name ? `<div class="hub-promise">${esc(p.contact_name)}</div>` : ''}
+    </div>
+
+    ${detailFields([
+      ['Email', p.contact_email ? esc(p.contact_email) : null, true],
+      ['Phone', p.contact_phone ? esc(p.contact_phone) : null, true],
+      ['Link',  link]
+    ])}
+
+    ${p.notes ? `
+    <div class="detail-notes">
+      <div class="detail-label">Notes</div>
+      <div class="detail-notes-body">${esc(p.notes)}</div>
+    </div>` : ''}
+
+    <div class="proj-page-actions">
+      <button class="btn btn-secondary btn-sm" onclick="openPartnerEditor('${p.id}')">Edit partner</button>
+      <button class="btn btn-danger btn-sm" onclick="deletePartner('${p.id}')">Delete</button>
+    </div>
+  `;
+}
+
+function openSubscriptionDetail(id) {
+  state.activeSubscriptionId = id;
+  navigate('subscription');
+}
+
+function renderSubscriptionDetailPage() {
+  const s = state.subscriptions.find(x => x.id === state.activeSubscriptionId);
+  if (!s) { navigate('subscriptions'); return; }
+  const cyc = SUB_CYCLES.find(c => c.key === s.cycle) || SUB_CYCLES[1];
+  const due = s.renews_on ? fmtDeadline(s.renews_on) : null;
+  const link = s.link
+    ? `<a href="${esc(s.link)}" target="_blank" rel="noopener noreferrer" class="detail-link">${esc(s.link)}</a>`
+    : null;
+
+  document.getElementById('page-content').innerHTML = `
+    <button class="proj-back" onclick="navigate('subscriptions')">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+      All subscriptions
+    </button>
+
+    <div class="hub-banner">
+      <span class="partner-cat" style="top:26px;right:30px">${s.status === 'cancelled' ? 'Cancelled' : 'Active'}</span>
+      <h1 class="hub-title">${esc(s.name)}</h1>
+      ${s.category ? `<div class="hub-sub" style="margin-top:6px">${esc(s.category)}</div>` : ''}
+      <div class="hub-stats">
+        <div class="hub-stat">
+          <div class="hub-stat-value">${money(parseFloat(s.amount) || 0)}</div>
+          <div class="hub-stat-label">Per ${cyc.label.toLowerCase().replace('ly', '')}</div>
+        </div>
+        <div class="hub-stat"><div class="hub-stat-value">${money(subMonthly(s))}</div><div class="hub-stat-label">Per month</div></div>
+        <div class="hub-stat"><div class="hub-stat-value">${money(subMonthly(s) * 12)}</div><div class="hub-stat-label">Per year</div></div>
+        ${s.renews_on ? `
+        <div class="hub-stat">
+          <div class="hub-stat-value" style="font-size:18px;padding-top:10px">${s.renews_on}</div>
+          <div class="hub-stat-label">Renews${due ? ` · ${due.text}` : ''}</div>
+        </div>` : ''}
+      </div>
+    </div>
+
+    ${detailFields([
+      ['Paid with', s.paid_with ? esc(s.paid_with) : null],
+      ['Owner',     s.owner ? esc(memberName(s.owner)) : null],
+      ['Link',      link]
+    ])}
+
+    ${s.notes ? `
+    <div class="detail-notes">
+      <div class="detail-label">Notes</div>
+      <div class="detail-notes-body">${esc(s.notes)}</div>
+    </div>` : ''}
+
+    <div class="proj-page-actions">
+      <button class="btn btn-secondary btn-sm" onclick="openSubscriptionEditor('${s.id}')">Edit subscription</button>
+      <button class="btn btn-danger btn-sm" onclick="deleteSubscription('${s.id}')">Delete</button>
     </div>
   `;
 }
@@ -1371,7 +1491,7 @@ async function savePartner(id) {
       state.partners.push(await fetchAPI(API.partners, { method: 'POST', body: JSON.stringify(body) }));
     }
     closeModal();
-    renderPartnersPage();
+    if (state.currentPage === 'partner') renderPartnerDetailPage(); else renderPartnersPage();
     showToast('Saved');
   } catch (err) { showToast(err.message, 'error'); }
 }
@@ -1383,7 +1503,8 @@ async function deletePartner(id) {
     await fetchAPI(`${API.partners}/${id}`, { method: 'DELETE' });
     state.partners = state.partners.filter(x => x.id !== id);
     closeModal();
-    renderPartnersPage();
+    if (state.activePartnerId === id) state.activePartnerId = null;
+    navigate('partners');            // its page no longer exists
     showToast('Partner removed');
   } catch (err) { showToast(err.message, 'error'); }
 }
@@ -1548,7 +1669,7 @@ function renderSubscriptionsPage() {
         const due = s.renews_on ? fmtDeadline(s.renews_on) : null;
         const cyc = SUB_CYCLES.find(c => c.key === s.cycle) || SUB_CYCLES[1];
         return `
-        <button class="hub-card sub-card${s.status === 'cancelled' ? ' is-inactive' : ''}" onclick="openSubscriptionEditor('${s.id}')">
+        <button class="hub-card sub-card${s.status === 'cancelled' ? ' is-inactive' : ''}" onclick="openSubscriptionDetail('${s.id}')">
           ${s.category ? `<span class="partner-cat">${esc(s.category)}</span>` : ''}
           <div class="hub-card-name">${esc(s.name)}</div>
           <div class="sub-amount">${money(parseFloat(s.amount) || 0)}<span class="sub-cycle"> / ${cyc.label.toLowerCase()}</span></div>
@@ -1658,7 +1779,7 @@ async function saveSubscription(id) {
       state.subscriptions.push(await fetchAPI(API.subscriptions, { method: 'POST', body: JSON.stringify(body) }));
     }
     closeModal();
-    renderSubscriptionsPage();
+    if (state.currentPage === 'subscription') renderSubscriptionDetailPage(); else renderSubscriptionsPage();
     showToast('Saved');
   } catch (err) { showToast(err.message, 'error'); }
 }
@@ -1670,7 +1791,8 @@ async function deleteSubscription(id) {
     await fetchAPI(`${API.subscriptions}/${id}`, { method: 'DELETE' });
     state.subscriptions = state.subscriptions.filter(x => x.id !== id);
     closeModal();
-    renderSubscriptionsPage();
+    if (state.activeSubscriptionId === id) state.activeSubscriptionId = null;
+    navigate('subscriptions');       // its page no longer exists
     showToast('Deleted');
   } catch (err) { showToast(err.message, 'error'); }
 }
