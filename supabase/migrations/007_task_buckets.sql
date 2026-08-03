@@ -14,6 +14,12 @@ CREATE TABLE IF NOT EXISTS task_buckets (
 CREATE INDEX IF NOT EXISTS idx_task_buckets_assignee
   ON task_buckets (assignee, position);
 
+-- The app talks to Supabase with the anon key, so a new table is
+-- unreachable until it is granted — same as every other table here.
+ALTER TABLE task_buckets DISABLE ROW LEVEL SECURITY;
+GRANT ALL ON TABLE task_buckets TO anon;
+GRANT ALL ON TABLE task_buckets TO authenticated;
+
 -- A task with no bucket lives in the "Unsorted" zone at the top of the column.
 -- ON DELETE SET NULL: deleting a bucket never deletes the tasks inside it —
 -- they fall back to Unsorted.

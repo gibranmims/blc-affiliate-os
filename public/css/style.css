@@ -9390,3 +9390,182 @@ body { overscroll-behavior-y: none; }
   .hub-stats { gap: 18px 26px; }
   .hub-banner { padding: 22px 20px; border-radius: 20px; }
 }
+
+/* ════════════════════════════════════════════════════════════
+   PROJECTS & PARTNERS
+   Both ride the hub card system; these are the extras — progress
+   bars, status pills, category chips. Monochrome like everything
+   else, so status reads by weight and opacity rather than hue.
+   ════════════════════════════════════════════════════════════ */
+
+/* ── Progress ───────────────────────────────────────────────── */
+.proj-bar {
+  height: 4px;
+  width: 100%;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.10);
+  overflow: hidden;
+  margin-top: 4px;
+}
+
+.proj-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--text-primary);
+  transition: width 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.proj-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Status pill ────────────────────────────────────────────── */
+.proj-status {
+  position: absolute;
+  top: 18px; right: 18px;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  border-radius: 999px;
+  padding: 2px 9px;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+}
+
+.proj-status-active   { color: var(--text-primary); border-color: rgba(255,255,255,0.28); }
+.proj-status-planning { color: var(--text-secondary); }
+.proj-status-paused   { opacity: 0.6; }
+.proj-status-done     { color: var(--green); border-color: var(--green-light); }
+
+.proj-card { gap: 8px; }
+.proj-card .hub-card-name { padding-right: 84px; }   /* clear the status pill */
+
+/* Add-new card — an outline, not a filled surface */
+.proj-card-new {
+  background: transparent;
+  border-style: dashed;
+  box-shadow: none;
+}
+
+.proj-card-new:hover { background: var(--bg-primary); }
+
+/* ── Project detail: task list ──────────────────────────────── */
+.proj-task-list {
+  display: flex;
+  flex-direction: column;
+  max-height: 260px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.proj-task {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--border-light);
+  font-size: 13.5px;
+}
+
+.proj-task:last-child { border-bottom: none; }
+.proj-task-done .proj-task-title { text-decoration: line-through; color: var(--text-muted); }
+.proj-task-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.proj-task-who {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+/* ── Partners ───────────────────────────────────────────────── */
+.partner-card { gap: 6px; }
+.partner-card .hub-card-name { padding-right: 90px; }
+
+.partner-cat {
+  position: absolute;
+  top: 18px; right: 18px;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 2px 9px;
+  max-width: 110px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.partner-line {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.partner-mono { font-family: var(--font-mono); font-size: 11.5px; color: var(--text-muted); }
+
+/* ── Home: the projects strip ───────────────────────────────── */
+.home-projects-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 28px;
+}
+
+@media (max-width: 1100px) { .home-projects-row { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 700px)  { .home-projects-row { grid-template-columns: 1fr; } }
+
+.home-project-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px 18px;
+  text-align: left;
+  font-family: var(--font);
+  cursor: pointer;
+  background: var(--bg-primary);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: var(--shadow-night), var(--glass-inset);
+  color: var(--text-primary);
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@media (hover: hover) {
+  .home-project-card:hover {
+    transform: translateY(-2px);
+    border-color: rgba(255,255,255,0.18);
+    box-shadow: 0 28px 56px rgba(0,0,0,0.50), var(--glass-inset);
+  }
+}
+
+.home-project-card:active { transform: translateY(0) scale(0.995); }
+
+.home-project-name {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.home-project-empty { opacity: 0.6; }

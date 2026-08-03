@@ -17,6 +17,8 @@ const challengeRoutes = require('./routes/challenge');
 const challengeAdminRoutes = require('./routes/challenge-admin');
 const tasksRoutes          = require('./routes/tasks');
 const taskBucketsRoutes    = require('./routes/task-buckets');
+const projectsRoutes       = require('./routes/projects');
+const partnersRoutes       = require('./routes/partners');
 const ideasRoutes          = require('./routes/ideas');
 const contentCalendarRoutes = require('./routes/content-calendar');
 const contentIdeasRoutes    = require('./routes/content-ideas');
@@ -105,6 +107,8 @@ app.use('/api/challenge', challengeAdminRoutes);
 // ── Tasks ─────────────────────────────────────────────────────────
 app.use('/api/tasks',             tasksRoutes);
 app.use('/api/task-buckets',      taskBucketsRoutes);
+app.use('/api/projects',          projectsRoutes);
+app.use('/api/partners',          partnersRoutes);
 app.use('/api/ideas',             ideasRoutes);
 app.use('/api/content-calendar',  contentCalendarRoutes);
 app.use('/api/content-ideas',     contentIdeasRoutes);

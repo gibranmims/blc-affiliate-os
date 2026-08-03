@@ -12,6 +12,8 @@ const API = {
   settings:    '/api/settings',
   tasks:       '/api/tasks',
   taskBuckets: '/api/task-buckets',
+  projects:    '/api/projects',
+  partners:    '/api/partners',
   ideas:           '/api/ideas',
   commentBank:     '/api/comment-bank',
   contentCalendar: '/api/content-calendar',
@@ -74,6 +76,9 @@ const state = {
   customIssueTypes:   [],
   tasks:              [],
   taskBuckets:        [],
+  projects:           [],
+  partners:           [],
+  activeProjectId:    null,
   ideas:              [],
   commentBank:        [],
   commentBankFilter:  'pending',  // 'all' | 'pending' | 'replied'
@@ -752,8 +757,11 @@ function navigate(page) {
   closeMobileNav();
   if (page === 'outreach') state.outreachView = 'pipeline';
   state.currentPage = page;
+  // Light the page itself, or the hub it lives under — otherwise nothing in
+  // the sidebar is lit while you're inside a tool and you lose your place.
+  const parentHub = PAGE_PARENT_HUB[page];
   document.querySelectorAll('.nav-item:not(.nav-cl-item)').forEach(el => {
-    el.classList.toggle('active', el.dataset.page === page);
+    el.classList.toggle('active', el.dataset.page === page || el.dataset.page === parentHub);
   });
   // Clear Creative Lab active state, then re-apply if on scripts page
   document.querySelectorAll('.nav-cl-item').forEach(el => el.classList.remove('active'));
@@ -772,6 +780,8 @@ function navigate(page) {
     marketing:    () => renderHubPage('marketing'),
     growth:       () => renderHubPage('growth'),
     operations:   () => renderHubPage('operations'),
+    projects:     renderProjectsPage,
+    partners:     renderPartnersPage,
     tasks:        renderTasksPage,
     ideas:        renderIdeasPage,
     'comment-bank': renderCommentBankPage,
@@ -812,7 +822,9 @@ const HUB_ICONS = {
   tasks:     '<path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>',
   headset:   '<path d="M3 18v-6a9 9 0 0118 0v6"/><path d="M21 19a2 2 0 01-2 2h-1a2 2 0 01-2-2v-3a2 2 0 012-2h3zM3 19a2 2 0 002 2h1a2 2 0 002-2v-3a2 2 0 00-2-2H3z"/>',
   eye:       '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>',
-  chart:     '<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>'
+  chart:     '<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>',
+  handshake: '<path d="M8 21V9a2 2 0 012-2h4a2 2 0 012 2v12"/><path d="M2 21h20"/><path d="M4 21V11l4-3M20 21V11l-4-3"/>',
+  plus:      '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>'
 };
 
 function hubIcon(key) {
@@ -881,12 +893,24 @@ const HUBS = {
       name: 'Team Tasks', desc: 'What everyone is working on, by person', cta: 'Open the board →'
     },
     cards: [
-      { page: 'support',       icon: 'headset', name: 'Customer Support', desc: 'Log and track customer issues',        cta: 'Handle →' },
-      { page: 'review',        icon: 'eye',     name: 'For Review',       desc: 'Payments and shipments needing a yes',  cta: 'Review →' },
-      { page: 'brand-finance', icon: 'chart',   name: 'Financials',       desc: 'Revenue, inventory, pricing and cash',  cta: 'Open →' }
+      { page: 'support',       icon: 'headset',   name: 'Customer Support', desc: 'Log and track customer issues',        cta: 'Handle →' },
+      { page: 'review',        icon: 'eye',       name: 'For Review',       desc: 'Payments and shipments needing a yes',  cta: 'Review →' },
+      { page: 'brand-finance', icon: 'chart',     name: 'Financials',       desc: 'Revenue, inventory, pricing and cash',  cta: 'Open →' },
+      { page: 'partners',      icon: 'handshake', name: 'Partners',         desc: 'Manufacturing, Amazon, accounting, agencies', cta: 'Open →' }
     ]
   }
 };
+
+// Which hub each tool page belongs to, derived from HUBS itself so it can
+// never drift from the cards actually on screen. Used to keep the parent
+// hub lit in the sidebar while you're inside one of its tools.
+const PAGE_PARENT_HUB = (() => {
+  const map = {};
+  Object.entries(HUBS).forEach(([key, hub]) => {
+    [hub.hero, ...hub.cards].forEach(c => { if (c.page) map[c.page] = key; });
+  });
+  return map;
+})();
 
 function hubCardHTML(card, opts = {}) {
   const nav = card.rosterTab
@@ -934,6 +958,331 @@ function renderHubPage(key) {
       ${hub.cards.map(c => hubCardHTML(c)).join('')}
     </div>
   `;
+}
+
+// ============================================================
+// PROJECTS
+// The initiatives the business is pushing on. Bigger than a task,
+// narrower than a hub. Tasks link to a project, so progress is
+// derived from real work rather than a number someone maintains.
+// ============================================================
+
+const PROJECT_STATUSES = [
+  { key: 'planning', label: 'Planning' },
+  { key: 'active',   label: 'Active'   },
+  { key: 'paused',   label: 'Paused'   },
+  { key: 'done',     label: 'Done'     }
+];
+
+function projectTasks(id) {
+  return state.tasks.filter(t => t.project_id === id && !t.archived);
+}
+
+function projectProgress(id) {
+  const tasks = projectTasks(id);
+  if (!tasks.length) return { done: 0, total: 0, pct: 0 };
+  const done = tasks.filter(t => t.completed).length;
+  return { done, total: tasks.length, pct: Math.round((done / tasks.length) * 100) };
+}
+
+function projectsSorted() {
+  return [...state.projects].sort((a, b) => a.position - b.position);
+}
+
+function renderProjectsPage() {
+  const projects = projectsSorted();
+  const active   = projects.filter(p => p.status === 'active').length;
+  const done     = projects.filter(p => p.status === 'done').length;
+  const openWork = projects.reduce((s, p) => s + projectTasks(p.id).filter(t => !t.completed).length, 0);
+
+  document.getElementById('page-content').innerHTML = `
+    <div class="hub-banner">
+      <h1 class="hub-title">Projects</h1>
+      <div class="hub-promise">The bets we're making this quarter.</div>
+      <div class="hub-sub">Each one spans several areas of the business. Progress comes from the tasks under it.</div>
+      <div class="hub-stats">
+        <div class="hub-stat"><div class="hub-stat-value">${active}</div><div class="hub-stat-label">Active</div></div>
+        <div class="hub-stat"><div class="hub-stat-value">${openWork}</div><div class="hub-stat-label">Open tasks</div></div>
+        <div class="hub-stat"><div class="hub-stat-value">${done}</div><div class="hub-stat-label">Done</div></div>
+      </div>
+    </div>
+
+    <div class="hub-grid">
+      ${projects.map(p => {
+        const pr = projectProgress(p.id);
+        const st = PROJECT_STATUSES.find(s => s.key === p.status) || PROJECT_STATUSES[1];
+        const due = p.target_date ? fmtDeadline(p.target_date) : null;
+        return `
+        <button class="hub-card proj-card" onclick="openProjectDetail('${p.id}')">
+          <span class="proj-status proj-status-${p.status}">${st.label}</span>
+          <div class="hub-card-name">${esc(p.name)}</div>
+          <div class="hub-card-desc">${esc(p.description || 'No description yet')}</div>
+          <div class="proj-bar"><div class="proj-bar-fill" style="width:${pr.pct}%"></div></div>
+          <div class="proj-meta">
+            <span>${pr.total ? `${pr.done}/${pr.total} tasks · ${pr.pct}%` : 'No tasks yet'}</span>
+            ${due ? `<span class="task-deadline ${due.cls}">${due.text}</span>` : ''}
+          </div>
+        </button>`;
+      }).join('')}
+
+      <button class="hub-card proj-card proj-card-new" onclick="openProjectEditor()">
+        <div class="hub-ico">${hubIcon('plus')}</div>
+        <div class="hub-card-name">New project</div>
+        <div class="hub-card-desc">Start tracking another initiative</div>
+      </button>
+    </div>
+  `;
+}
+
+function openProjectDetail(id) {
+  const p = state.projects.find(x => x.id === id);
+  if (!p) return;
+  const tasks = projectTasks(id).sort((a, b) => {
+    if (a.completed !== b.completed) return a.completed ? 1 : -1;
+    return deadlineSortKey(a.deadline) - deadlineSortKey(b.deadline);
+  });
+  const pr = projectProgress(id);
+  const who = { founder: 'Gibran', tamar: 'Tamar', 'for-founder': 'For Founder' };
+
+  openModal(esc(p.name), `
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div>
+        <div class="proj-bar"><div class="proj-bar-fill" style="width:${pr.pct}%"></div></div>
+        <div class="proj-meta" style="margin-top:8px">
+          <span>${pr.total ? `${pr.done} of ${pr.total} tasks done` : 'No tasks linked yet'}</span>
+          <span>${p.target_date ? 'Target ' + p.target_date : ''}</span>
+        </div>
+      </div>
+
+      <div>
+        <div class="form-label" style="margin-bottom:8px">Tasks in this project</div>
+        <div class="proj-task-list">
+          ${tasks.length
+            ? tasks.map(t => `
+              <div class="proj-task${t.completed ? ' proj-task-done' : ''}">
+                <span class="proj-task-title">${esc(t.title)}</span>
+                <span class="proj-task-who">${esc(who[t.assignee] || t.assignee)}</span>
+              </div>`).join('')
+            : `<div class="focus-empty">Nothing linked yet — open a task and pick this project.</div>`}
+        </div>
+      </div>
+
+      <div style="display:flex;gap:8px;justify-content:space-between;padding-top:4px">
+        <button class="btn btn-danger btn-sm" onclick="deleteProject('${id}')">Delete</button>
+        <button class="btn btn-primary btn-sm" onclick="openProjectEditor('${id}')">Edit project</button>
+      </div>
+    </div>
+  `);
+}
+
+function openProjectEditor(id) {
+  const p = id ? state.projects.find(x => x.id === id) : null;
+  openModal(p ? 'Edit Project' : 'New Project', `
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div class="form-group">
+        <label class="form-label">Name</label>
+        <input class="form-input" id="pj-name" value="${p ? esc(p.name) : ''}" placeholder="e.g. Wholesale" maxlength="80">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Description</label>
+        <textarea class="form-input" id="pj-desc" rows="2" placeholder="What does winning look like?">${p ? esc(p.description || '') : ''}</textarea>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+        <div class="form-group" style="margin:0">
+          <label class="form-label">Status</label>
+          <select class="form-input" id="pj-status">
+            ${PROJECT_STATUSES.map(s => `<option value="${s.key}" ${p && p.status === s.key ? 'selected' : ''}>${s.label}</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-group" style="margin:0">
+          <label class="form-label">Owner</label>
+          <select class="form-input" id="pj-owner">
+            <option value="">Unassigned</option>
+            <option value="founder" ${p && p.owner === 'founder' ? 'selected' : ''}>Gibran</option>
+            <option value="tamar"   ${p && p.owner === 'tamar'   ? 'selected' : ''}>Tamar</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin:0">
+          <label class="form-label">Target date</label>
+          <input type="date" class="form-input" id="pj-target" value="${p ? (p.target_date || '') : ''}">
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;padding-top:4px">
+        <button class="btn btn-secondary btn-sm" onclick="closeModal()">Cancel</button>
+        <button class="btn btn-primary btn-sm" onclick="saveProject(${p ? `'${id}'` : 'null'})">Save</button>
+      </div>
+    </div>
+  `);
+  setTimeout(() => document.getElementById('pj-name')?.focus(), 60);
+}
+
+async function saveProject(id) {
+  const body = {
+    name:        document.getElementById('pj-name')?.value.trim(),
+    description: document.getElementById('pj-desc')?.value.trim() || null,
+    status:      document.getElementById('pj-status')?.value,
+    owner:       document.getElementById('pj-owner')?.value || null,
+    target_date: document.getElementById('pj-target')?.value || null
+  };
+  if (!body.name) { showToast('Name is required', 'error'); return; }
+  try {
+    if (id) {
+      const updated = await fetchAPI(`${API.projects}/${id}`, { method: 'PUT', body: JSON.stringify(body) });
+      const i = state.projects.findIndex(p => p.id === id);
+      if (i !== -1) state.projects[i] = updated;
+    } else {
+      state.projects.push(await fetchAPI(API.projects, { method: 'POST', body: JSON.stringify(body) }));
+    }
+    closeModal();
+    renderProjectsPage();
+    showToast('Saved');
+  } catch (err) { showToast(err.message, 'error'); }
+}
+
+async function deleteProject(id) {
+  const p = state.projects.find(x => x.id === id);
+  const n = projectTasks(id).length;
+  if (!confirm(`Delete "${p?.name}"?${n ? `\n\n${n} task${n === 1 ? '' : 's'} will stay in Team Tasks, just unlinked. Nothing is deleted.` : ''}`)) return;
+  try {
+    await fetchAPI(`${API.projects}/${id}`, { method: 'DELETE' });
+    state.projects = state.projects.filter(x => x.id !== id);
+    state.tasks.forEach(t => { if (t.project_id === id) t.project_id = null; });
+    closeModal();
+    renderProjectsPage();
+    showToast('Project deleted');
+  } catch (err) { showToast(err.message, 'error'); }
+}
+
+// ============================================================
+// PARTNERS
+// The outside parties the business runs on. Categories are free
+// text, so a new kind of partner never needs a schema change.
+// ============================================================
+
+function partnersSorted() {
+  return [...state.partners].sort((a, b) => a.position - b.position);
+}
+
+function renderPartnersPage() {
+  const partners = partnersSorted();
+  const categories = [...new Set(partners.map(p => p.category).filter(Boolean))];
+
+  document.getElementById('page-content').innerHTML = `
+    <div class="hub-banner">
+      <h1 class="hub-title">Partners</h1>
+      <div class="hub-promise">Everyone outside the company we depend on.</div>
+      <div class="hub-sub">Manufacturing, marketplaces, accounting, agencies, contractors — with the details in one place instead of scattered across notes.</div>
+      <div class="hub-stats">
+        <div class="hub-stat"><div class="hub-stat-value">${partners.length}</div><div class="hub-stat-label">Partners</div></div>
+        <div class="hub-stat"><div class="hub-stat-value">${categories.length}</div><div class="hub-stat-label">Categories</div></div>
+      </div>
+    </div>
+
+    <div class="hub-grid">
+      ${partners.map(p => `
+        <button class="hub-card partner-card" onclick="openPartnerEditor('${p.id}')">
+          ${p.category ? `<span class="partner-cat">${esc(p.category)}</span>` : ''}
+          <div class="hub-card-name">${esc(p.name)}</div>
+          ${p.contact_name  ? `<div class="partner-line">${esc(p.contact_name)}</div>` : ''}
+          ${p.contact_email ? `<div class="partner-line partner-mono">${esc(p.contact_email)}</div>` : ''}
+          ${p.contact_phone ? `<div class="partner-line partner-mono">${esc(p.contact_phone)}</div>` : ''}
+          ${p.notes ? `<div class="hub-card-desc">${esc(p.notes)}</div>` : ''}
+          <div class="hub-card-cta">Edit →</div>
+        </button>`).join('')}
+
+      <button class="hub-card partner-card proj-card-new" onclick="openPartnerEditor()">
+        <div class="hub-ico">${hubIcon('plus')}</div>
+        <div class="hub-card-name">Add partner</div>
+        <div class="hub-card-desc">Anyone outside the company we work with</div>
+      </button>
+    </div>
+  `;
+}
+
+function openPartnerEditor(id) {
+  const p = id ? state.partners.find(x => x.id === id) : null;
+  const known = [...new Set(state.partners.map(x => x.category).filter(Boolean))];
+  openModal(p ? 'Edit Partner' : 'Add Partner', `
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-group" style="margin:0">
+          <label class="form-label">Name</label>
+          <input class="form-input" id="pn-name" value="${p ? esc(p.name) : ''}" placeholder="e.g. Amazon" maxlength="80">
+        </div>
+        <div class="form-group" style="margin:0">
+          <label class="form-label">Category</label>
+          <input class="form-input" id="pn-category" list="pn-cats" value="${p ? esc(p.category || '') : ''}" placeholder="e.g. Supply chain">
+          <datalist id="pn-cats">${known.map(c => `<option value="${esc(c)}"></option>`).join('')}</datalist>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-group" style="margin:0">
+          <label class="form-label">Contact name</label>
+          <input class="form-input" id="pn-contact" value="${p ? esc(p.contact_name || '') : ''}" placeholder="Who we talk to">
+        </div>
+        <div class="form-group" style="margin:0">
+          <label class="form-label">Phone</label>
+          <input class="form-input" id="pn-phone" value="${p ? esc(p.contact_phone || '') : ''}" placeholder="Optional">
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-group" style="margin:0">
+          <label class="form-label">Email</label>
+          <input class="form-input" id="pn-email" value="${p ? esc(p.contact_email || '') : ''}" placeholder="Optional">
+        </div>
+        <div class="form-group" style="margin:0">
+          <label class="form-label">Link</label>
+          <input class="form-input" id="pn-link" value="${p ? esc(p.link || '') : ''}" placeholder="Portal or dashboard URL">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Notes</label>
+        <textarea class="form-input" id="pn-notes" rows="3" placeholder="Terms, lead times, account numbers, anything worth remembering">${p ? esc(p.notes || '') : ''}</textarea>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:space-between;padding-top:4px">
+        ${p ? `<button class="btn btn-danger btn-sm" onclick="deletePartner('${id}')">Delete</button>` : '<span></span>'}
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-secondary btn-sm" onclick="closeModal()">Cancel</button>
+          <button class="btn btn-primary btn-sm" onclick="savePartner(${p ? `'${id}'` : 'null'})">Save</button>
+        </div>
+      </div>
+    </div>
+  `);
+  setTimeout(() => document.getElementById('pn-name')?.focus(), 60);
+}
+
+async function savePartner(id) {
+  const v = i => document.getElementById(i)?.value.trim() || null;
+  const body = {
+    name: v('pn-name'), category: v('pn-category'), contact_name: v('pn-contact'),
+    contact_email: v('pn-email'), contact_phone: v('pn-phone'),
+    link: v('pn-link'), notes: v('pn-notes')
+  };
+  if (!body.name) { showToast('Name is required', 'error'); return; }
+  try {
+    if (id) {
+      const updated = await fetchAPI(`${API.partners}/${id}`, { method: 'PUT', body: JSON.stringify(body) });
+      const i = state.partners.findIndex(p => p.id === id);
+      if (i !== -1) state.partners[i] = updated;
+    } else {
+      state.partners.push(await fetchAPI(API.partners, { method: 'POST', body: JSON.stringify(body) }));
+    }
+    closeModal();
+    renderPartnersPage();
+    showToast('Saved');
+  } catch (err) { showToast(err.message, 'error'); }
+}
+
+async function deletePartner(id) {
+  const p = state.partners.find(x => x.id === id);
+  if (!confirm(`Remove "${p?.name}" from Partners?`)) return;
+  try {
+    await fetchAPI(`${API.partners}/${id}`, { method: 'DELETE' });
+    state.partners = state.partners.filter(x => x.id !== id);
+    closeModal();
+    renderPartnersPage();
+    showToast('Partner removed');
+  } catch (err) { showToast(err.message, 'error'); }
 }
 
 // ── The Glow — one rAF-throttled listener drives every glass card ──
@@ -6273,6 +6622,14 @@ async function loadTasks() {
   updateTasksUrgentBadge();
 }
 
+async function loadProjects() {
+  state.projects = await fetchAPI(API.projects).catch(() => []) || [];
+}
+
+async function loadPartners() {
+  state.partners = await fetchAPI(API.partners).catch(() => []) || [];
+}
+
 function updateTasksUrgentBadge() {
   const urgentCount = state.tasks.filter(t =>
     !t.completed && !t.archived && t.deadline && deadlineSortKey(t.deadline) <= 1
@@ -6762,14 +7119,23 @@ function openTaskDetail(id) {
         <label class="form-label">Title</label>
         <input class="form-input" id="td-title" value="${esc(t.title)}" placeholder="Task name" maxlength="120">
       </div>
-      ${buckets.length ? `
-      <div class="form-group">
-        <label class="form-label">Bucket</label>
-        <select class="form-input" id="td-bucket">
-          <option value="">Unsorted</option>
-          ${buckets.map(b => `<option value="${b.id}" ${t.bucket_id === b.id ? 'selected' : ''}>${esc(b.name)}</option>`).join('')}
-        </select>
-      </div>` : ''}
+      <div style="display:grid;grid-template-columns:${buckets.length ? '1fr 1fr' : '1fr'};gap:12px">
+        ${buckets.length ? `
+        <div class="form-group" style="margin:0">
+          <label class="form-label">Bucket</label>
+          <select class="form-input" id="td-bucket">
+            <option value="">Unsorted</option>
+            ${buckets.map(b => `<option value="${b.id}" ${t.bucket_id === b.id ? 'selected' : ''}>${esc(b.name)}</option>`).join('')}
+          </select>
+        </div>` : ''}
+        <div class="form-group" style="margin:0">
+          <label class="form-label">Project</label>
+          <select class="form-input" id="td-project">
+            <option value="">No project</option>
+            ${projectsSorted().map(p => `<option value="${p.id}" ${t.project_id === p.id ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}
+          </select>
+        </div>
+      </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
         <div class="form-group" style="margin:0">
           <label class="form-label">Tag</label>
@@ -6805,12 +7171,14 @@ async function saveTaskDetail(id) {
   const notes    = document.getElementById('td-notes')?.value.trim();
   const tag      = document.getElementById('td-tag')?.value || null;
   const deadline = document.getElementById('td-deadline')?.value || null;
-  const bucketEl = document.getElementById('td-bucket');
+  const bucketEl  = document.getElementById('td-bucket');
+  const projectEl = document.getElementById('td-project');
   if (!title) { showToast('Title is required', 'error'); return; }
   const body = { title, notes: notes || null, tag, deadline };
   // Only send bucket_id when the column actually has buckets — otherwise a
   // missing dropdown would read as "move to Unsorted".
-  if (bucketEl) body.bucket_id = bucketEl.value || null;
+  if (bucketEl)  body.bucket_id  = bucketEl.value  || null;
+  if (projectEl) body.project_id = projectEl.value || null;
   try {
     const updated = await fetchAPI(`${API.tasks}/${id}`, {
       method: 'PUT',
@@ -6926,16 +7294,9 @@ function renderHomePage() {
     .filter(t => !t.completed && !t.archived && t.deadline && deadlineSortKey(t.deadline) <= 1)
     .sort((a, b) => deadlineSortKey(a.deadline) - deadlineSortKey(b.deadline));
 
-  // Goal progress ring
-  const goal = state.monthlyGoal || 0;
-  const goalPct = goal > 0 ? Math.min(activeAffiliates / goal, 1) : 0;
-  const r = 38, circ = +(2 * Math.PI * r).toFixed(1);
-  const offset = +(circ * (1 - goalPct)).toFixed(1);
-  const ringColor = goalPct >= 1 ? 'var(--green)' : goalPct >= 0.6 ? 'var(--accent)' : goalPct > 0 ? 'var(--yellow)' : 'var(--border)';
-
-  // Revenue
-  const rev = state.monthlyRevenue || 0;
-  const revFmt = rev >= 1000 ? '$' + (rev / 1000).toFixed(1) + 'k' : rev > 0 ? '$' + rev.toLocaleString() : '—';
+  // The dashboard leads with projects now, so anything still in flight
+  // and not parked belongs up top.
+  const activeProjects = projectsSorted().filter(p => p.status === 'active' || p.status === 'planning');
 
   document.getElementById('page-content').innerHTML = `
     <div class="home-page">
@@ -6954,57 +7315,38 @@ function renderHomePage() {
         </div>
       </div>
 
-      <!-- Goal banner — full width dark card -->
-      <div class="home-goal-row">
-        <div class="home-goal-ring-wrap">
-          <svg width="88" height="88" viewBox="0 0 88 88">
-            <circle cx="44" cy="44" r="${r}" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="7"/>
-            <circle class="home-goal-arc"
-              data-target="${offset}" data-circ="${circ}"
-              cx="44" cy="44" r="${r}" fill="none"
-              stroke="${goalPct >= 1 ? '#4ade80' : goalPct > 0 ? '#a5f3a0' : 'rgba(255,255,255,0.25)'}"
-              stroke-width="7"
-              stroke-dasharray="${circ}" stroke-dashoffset="${circ}"
-              stroke-linecap="round" transform="rotate(-90 44 44)"
-              style="transition:stroke-dashoffset 0.9s cubic-bezier(0.25,0.46,0.45,0.94)"/>
-          </svg>
-          <div class="home-goal-center">
-            <span class="home-goal-pct">${goal > 0 ? Math.round(goalPct * 100) + '%' : '—'}</span>
-          </div>
-        </div>
-
-        <div class="home-goal-text">
-          <div class="home-goal-headline">
-            ${activeAffiliates}${goal > 0 ? ' <span class="home-goal-of">/ ' + goal + '</span>' : ''}
-            <span class="home-goal-headline-unit"> active affiliates</span>
-          </div>
-          <div class="home-goal-status">${goal > 0 ? (goalPct >= 1 ? 'Goal reached!' : `${goal - activeAffiliates} away from your goal`) : 'No monthly goal set'}</div>
-          <div class="home-goal-chips">
-            <span class="home-goal-chip home-goal-chip-green">
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-              ${signed} signed
-            </span>
-            <span class="home-goal-chip home-goal-chip-revenue" onclick="openRevenueEdit()" title="Click to update" style="cursor:pointer">
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
-              ${revFmt} revenue
-            </span>
-            <button class="home-goal-edit-btn" onclick="openGoalEdit()">
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-              ${goal > 0 ? 'Edit goal' : 'Set a goal'}
-            </button>
-          </div>
-        </div>
-
-        ${supportThisMonth > 0 ? `
-        <div class="home-attention-inline">
-          ${supportThisMonth > 0 ? `
-            <div class="home-attention-item" onclick="navigate('support')">
-              <span class="home-attn-dot home-attn-dot-orange"></span>
-              <span>${supportThisMonth} support issue${supportThisMonth !== 1 ? 's' : ''} this month</span>
-              <span class="home-attn-arrow">→</span>
-            </div>` : ''}
-        </div>` : ''}
+      <!-- Where the business is pushing. This replaced an affiliate-goal
+           ring: the agency owns recruiting now, so counting affiliates
+           measured work we no longer do. Projects are what we move. -->
+      <div class="home-section-heading-lg" style="margin-bottom:12px">Projects</div>
+      <div class="home-projects-row">
+        ${activeProjects.length ? activeProjects.map(p => {
+          const pr  = projectProgress(p.id);
+          const due = p.target_date ? fmtDeadline(p.target_date) : null;
+          return `
+          <button class="home-project-card glow-surface" onclick="navigate('projects')">
+            <div class="home-project-name">${esc(p.name)}</div>
+            <div class="proj-bar"><div class="proj-bar-fill" style="width:${pr.pct}%"></div></div>
+            <div class="proj-meta">
+              <span>${pr.total ? `${pr.done}/${pr.total} tasks` : 'No tasks yet'}</span>
+              ${due ? `<span class="task-deadline ${due.cls}">${due.text}</span>` : `<span>${pr.pct}%</span>`}
+            </div>
+          </button>`;
+        }).join('') : `
+          <button class="home-project-card home-project-empty" onclick="navigate('projects')">
+            <div class="home-project-name">No active projects</div>
+            <div class="proj-meta"><span>Add one to start tracking</span></div>
+          </button>`}
       </div>
+
+      ${supportThisMonth > 0 ? `
+      <div class="home-attention-inline" style="margin-bottom:24px">
+        <div class="home-attention-item" onclick="navigate('support')">
+          <span class="home-attn-dot home-attn-dot-orange"></span>
+          <span>${supportThisMonth} support issue${supportThisMonth !== 1 ? 's' : ''} this month</span>
+          <span class="home-attn-arrow">→</span>
+        </div>
+      </div>` : ''}
 
       <!-- Two-column: urgent+QA on left, timer sticky right -->
       <div class="home-two-col">
@@ -8239,6 +8581,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     loadSupport().catch(err => console.error('Support load failed:', err)),
     loadCustomIssueTypes().catch(() => {}),
     loadTasks().catch(() => {}),
+    loadProjects().catch(() => {}),
+    loadPartners().catch(() => {}),
     loadHomeSettings().catch(() => {}),
     loadIdeas().catch(() => {}),
     loadCommentBank().catch(() => {}),

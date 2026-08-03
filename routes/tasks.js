@@ -52,7 +52,8 @@ router.put('/:id', async (req, res) => {
     if (req.body.archived  !== undefined) updates.archived  = req.body.archived;
     if (req.body.tag       !== undefined) updates.tag       = req.body.tag || null;
     if (req.body.deadline  !== undefined) updates.deadline  = req.body.deadline || null;
-    if (req.body.bucket_id !== undefined) updates.bucket_id = req.body.bucket_id || null;
+    if (req.body.bucket_id  !== undefined) updates.bucket_id  = req.body.bucket_id  || null;
+    if (req.body.project_id !== undefined) updates.project_id = req.body.project_id || null;
     const { data, error } = await supabase()
       .from('tasks')
       .update(updates)
