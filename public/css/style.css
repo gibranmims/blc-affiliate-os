@@ -351,6 +351,29 @@ body {
   transition: background 0.12s;
 }
 
+/* Creative Lab's children keep their icons and AI badges, so they use
+   .nav-item styling rather than .nav-sub-item. Indent them anyway so they
+   still read as belonging to the group above. */
+.nav-sub .nav-cl-item {
+  padding-left: 26px;
+  font-size: 12.5px;
+}
+
+.nav-sub .nav-cl-item::before {
+  content: '';
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.2);
+  transition: background 0.12s;
+}
+
+.nav-sub .nav-cl-item.active::before { background: rgba(255,255,255,0.8); }
+
 .nav-sub-item:hover {
   background: rgba(255,255,255,0.07);
   color: rgba(255,255,255,0.75);

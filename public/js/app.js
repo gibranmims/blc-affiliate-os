@@ -757,7 +757,10 @@ function navigate(page) {
   });
   // Clear Creative Lab active state, then re-apply if on scripts page
   document.querySelectorAll('.nav-cl-item').forEach(el => el.classList.remove('active'));
-  if (page === 'scripts') updateScriptsNav();
+  if (page === 'scripts') {
+    document.getElementById('nav-group-creative')?.classList.add('open');
+    updateScriptsNav();
+  }
   // Roster nav group — open on roster navigation, update sub-item active state
   if (page === 'roster') {
     const g = document.getElementById('nav-group-roster');
@@ -5575,8 +5578,8 @@ function renderFinancePage() {
   document.getElementById('page-content').innerHTML = `
     <div class="page-header">
       <div>
-        <h1 class="page-title">Finance</h1>
-        <p class="page-subtitle">Live data from Roster & Pipeline · ${affiliates.length} paid affiliate${affiliates.length !== 1 ? 's' : ''}</p>
+        <h1 class="page-title">Affiliate Payments</h1>
+        <p class="page-subtitle">What we owe and what we've paid · ${affiliates.length} paid affiliate${affiliates.length !== 1 ? 's' : ''}</p>
       </div>
     </div>
 
@@ -6725,9 +6728,11 @@ function renderHomePage() {
   const inPipeline = state.outreach.filter(o => !pipelineExcluded.has(o.status)).length;
   const signed = state.outreach.filter(o => o.status === 'signed').length;
   const challengers = state.challengers.length;
+  // Pro Partner leads actively in flight — reached out to, not yet resolved
+  const partnersInPipeline = state.partnerLeads
+    .filter(l => ['contacted', 'replied', 'applied'].includes(l.status)).length;
 
   // Attention items
-  const needsReply = state.outreach.filter(o => o.status === 'replied').length;
   const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   const supportThisMonth = state.support.filter(i => (i.issue_date || '').startsWith(thisMonth)).length;
 
@@ -6805,14 +6810,8 @@ function renderHomePage() {
           </div>
         </div>
 
-        ${(needsReply > 0 || supportThisMonth > 0) ? `
+        ${supportThisMonth > 0 ? `
         <div class="home-attention-inline">
-          ${needsReply > 0 ? `
-            <div class="home-attention-item" onclick="navigate('outreach')">
-              <span class="home-attn-dot home-attn-dot-yellow"></span>
-              <span>${needsReply} creator${needsReply !== 1 ? 's' : ''} waiting for a reply</span>
-              <span class="home-attn-arrow">→</span>
-            </div>` : ''}
           ${supportThisMonth > 0 ? `
             <div class="home-attention-item" onclick="navigate('support')">
               <span class="home-attn-dot home-attn-dot-orange"></span>
@@ -6858,19 +6857,19 @@ function renderHomePage() {
           <div class="home-qa-section">
             <div class="home-section-heading-lg">Quick Actions</div>
             <div class="home-qa-grid home-qa-grid-4">
-              <button class="home-qa-card" onclick="navigate('outreach')">
+              <button class="home-qa-card" onclick="navigate('partner-outreach')">
                 <div class="home-qa-icon">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
                 </div>
-                <div class="home-qa-name">Affiliate Outreach</div>
-                <div class="home-qa-stat">${inPipeline}</div>
-                <div class="home-qa-sub">in pipeline${needsReply > 0 ? `&nbsp;· <span class="qa-alert">${needsReply} need reply</span>` : ''}</div>
+                <div class="home-qa-name">Pro Partner Outreach</div>
+                <div class="home-qa-stat">${partnersInPipeline}</div>
+                <div class="home-qa-sub">in pipeline</div>
               </button>
               <button class="home-qa-card" onclick="navigate('roster')">
                 <div class="home-qa-icon">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
                 </div>
-                <div class="home-qa-name">Affiliate Roster</div>
+                <div class="home-qa-name">Affiliate Performance</div>
                 <div class="home-qa-stat">${activeAffiliates}</div>
                 <div class="home-qa-sub">active affiliates</div>
               </button>
@@ -8022,11 +8021,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.querySelectorAll('.nav-item:not(.nav-group-trigger):not(.nav-cl-item)').forEach(el => {
     el.addEventListener('click', e => { e.preventDefault(); navigate(el.dataset.page); });
   });
-  // Roster group trigger — navigate to roster (opens sub-menu automatically)
-  const rosterTrigger = document.querySelector('.nav-group-trigger[data-page="roster"]');
-  if (rosterTrigger) {
-    rosterTrigger.addEventListener('click', e => { e.preventDefault(); navigate('roster'); });
-  }
+  // Group triggers — navigate to the parent page (opens the sub-menu automatically)
+  document.querySelectorAll('.nav-group-trigger[data-page]').forEach(el => {
+    el.addEventListener('click', e => { e.preventDefault(); navigate(el.dataset.page); });
+  });
   // Roster sub-nav items — switch tab then navigate
   document.querySelectorAll('.nav-sub-item[data-roster-tab]').forEach(el => {
     el.addEventListener('click', e => {
@@ -8865,8 +8863,8 @@ function renderBrandFinancePage(tab) {
   document.getElementById('page-content').innerHTML = `
     <div class="page-header" style="margin-bottom:0;align-items:flex-start">
       <div>
-        <h1 class="page-title">BLC Tracker</h1>
-        <p class="page-subtitle">Internal brand financials — stock, revenue &amp; cash</p>
+        <h1 class="page-title">Financials</h1>
+        <p class="page-subtitle">Company money and stock — revenue, inventory, pricing &amp; cash</p>
       </div>
       <div class="bf-key-area" onclick="bf_showApiKeyModal()">
         <div class="bf-key-dot" id="bf-key-dot"></div>
