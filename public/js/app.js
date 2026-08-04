@@ -829,41 +829,15 @@ const HUBS = {
 // Which hub each tool page belongs to, derived from HUBS itself so it can
 // never drift from the cards actually on screen. Used to keep the parent
 // hub lit in the sidebar while you're inside one of its tools.
-const PAGE_PARENT_HUB = (() => {
-  const map = {};
-  Object.entries(HUBS).forEach(([key, hub]) => {
-    [hub.hero, ...hub.cards].forEach(c => { if (c.page) map[c.page] = key; });
-  });
-  map.project = 'projects';   // a single project page sits under Projects
-  // Detail pages keep their parent hub lit
-  map.partner      = map.partners;
-  map.meeting      = 'operations';
-  map.subscription = map.subscriptions;
-  return map;
-})();
+// Every tool has its own sidebar entry now, so this only covers detail
+// pages — a record lights the list it came from, not a section.
+const PAGE_PARENT_HUB = {
+  project:      'projects',
+  partner:      'partners',
+  subscription: 'subscriptions',
+  meeting:      'meetings'
+};
 
-function hubCardHTML(card, opts = {}) {
-  const nav = `navigate('${card.page}')`;
-  if (card.comingSoon) {
-    return `
-      <div class="hub-card is-soon">
-        <span class="hub-soon-tag">Coming soon</span>
-        <div class="hub-ico">${hubIcon(card.icon)}</div>
-        <div class="hub-card-name">${esc(card.name)}</div>
-        <div class="hub-card-desc">${esc(card.desc)}</div>
-      </div>`;
-  }
-  return `
-    <button class="hub-card${opts.hero ? ' hub-card-hero' : ''}" onclick="${nav}">
-      <div class="hub-ico">${hubIcon(card.icon)}</div>
-      <div class="hub-card-body">
-        ${card.eyebrow ? `<div class="hub-eyebrow">${esc(card.eyebrow)}</div>` : ''}
-        <div class="hub-card-name">${esc(card.name)}</div>
-        <div class="hub-card-desc">${esc(card.desc)}</div>
-      </div>
-      <div class="hub-card-cta">${esc(card.cta)}</div>
-    </button>`;
-}
 
 function renderHubPage(key) {
   const hub = HUBS[key];
@@ -880,10 +854,6 @@ function renderHubPage(key) {
             <div class="hub-stat-label">${esc(label)}</div>
           </div>`).join('')}
       </div>
-    </div>
-    <div class="hub-grid">
-      ${hubCardHTML(hub.hero, { hero: true })}
-      ${hub.cards.map(c => hubCardHTML(c)).join('')}
     </div>
   `;
 }
@@ -4232,11 +4202,6 @@ function renderMarketingPage() {
       })()}
     </div>
 
-    <div class="dash-section-label">Tools</div>
-    <div class="hub-grid">
-      ${hubCardHTML(hub.hero, { hero: true })}
-      ${hub.cards.map(c => hubCardHTML(c)).join('')}
-    </div>
   `;
 
   requestAnimationFrame(() => {
@@ -4438,7 +4403,9 @@ function renderHomePage() {
 
   const now = new Date();
   const h = now.getHours();
-  const greeting = h < 5 ? 'Still at it —' : h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : h < 21 ? 'Good evening' : 'Good night';
+  // All of these get ", team." appended, so none may end in punctuation —
+  // the after-midnight one used to render "Still at it —, team."
+  const greeting = h < 5 ? 'Still at it' : h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : h < 21 ? 'Good evening' : 'Good night';
   const dateStr = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
 
   const openTasks    = state.tasks.filter(t => !t.completed && !t.archived);
