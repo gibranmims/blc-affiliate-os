@@ -17,6 +17,7 @@ const API = {
   brandFinance:  '/api/brand-finance',
   adSpend:       '/api/ad-spend',
   expenses:      '/api/expenses',
+  meetings:      '/api/meetings',
   ideas:           '/api/ideas',
   commentBank:     '/api/comment-bank',
   contentCalendar: '/api/content-calendar',
@@ -76,6 +77,9 @@ const state = {
   brandFinance:       {},
   adSpend:            [],
   expenses:           [],
+  meetings:           [],
+  activeMeetingId:    null,
+  meetingSearch:      '',
   plMonth:            null,
   dashChartMode:      'monthly',   // 'monthly' | 'channel'
   mktContentView:     'all',      // platform key or 'all'
@@ -698,6 +702,8 @@ function navigate(page) {
     project:      renderProjectDetailPage,
     partners:     renderPartnersPage,
     partner:      renderPartnerDetailPage,
+    meetings:     renderMeetingsPage,
+    meeting:      renderMeetingDetailPage,
     team:         renderTeamPage,
     subscriptions: renderSubscriptionsPage,
     subscription:  renderSubscriptionDetailPage,
@@ -814,6 +820,7 @@ const HUBS = {
       { page: 'brand-finance', icon: 'chart',     name: 'Financials',       desc: 'Revenue, inventory, pricing and cash',  cta: 'Open →' },
       { page: 'partners',      icon: 'handshake', name: 'Partners',         desc: 'Manufacturing, Amazon, accounting, agencies', cta: 'Open →' },
       { page: 'subscriptions', icon: 'card',      name: 'Subscriptions',    desc: 'What we pay for every month, and the total', cta: 'Track →' },
+      { page: 'meetings',      icon: 'doc',       name: 'Meetings',         desc: 'Minutes and decisions, searchable',          cta: 'Open →' },
       { page: 'team',          icon: 'users',     name: 'Team',             desc: 'Add people and give them a task column',    cta: 'Manage →' }
     ]
   }
@@ -830,6 +837,7 @@ const PAGE_PARENT_HUB = (() => {
   map.project = 'projects';   // a single project page sits under Projects
   // Detail pages keep their parent hub lit
   map.partner      = map.partners;
+  map.meeting      = 'operations';
   map.subscription = map.subscriptions;
   return map;
 })();
@@ -1900,6 +1908,211 @@ async function deleteSubscription(id) {
     closeModal();
     if (state.activeSubscriptionId === id) state.activeSubscriptionId = null;
     navigate('subscriptions');       // its page no longer exists
+    showToast('Deleted');
+  } catch (err) { showToast(err.message, 'error'); }
+}
+
+// ============================================================
+// MEETINGS
+// Minutes exist to be looked back at, so the list is searchable
+// and decisions are kept apart from the running notes.
+// ============================================================
+
+async function loadMeetings() {
+  state.meetings = await fetchAPI(API.meetings) || [];
+}
+
+function meetingDateLabel(d) {
+  if (!d) return '—';
+  const dt = new Date(d + 'T12:00:00');
+  return dt.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function meetingsMatching(q) {
+  const list = [...state.meetings].sort((a, b) => (b.met_on || '').localeCompare(a.met_on || ''));
+  const term = (q || '').trim().toLowerCase();
+  if (!term) return list;
+  return list.filter(m => [m.title, m.notes, m.decisions, (m.attendees || []).join(' ')]
+    .filter(Boolean).join(' ').toLowerCase().includes(term));
+}
+
+function setMeetingSearch(v) {
+  state.meetingSearch = v;
+  const list = document.getElementById('mt-list');
+  if (list) list.innerHTML = meetingListHTML();
+}
+
+function meetingListHTML() {
+  const rows = meetingsMatching(state.meetingSearch);
+  if (!rows.length) {
+    return `<div class="focus-empty">${state.meetingSearch
+      ? `Nothing matches “${esc(state.meetingSearch)}”`
+      : 'No minutes yet — log the first one above.'}</div>`;
+  }
+  return rows.map(m => `
+    <button class="mt-row" onclick="openMeetingDetail('${m.id}')">
+      <span class="mt-date">${meetingDateLabel(m.met_on)}</span>
+      <span class="mt-body">
+        <span class="mt-title">${esc(m.title)}</span>
+        ${(m.attendees || []).length ? `<span class="mt-people">${(m.attendees || []).map(esc).join(' · ')}</span>` : ''}
+      </span>
+      ${m.decisions ? '<span class="mt-flag">Decisions</span>' : ''}
+      <span class="mt-arrow">→</span>
+    </button>`).join('');
+}
+
+function renderMeetingsPage() {
+  const total = state.meetings.length;
+  const withDecisions = state.meetings.filter(m => m.decisions).length;
+
+  document.getElementById('page-content').innerHTML = `
+    <div class="hub-banner">
+      <h1 class="hub-title">Meetings</h1>
+      <div class="hub-promise">What was said, and what we decided.</div>
+      <div class="hub-sub">Minutes worth looking back at — search them by anything that was mentioned.</div>
+      <div class="hub-stats">
+        <div class="hub-stat"><div class="hub-stat-value">${total}</div><div class="hub-stat-label">Logged</div></div>
+        <div class="hub-stat"><div class="hub-stat-value">${withDecisions}</div><div class="hub-stat-label">With decisions</div></div>
+      </div>
+    </div>
+
+    <div class="mt-toolbar">
+      <input class="form-input mt-search" placeholder="Search minutes, decisions, people…"
+             value="${esc(state.meetingSearch || '')}" oninput="setMeetingSearch(this.value)">
+      <button class="btn btn-primary btn-sm" onclick="openMeetingEditor()">Log a meeting</button>
+    </div>
+
+    <div class="mt-list" id="mt-list">${meetingListHTML()}</div>
+  `;
+  setTimeout(() => {
+    const s = document.querySelector('.mt-search');
+    if (s && state.meetingSearch) { s.focus(); s.setSelectionRange(s.value.length, s.value.length); }
+  }, 40);
+}
+
+function openMeetingDetail(id) {
+  state.activeMeetingId = id;
+  navigate('meeting');
+}
+
+function renderMeetingDetailPage() {
+  const m = state.meetings.find(x => x.id === state.activeMeetingId);
+  if (!m) { navigate('meetings'); return; }
+
+  document.getElementById('page-content').innerHTML = `
+    <button class="proj-back" onclick="navigate('meetings')">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+      All meetings
+    </button>
+
+    <div class="hub-banner">
+      <h1 class="hub-title">${esc(m.title)}</h1>
+      <div class="hub-sub" style="margin-top:6px">${meetingDateLabel(m.met_on)}</div>
+      ${(m.attendees || []).length ? `
+        <div class="pd-people" style="margin-top:14px">
+          ${(m.attendees || []).map(a => `
+            <span class="pd-person">
+              <span class="focus-avatar">${esc(a.trim()[0] ? a.trim()[0].toUpperCase() : '?')}</span>
+              <span>${esc(a)}</span>
+            </span>`).join('')}
+        </div>` : ''}
+    </div>
+
+    ${m.decisions ? `
+    <div class="detail-notes mt-decisions">
+      <div class="detail-label">Decisions</div>
+      <div class="detail-notes-body">${esc(m.decisions)}</div>
+    </div>` : ''}
+
+    <div class="detail-notes">
+      <div class="detail-label">Notes</div>
+      <div class="detail-notes-body">${m.notes ? esc(m.notes) : '<span class="pd-muted">No notes recorded</span>'}</div>
+    </div>
+
+    <div class="proj-page-actions">
+      <button class="btn btn-secondary btn-sm" onclick="openMeetingEditor('${m.id}')">Edit</button>
+      <button class="btn btn-danger btn-sm" onclick="deleteMeeting('${m.id}')">Delete</button>
+    </div>
+  `;
+}
+
+function openMeetingEditor(id) {
+  const m = id ? state.meetings.find(x => x.id === id) : null;
+  const team = activeMembers().map(t => t.name);
+  const past = [...new Set(state.meetings.flatMap(x => x.attendees || []))];
+  const known = [...new Set([...team, ...past])];
+
+  openModal(m ? 'Edit Meeting' : 'Log a Meeting', `
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div style="display:grid;grid-template-columns:1fr 2fr;gap:12px">
+        <div class="form-group" style="margin:0">
+          <label class="form-label">Date</label>
+          <input type="date" class="form-input" id="mt-date" value="${m ? m.met_on : new Date().toISOString().slice(0, 10)}">
+        </div>
+        <div class="form-group" style="margin:0">
+          <label class="form-label">Title</label>
+          <input class="form-input" id="mt-title" value="${m ? esc(m.title) : ''}" placeholder="e.g. Weekly ops sync" maxlength="140">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Who was there</label>
+        <input class="form-input" id="mt-attendees" list="mt-people"
+               value="${m ? esc((m.attendees || []).join(', ')) : ''}" placeholder="Comma separated — Gibran, Tamar, Boris">
+        <datalist id="mt-people">${known.map(n => `<option value="${esc(n)}"></option>`).join('')}</datalist>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Notes</label>
+        <textarea class="form-input" id="mt-notes" rows="7" style="resize:vertical"
+                  placeholder="What was discussed…">${m ? esc(m.notes || '') : ''}</textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Decisions</label>
+        <textarea class="form-input" id="mt-decisions" rows="3" style="resize:vertical"
+                  placeholder="What was actually agreed — kept separate so it's findable later">${m ? esc(m.decisions || '') : ''}</textarea>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;padding-top:4px">
+        <button class="btn btn-secondary btn-sm" onclick="closeModal()">Cancel</button>
+        <button class="btn btn-primary btn-sm" onclick="saveMeeting(${m ? `'${id}'` : 'null'})">Save</button>
+      </div>
+    </div>
+  `);
+  setTimeout(() => document.getElementById('mt-title')?.focus(), 60);
+}
+
+async function saveMeeting(id) {
+  const body = {
+    met_on: document.getElementById('mt-date')?.value,
+    title: document.getElementById('mt-title')?.value.trim(),
+    attendees: (document.getElementById('mt-attendees')?.value || '')
+                 .split(',').map(a => a.trim()).filter(Boolean),
+    notes: document.getElementById('mt-notes')?.value.trim() || null,
+    decisions: document.getElementById('mt-decisions')?.value.trim() || null
+  };
+  if (!body.met_on) { showToast('Pick a date', 'error'); return; }
+  if (!body.title)  { showToast('Give it a title', 'error'); return; }
+  try {
+    if (id) {
+      const updated = await fetchAPI(`${API.meetings}/${id}`, { method: 'PUT', body: JSON.stringify(body) });
+      const i = state.meetings.findIndex(x => x.id === id);
+      if (i !== -1) state.meetings[i] = updated;
+    } else {
+      state.meetings.push(await fetchAPI(API.meetings, { method: 'POST', body: JSON.stringify(body) }));
+    }
+    closeModal();
+    if (state.currentPage === 'meeting') renderMeetingDetailPage(); else renderMeetingsPage();
+    showToast('Saved');
+  } catch (err) { showToast(err.message, 'error'); }
+}
+
+async function deleteMeeting(id) {
+  const m = state.meetings.find(x => x.id === id);
+  if (!confirm(`Delete the minutes for "${m?.title}"?\n\nThis can't be undone.`)) return;
+  try {
+    await fetchAPI(`${API.meetings}/${id}`, { method: 'DELETE' });
+    state.meetings = state.meetings.filter(x => x.id !== id);
+    closeModal();
+    if (state.activeMeetingId === id) state.activeMeetingId = null;
+    navigate('meetings');
     showToast('Deleted');
   } catch (err) { showToast(err.message, 'error'); }
 }
@@ -5444,6 +5657,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     load('Financials',        loadBrandFinance),
     load('Ad spend',          loadAdSpend),
     load('Expenses',          loadExpenses),
+    load('Meetings',          loadMeetings),
     load('Ideas',             loadIdeas),
     load('Comment Bank',      loadCommentBank),
     load('Content Calendar',  loadContentCalendar),
