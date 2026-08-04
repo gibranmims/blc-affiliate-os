@@ -4,11 +4,7 @@ const cors = require('cors');
 const path = require('path');
 const cookieParser = require('cookie-parser');
 
-const outreachRoutes = require('./routes/outreach');
-const rosterRoutes = require('./routes/roster');
 const generateRoutes = require('./routes/generate');
-const outreachGenRoutes = require('./routes/outreach-gen');
-const tiktokRoutes = require('./routes/tiktok');
 const settingsRoutes = require('./routes/settings');
 const oembedRoutes = require('./routes/oembed');
 const transcriptRoutes = require('./routes/transcript');
@@ -93,11 +89,7 @@ app.get('/challenge/checkin/:token', (req, res) => {
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 
 // ── Existing routes ───────────────────────────────────────────────
-app.use('/api/outreach', outreachRoutes);
-app.use('/api/roster', rosterRoutes);
 app.use('/api/generate', generateRoutes);
-app.use('/api/outreach-gen', outreachGenRoutes);
-app.use('/api/tiktok', tiktokRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/oembed', oembedRoutes);
 app.use('/api/transcript', transcriptRoutes);

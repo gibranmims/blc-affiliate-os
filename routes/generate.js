@@ -779,19 +779,18 @@ router.post('/teardown', async (req, res) => {
     return res.status(500).json({ error: 'ANTHROPIC_API_KEY is not configured' });
   }
 
-  const { sourceTranscript, targetCreatorId, scriptLength } = req.body;
+  const { sourceTranscript, targetCreator, scriptLength } = req.body;
 
   if (!sourceTranscript?.trim()) return res.status(400).json({ error: 'sourceTranscript is required' });
-  if (!targetCreatorId)          return res.status(400).json({ error: 'targetCreatorId is required' });
 
   try {
-    const { data: creator, error } = await supabase
-      .from('roster')
-      .select('*')
-      .eq('id', targetCreatorId)
-      .single();
-
-    if (error || !creator) return res.status(404).json({ error: 'Creator not found' });
+    // The affiliate roster is gone, so the target is whoever you type in
+    // rather than a record looked up by id. Optional: with no name the
+    // rewrite just keeps the brand's own voice.
+    const creator = {
+      handle: (targetCreator || '').trim().replace(/^@/, '') || 'the creator',
+      name:   (targetCreator || '').trim().replace(/^@/, '')
+    };
 
     const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -837,7 +836,7 @@ Follow the teardown framework fully. Extract the abstract skeleton. Then rewrite
     const { data: saved } = await supabase
       .from('scripts')
       .insert([{
-        creator_id:     targetCreatorId,
+        creator_id:     null,
         creator_handle: creator.handle,
         product_focus:  'BBL Serum — Teardown Rewrite',
         script_length:  { short: 'Short', medium: 'Medium', long: 'Long' }[scriptLength] || 'Medium',
