@@ -10396,3 +10396,21 @@ body { overscroll-behavior-y: none; }
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
 }
+
+/* ── Marketing: one chart, switchable views ─────────────────── */
+.dash-panel-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+/* The single chart carries the whole panel now, so it gets the height
+   the three-up layout used to split between them. */
+.dash-chart-tall { height: 310px; }
+
+@media (max-width: 700px) {
+  .dash-chart-tall { height: 250px; }
+  .dash-panel-controls { justify-content: flex-start; }
+}

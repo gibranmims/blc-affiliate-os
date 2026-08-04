@@ -76,6 +76,7 @@ const state = {
   adSpend:            [],
   dashChartMode:      'monthly',   // 'monthly' | 'channel'
   mktContentView:     'all',      // platform key or 'all'
+  mktChartView:       'output',   // 'output' | 'spend' | 'impact'
   activeProjectId:    null,
   activePartnerId:    null,
   activeSubscriptionId: null,
@@ -3007,10 +3008,29 @@ const IMPLICIT_MEMBERS = [
 
 // Active people, in board order. Everything that needs "who is on the team"
 // reads this, so adding someone never means touching code.
+//
+// Anyone holding live work always gets a column, even without a row in the
+// table. Without this, adding the first real member would drop the implicit
+// fallback and take Gibran's and Tamar's columns — and every task in them —
+// off the board at once.
 function activeMembers() {
-  const rows = state.teamMembers.filter(m => m.active);
-  if (!rows.length) return IMPLICIT_MEMBERS;
-  return rows.sort((a, b) => a.position - b.position);
+  const rows = state.teamMembers.filter(m => m.active).sort((a, b) => a.position - b.position);
+  const known = new Set(rows.map(m => m.member_key));
+
+  const orphaned = [...new Set(
+    (state.tasks || [])
+      .filter(t => !t.archived && t.assignee && t.assignee !== 'for-founder')
+      .map(t => t.assignee)
+  )].filter(k => !known.has(k));
+
+  if (!rows.length && !orphaned.length) return IMPLICIT_MEMBERS;
+
+  const filled = orphaned.map(k => {
+    const implicit = IMPLICIT_MEMBERS.find(m => m.member_key === k);
+    return implicit || { member_key: k, name: k, initials: k[0].toUpperCase(), active: true, position: 999 };
+  });
+
+  return [...rows, ...filled];
 }
 
 // Both resolve through activeMembers so they honour the same fallback the
@@ -3773,8 +3793,21 @@ function marketingWeeks(n = 10) {
   return [...weeks.values()].sort((a, b) => a.key.localeCompare(b.key)).slice(-n);
 }
 
+// One chart, three questions. Output and Impact would otherwise be the
+// same bars twice, one of them with a line on top.
+const MKT_VIEWS = [
+  { key: 'output', label: 'Output', title: 'Content posted per week' },
+  { key: 'spend',  label: 'Spend',  title: 'Ad spend per week' },
+  { key: 'impact', label: 'Impact', title: 'Output and spend against revenue' }
+];
+
 function setMktContentView(v) {
   state.mktContentView = v;
+  renderMarketingPage();
+}
+
+function setMktChartView(v) {
+  state.mktChartView = v;
   renderMarketingPage();
 }
 
@@ -3791,8 +3824,9 @@ function renderMarketingPage() {
   const last   = weeks[weeks.length - 1];
   const prev   = weeks[weeks.length - 2];
 
-  const hasPosts = weeks.some(w => w.total > 0);
-  const hasSpend = weeks.some(w => w.spendTotal > 0);
+  const hasPosts  = weeks.some(w => w.total > 0);
+  const hasSpend  = weeks.some(w => w.spendTotal > 0);
+  const chartView = state.mktChartView || 'output';
 
   document.getElementById('page-content').innerHTML = `
     <div class="hub-banner">
@@ -3819,52 +3853,48 @@ function renderMarketingPage() {
       </div>
     </div>
 
-    <div class="dash-split">
-      <div class="dash-panel glow-surface">
-        <div class="dash-panel-head">
-          <h3 class="pd-section-title">Content posted per week</h3>
+    <div class="dash-panel glow-surface" style="margin-bottom:26px">
+      <div class="dash-panel-head">
+        <h3 class="pd-section-title">${MKT_VIEWS.find(v => v.key === chartView)?.title || ''}</h3>
+        <div class="dash-panel-controls">
+          ${chartView === 'output' && hasPosts ? `
           <div class="dash-toggle">
             <button class="dash-toggle-btn${view === 'all' ? ' is-on' : ''}" onclick="setMktContentView('all')">All</button>
             ${CC_PLATFORMS.map(p => `
               <button class="dash-toggle-btn${view === p.key ? ' is-on' : ''}" onclick="setMktContentView('${p.key}')">${esc(p.abbr)}</button>`).join('')}
+          </div>` : ''}
+          ${chartView === 'spend' ? `<button class="btn btn-secondary btn-sm" onclick="openAdSpendModal()">Log spend</button>` : ''}
+          <div class="dash-toggle">
+            ${MKT_VIEWS.map(v => `
+              <button class="dash-toggle-btn${chartView === v.key ? ' is-on' : ''}" onclick="setMktChartView('${v.key}')">${v.label}</button>`).join('')}
           </div>
         </div>
-        ${hasPosts
-          ? `<div class="dash-chart"><canvas id="mkt-content"></canvas></div>
-             <div class="dash-chart-foot">
-               ${view === 'all' ? 'All platforms, stacked' : ccGetLabel(view)}
-               ${last && prev ? ` · last week ${last.total} vs ${prev.total} the week before` : ''}
-             </div>`
-          : `<div class="dash-empty">
-               Nothing marked posted yet.
-               <button class="dash-empty-link" onclick="navigate('content-calendar')">Open the Content Calendar →</button>
-             </div>`}
       </div>
 
-      <div class="dash-panel glow-surface">
-        <div class="dash-panel-head">
-          <h3 class="pd-section-title">Ad spend per week</h3>
-          <button class="btn btn-secondary btn-sm" onclick="openAdSpendModal()">Log spend</button>
-        </div>
-        ${hasSpend
-          ? `<div class="dash-chart"><canvas id="mkt-spend"></canvas></div>
-             <div class="dash-chart-foot">${money(spend)} across ${weeks.length} weeks</div>`
-          : `<div class="dash-empty">
-               No ad spend logged yet.
-               <button class="dash-empty-link" onclick="openAdSpendModal()">Log a week →</button>
-             </div>`}
-      </div>
+      ${(() => {
+        if (chartView === 'output') {
+          return hasPosts
+            ? `<div class="dash-chart dash-chart-tall"><canvas id="mkt-content"></canvas></div>
+               <div class="dash-chart-foot">
+                 ${view === 'all' ? 'All platforms, stacked' : ccGetLabel(view)}
+                 ${last && prev ? ` · last week ${last.total} vs ${prev.total} the week before` : ''}
+               </div>`
+            : `<div class="dash-empty">Nothing marked posted yet.
+                 <button class="dash-empty-link" onclick="navigate('content-calendar')">Open the Content Calendar →</button></div>`;
+        }
+        if (chartView === 'spend') {
+          return hasSpend
+            ? `<div class="dash-chart dash-chart-tall"><canvas id="mkt-spend"></canvas></div>
+               <div class="dash-chart-foot">${money(spend)} across ${weeks.length} weeks</div>`
+            : `<div class="dash-empty">No ad spend logged yet.
+                 <button class="dash-empty-link" onclick="openAdSpendModal()">Log a week →</button></div>`;
+        }
+        return (hasPosts || hasSpend)
+          ? `<div class="dash-chart dash-chart-tall"><canvas id="mkt-corr"></canvas></div>
+             <div class="dash-chart-foot">Bars are posts. Both lines are dollars on the right axis — if spend and output climb but revenue doesn't, that's the signal.</div>`
+          : `<div class="dash-empty">Nothing to compare yet — post some content and log a week of spend.</div>`;
+      })()}
     </div>
-
-    ${(hasPosts && weeks.some(w => w.revenue > 0)) ? `
-    <div class="dash-panel glow-surface" style="margin-bottom:26px">
-      <div class="dash-panel-head">
-        <h3 class="pd-section-title">Content posted vs revenue</h3>
-        <span class="pd-count">${weeks.length} weeks</span>
-      </div>
-      <div class="dash-chart"><canvas id="mkt-corr"></canvas></div>
-      <div class="dash-chart-foot">Bars are posts, the line is revenue — if output climbs and the line doesn't follow, that's the signal.</div>
-    </div>` : ''}
 
     <div class="dash-section-label">Tools</div>
     <div class="hub-grid">
@@ -3874,9 +3904,9 @@ function renderMarketingPage() {
   `;
 
   requestAnimationFrame(() => {
-    if (hasPosts) mktDrawContent(weeks, view);
-    if (hasSpend) mktDrawSpend(weeks);
-    if (hasPosts && weeks.some(w => w.revenue > 0)) mktDrawCorrelation(weeks);
+    if (chartView === 'output' && hasPosts)      mktDrawContent(weeks, view);
+    else if (chartView === 'spend' && hasSpend)  mktDrawSpend(weeks);
+    else if (chartView === 'impact' && (hasPosts || hasSpend)) mktDrawCorrelation(weeks);
   });
 }
 
@@ -3977,11 +4007,17 @@ function mktDrawCorrelation(weeks) {
     data: {
       labels: weeks.map(w => weekKeyLabel(w.key)),
       datasets: [
-        { label: 'Posts', data: weeks.map(w => w.total), backgroundColor: 'rgba(242,244,249,0.30)', borderRadius: 3, borderSkipped: false, yAxisID: 'y' },
+        { label: 'Posts', data: weeks.map(w => w.total), backgroundColor: 'rgba(242,244,249,0.26)', borderRadius: 3, borderSkipped: false, yAxisID: 'y' },
+        // Revenue and spend are both dollars, so they share the right axis
+        // and can actually be compared to each other.
         { label: 'Revenue', data: weeks.map(w => Math.round(w.revenue)), type: 'line',
           borderColor: 'rgba(242,244,249,0.95)', backgroundColor: 'transparent', borderWidth: 2,
           tension: 0.35, pointRadius: 3, pointBackgroundColor: '#06070c',
-          pointBorderColor: 'rgba(242,244,249,0.95)', pointBorderWidth: 2, yAxisID: 'y1' }
+          pointBorderColor: 'rgba(242,244,249,0.95)', pointBorderWidth: 2, yAxisID: 'y1' },
+        { label: 'Ad spend', data: weeks.map(w => Math.round(w.spendTotal)), type: 'line',
+          borderColor: 'rgba(242,244,249,0.5)', backgroundColor: 'transparent', borderWidth: 2,
+          borderDash: [5, 4], tension: 0.35, pointRadius: 2, pointBackgroundColor: '#06070c',
+          pointBorderColor: 'rgba(242,244,249,0.5)', pointBorderWidth: 2, yAxisID: 'y1' }
       ]
     },
     options: {
@@ -3992,7 +4028,7 @@ function mktDrawCorrelation(weeks) {
         tooltip: {
           backgroundColor: '#12131b', borderColor: 'rgba(255,255,255,0.12)', borderWidth: 1,
           titleColor: '#f2f4f9', bodyColor: 'rgba(242,244,249,0.75)',
-          callbacks: { label: c => c.dataset.label === 'Revenue' ? `Revenue: ${money(c.raw)}` : `Posts: ${c.raw}` }
+          callbacks: { label: c => c.dataset.label === 'Posts' ? `Posts: ${c.raw}` : `${c.dataset.label}: ${money(c.raw)}` }
         }
       },
       scales: {
