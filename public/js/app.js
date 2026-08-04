@@ -15,6 +15,7 @@ const API = {
   teamMembers:   '/api/team-members',
   subscriptions: '/api/subscriptions',
   brandFinance:  '/api/brand-finance',
+  adSpend:       '/api/ad-spend',
   ideas:           '/api/ideas',
   commentBank:     '/api/comment-bank',
   contentCalendar: '/api/content-calendar',
@@ -72,7 +73,9 @@ const state = {
   teamMembers:        [],
   subscriptions:      [],
   brandFinance:       {},
+  adSpend:            [],
   dashChartMode:      'monthly',   // 'monthly' | 'channel'
+  mktContentView:     'all',      // platform key or 'all'
   activeProjectId:    null,
   activePartnerId:    null,
   activeSubscriptionId: null,
@@ -686,7 +689,7 @@ function navigate(page) {
   }
   const renderers = {
     home:         renderHomePage,
-    marketing:    () => renderHubPage('marketing'),
+    marketing:    renderMarketingPage,
     growth:       () => renderHubPage('growth'),
     operations:   () => renderHubPage('operations'),
     projects:     renderProjectsPage,
@@ -3701,6 +3704,363 @@ function setDashChart(mode) {
   renderHomePage();
 }
 
+// ============================================================
+// MARKETING DASHBOARD
+// Output and spend, week by week, so the shape of the effort is
+// visible next to the shape of the result.
+// ============================================================
+
+const AD_PLATFORMS = [
+  { key: 'meta',   label: 'Meta',        shade: 'rgba(242,244,249,0.92)' },
+  { key: 'google', label: 'Google',      shade: 'rgba(242,244,249,0.62)' },
+  { key: 'tiktok', label: 'TikTok Shop', shade: 'rgba(242,244,249,0.36)' },
+  { key: 'other',  label: 'Other',       shade: 'rgba(242,244,249,0.18)' }
+];
+
+async function loadAdSpend() {
+  state.adSpend = await fetchAPI(API.adSpend).catch(() => []) || [];
+}
+
+// Monday of the week a date falls in, as YYYY-MM-DD — the calendar stores
+// week_start, ad spend stores week_ending, so everything is normalised to
+// a single key before they can be charted together.
+function weekKeyOf(dateStr) {
+  if (!dateStr) return null;
+  const d = new Date(dateStr + 'T12:00:00');
+  const day = d.getDay();
+  d.setDate(d.getDate() - (day === 0 ? 6 : day - 1));
+  return d.toISOString().slice(0, 10);
+}
+
+function weekKeyLabel(k) {
+  const d = new Date(k + 'T12:00:00');
+  return ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()] + ' ' + d.getDate();
+}
+
+// Posted content per week, split by platform. Only entries actually marked
+// posted count — planned-but-unposted would flatter the numbers.
+function marketingWeeks(n = 10) {
+  const weeks = new Map();
+  const touch = k => {
+    if (!weeks.has(k)) weeks.set(k, { key: k, posts: {}, total: 0, spend: {}, spendTotal: 0, revenue: 0 });
+    return weeks.get(k);
+  };
+
+  (state.contentCalendar || []).forEach(e => {
+    if ((e.status || '') !== 'posted') return;
+    const k = e.week_start || weekKeyOf(e.week_start);
+    if (!k) return;
+    const w = touch(k);
+    const p = e.platform || 'tiktok_blc';
+    w.posts[p] = (w.posts[p] || 0) + 1;
+    w.total += 1;
+  });
+
+  (state.adSpend || []).forEach(s => {
+    const k = weekKeyOf(s.week_ending);
+    if (!k) return;
+    const w = touch(k);
+    w.spend[s.platform] = (w.spend[s.platform] || 0) + (parseFloat(s.amount) || 0);
+    w.spendTotal += parseFloat(s.amount) || 0;
+  });
+
+  (bf_getLog() || []).forEach(r => {
+    const k = weekKeyOf(r.week_ending);
+    if (!k) return;
+    touch(k).revenue += weekRevenue(r);
+  });
+
+  return [...weeks.values()].sort((a, b) => a.key.localeCompare(b.key)).slice(-n);
+}
+
+function setMktContentView(v) {
+  state.mktContentView = v;
+  renderMarketingPage();
+}
+
+function renderMarketingPage() {
+  dashDestroyCharts();
+
+  const hub    = HUBS.marketing;
+  const weeks  = marketingWeeks(10);
+  const view   = state.mktContentView || 'all';
+  const posted = weeks.reduce((t, w) => t + w.total, 0);
+  const spend  = weeks.reduce((t, w) => t + w.spendTotal, 0);
+  const rev    = weeks.reduce((t, w) => t + w.revenue, 0);
+  const roas   = spend > 0 ? (rev / spend) : null;
+  const last   = weeks[weeks.length - 1];
+  const prev   = weeks[weeks.length - 2];
+
+  const hasPosts = weeks.some(w => w.total > 0);
+  const hasSpend = weeks.some(w => w.spendTotal > 0);
+
+  document.getElementById('page-content').innerHTML = `
+    <div class="hub-banner">
+      <h1 class="hub-title">${esc(hub.title)}</h1>
+      <div class="hub-promise">${esc(hub.promise)}</div>
+      <div class="hub-sub">${esc(hub.sub)}</div>
+      <div class="hub-stats">
+        <div class="hub-stat">
+          <div class="hub-stat-value">${last ? last.total : 0}</div>
+          <div class="hub-stat-label">Posted last week</div>
+        </div>
+        <div class="hub-stat">
+          <div class="hub-stat-value">${posted}</div>
+          <div class="hub-stat-label">Posted (${weeks.length}w)</div>
+        </div>
+        <div class="hub-stat">
+          <div class="hub-stat-value">${money(spend)}</div>
+          <div class="hub-stat-label">Ad spend (${weeks.length}w)</div>
+        </div>
+        <div class="hub-stat">
+          <div class="hub-stat-value">${roas ? roas.toFixed(1) + 'x' : '—'}</div>
+          <div class="hub-stat-label">Revenue per $1 ads</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="dash-split">
+      <div class="dash-panel glow-surface">
+        <div class="dash-panel-head">
+          <h3 class="pd-section-title">Content posted per week</h3>
+          <div class="dash-toggle">
+            <button class="dash-toggle-btn${view === 'all' ? ' is-on' : ''}" onclick="setMktContentView('all')">All</button>
+            ${CC_PLATFORMS.map(p => `
+              <button class="dash-toggle-btn${view === p.key ? ' is-on' : ''}" onclick="setMktContentView('${p.key}')">${esc(p.abbr)}</button>`).join('')}
+          </div>
+        </div>
+        ${hasPosts
+          ? `<div class="dash-chart"><canvas id="mkt-content"></canvas></div>
+             <div class="dash-chart-foot">
+               ${view === 'all' ? 'All platforms, stacked' : ccGetLabel(view)}
+               ${last && prev ? ` · last week ${last.total} vs ${prev.total} the week before` : ''}
+             </div>`
+          : `<div class="dash-empty">
+               Nothing marked posted yet.
+               <button class="dash-empty-link" onclick="navigate('content-calendar')">Open the Content Calendar →</button>
+             </div>`}
+      </div>
+
+      <div class="dash-panel glow-surface">
+        <div class="dash-panel-head">
+          <h3 class="pd-section-title">Ad spend per week</h3>
+          <button class="btn btn-secondary btn-sm" onclick="openAdSpendModal()">Log spend</button>
+        </div>
+        ${hasSpend
+          ? `<div class="dash-chart"><canvas id="mkt-spend"></canvas></div>
+             <div class="dash-chart-foot">${money(spend)} across ${weeks.length} weeks</div>`
+          : `<div class="dash-empty">
+               No ad spend logged yet.
+               <button class="dash-empty-link" onclick="openAdSpendModal()">Log a week →</button>
+             </div>`}
+      </div>
+    </div>
+
+    ${(hasPosts && weeks.some(w => w.revenue > 0)) ? `
+    <div class="dash-panel glow-surface" style="margin-bottom:26px">
+      <div class="dash-panel-head">
+        <h3 class="pd-section-title">Content posted vs revenue</h3>
+        <span class="pd-count">${weeks.length} weeks</span>
+      </div>
+      <div class="dash-chart"><canvas id="mkt-corr"></canvas></div>
+      <div class="dash-chart-foot">Bars are posts, the line is revenue — if output climbs and the line doesn't follow, that's the signal.</div>
+    </div>` : ''}
+
+    <div class="dash-section-label">Tools</div>
+    <div class="hub-grid">
+      ${hubCardHTML(hub.hero, { hero: true })}
+      ${hub.cards.map(c => hubCardHTML(c)).join('')}
+    </div>
+  `;
+
+  requestAnimationFrame(() => {
+    if (hasPosts) mktDrawContent(weeks, view);
+    if (hasSpend) mktDrawSpend(weeks);
+    if (hasPosts && weeks.some(w => w.revenue > 0)) mktDrawCorrelation(weeks);
+  });
+}
+
+const MKT_SHADES = ['rgba(242,244,249,0.92)','rgba(242,244,249,0.62)','rgba(242,244,249,0.38)','rgba(242,244,249,0.20)'];
+
+function mktBaseOptions(extra = {}) {
+  return {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { labels: { color: 'rgba(242,244,249,0.68)', font: { family: 'Poppins', size: 11 }, boxWidth: 9, padding: 12, usePointStyle: true } },
+      tooltip: {
+        backgroundColor: '#12131b', borderColor: 'rgba(255,255,255,0.12)', borderWidth: 1,
+        titleColor: '#f2f4f9', bodyColor: 'rgba(242,244,249,0.75)'
+      }
+    },
+    scales: {
+      x: { stacked: true, grid: { display: false }, ticks: DASH_TICK },
+      y: { stacked: true, grid: { color: DASH_GRID }, ticks: DASH_TICK, beginAtZero: true }
+    },
+    ...extra
+  };
+}
+
+function mktDrawContent(weeks, view) {
+  const el = document.getElementById('mkt-content');
+  if (!el || typeof Chart === 'undefined') return;
+  const labels = weeks.map(w => weekKeyLabel(w.key));
+
+  const datasets = view === 'all'
+    ? CC_PLATFORMS.map((p, i) => ({
+        label: p.label,
+        data: weeks.map(w => w.posts[p.key] || 0),
+        backgroundColor: MKT_SHADES[i % MKT_SHADES.length],
+        borderRadius: 3, borderSkipped: false
+      }))
+    : [{
+        label: ccGetLabel(view),
+        data: weeks.map(w => w.posts[view] || 0),
+        backgroundColor: MKT_SHADES[0],
+        borderRadius: 3, borderSkipped: false
+      }];
+
+  dashCharts.mktContent = new Chart(el.getContext('2d'), {
+    type: 'bar',
+    data: { labels, datasets },
+    options: mktBaseOptions({
+      plugins: {
+        legend: { display: view === 'all', labels: { color: 'rgba(242,244,249,0.68)', font: { family: 'Poppins', size: 11 }, boxWidth: 9, padding: 12, usePointStyle: true } },
+        tooltip: { backgroundColor: '#12131b', borderColor: 'rgba(255,255,255,0.12)', borderWidth: 1, titleColor: '#f2f4f9', bodyColor: 'rgba(242,244,249,0.75)' }
+      },
+      scales: {
+        x: { stacked: true, grid: { display: false }, ticks: DASH_TICK },
+        y: { stacked: true, grid: { color: DASH_GRID }, ticks: { ...DASH_TICK, precision: 0 }, beginAtZero: true }
+      }
+    })
+  });
+}
+
+function mktDrawSpend(weeks) {
+  const el = document.getElementById('mkt-spend');
+  if (!el || typeof Chart === 'undefined') return;
+  dashCharts.mktSpend = new Chart(el.getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: weeks.map(w => weekKeyLabel(w.key)),
+      datasets: AD_PLATFORMS.map(p => ({
+        label: p.label,
+        data: weeks.map(w => Math.round(w.spend[p.key] || 0)),
+        backgroundColor: p.shade,
+        borderRadius: 3, borderSkipped: false
+      }))
+    },
+    options: mktBaseOptions({
+      plugins: {
+        legend: { labels: { color: 'rgba(242,244,249,0.68)', font: { family: 'Poppins', size: 11 }, boxWidth: 9, padding: 12, usePointStyle: true } },
+        tooltip: {
+          backgroundColor: '#12131b', borderColor: 'rgba(255,255,255,0.12)', borderWidth: 1,
+          titleColor: '#f2f4f9', bodyColor: 'rgba(242,244,249,0.75)',
+          callbacks: { label: c => `${c.dataset.label}: ${money(c.raw)}` }
+        }
+      },
+      scales: {
+        x: { stacked: true, grid: { display: false }, ticks: DASH_TICK },
+        y: { stacked: true, grid: { color: DASH_GRID }, ticks: { ...DASH_TICK, callback: v => '$' + (v >= 1000 ? (v/1000) + 'k' : v) }, beginAtZero: true }
+      }
+    })
+  });
+}
+
+// Posts as bars against revenue as a line on its own axis — different
+// units, so a shared scale would make one of them unreadable.
+function mktDrawCorrelation(weeks) {
+  const el = document.getElementById('mkt-corr');
+  if (!el || typeof Chart === 'undefined') return;
+  dashCharts.mktCorr = new Chart(el.getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: weeks.map(w => weekKeyLabel(w.key)),
+      datasets: [
+        { label: 'Posts', data: weeks.map(w => w.total), backgroundColor: 'rgba(242,244,249,0.30)', borderRadius: 3, borderSkipped: false, yAxisID: 'y' },
+        { label: 'Revenue', data: weeks.map(w => Math.round(w.revenue)), type: 'line',
+          borderColor: 'rgba(242,244,249,0.95)', backgroundColor: 'transparent', borderWidth: 2,
+          tension: 0.35, pointRadius: 3, pointBackgroundColor: '#06070c',
+          pointBorderColor: 'rgba(242,244,249,0.95)', pointBorderWidth: 2, yAxisID: 'y1' }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { labels: { color: 'rgba(242,244,249,0.68)', font: { family: 'Poppins', size: 11 }, boxWidth: 9, padding: 12, usePointStyle: true } },
+        tooltip: {
+          backgroundColor: '#12131b', borderColor: 'rgba(255,255,255,0.12)', borderWidth: 1,
+          titleColor: '#f2f4f9', bodyColor: 'rgba(242,244,249,0.75)',
+          callbacks: { label: c => c.dataset.label === 'Revenue' ? `Revenue: ${money(c.raw)}` : `Posts: ${c.raw}` }
+        }
+      },
+      scales: {
+        x:  { grid: { display: false }, ticks: DASH_TICK },
+        y:  { position: 'left',  grid: { color: DASH_GRID }, ticks: { ...DASH_TICK, precision: 0 }, beginAtZero: true, title: { display: true, text: 'Posts', color: 'rgba(242,244,249,0.45)', font: { size: 10 } } },
+        y1: { position: 'right', grid: { display: false }, ticks: { ...DASH_TICK, callback: v => '$' + (v >= 1000 ? (v/1000) + 'k' : v) }, beginAtZero: true }
+      }
+    }
+  });
+}
+
+// ── Logging ad spend ────────────────────────────────────────────
+function openAdSpendModal() {
+  const today = new Date();
+  const dow = today.getDay();
+  const sunday = new Date(today);
+  sunday.setDate(today.getDate() + (dow === 0 ? 0 : 7 - dow));
+  const defaultWeek = sunday.toISOString().slice(0, 10);
+
+  openModal('Log Ad Spend', `
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div class="form-group">
+        <label class="form-label">Week ending</label>
+        <input type="date" class="form-input" id="as-week" value="${defaultWeek}">
+      </div>
+      ${AD_PLATFORMS.map(p => `
+        <div class="form-group" style="margin:0">
+          <label class="form-label">${p.label}</label>
+          <input class="form-input" id="as-${p.key}" type="number" min="0" step="0.01" placeholder="0.00">
+        </div>`).join('')}
+      <p style="font-size:12px;color:var(--text-muted);margin:0">
+        Re-logging the same week overwrites it, so correcting a number is safe.
+      </p>
+      <div style="display:flex;gap:8px;justify-content:flex-end;padding-top:4px">
+        <button class="btn btn-secondary btn-sm" onclick="closeModal()">Cancel</button>
+        <button class="btn btn-primary btn-sm" onclick="saveAdSpend()">Save</button>
+      </div>
+    </div>
+  `);
+  setTimeout(() => document.getElementById('as-week')?.focus(), 60);
+}
+
+async function saveAdSpend() {
+  const week = document.getElementById('as-week')?.value;
+  if (!week) { showToast('Pick the week ending date', 'error'); return; }
+
+  const entries = AD_PLATFORMS
+    .map(p => ({ platform: p.key, amount: parseFloat(document.getElementById(`as-${p.key}`)?.value) || 0 }))
+    .filter(e => e.amount > 0);
+
+  if (!entries.length) { showToast('Enter at least one amount', 'error'); return; }
+
+  try {
+    for (const e of entries) {
+      const row = await fetchAPI(API.adSpend, {
+        method: 'POST',
+        body: JSON.stringify({ week_ending: week, platform: e.platform, amount: e.amount })
+      });
+      // Upsert on the server, so mirror that here rather than duplicating
+      const i = state.adSpend.findIndex(s => s.week_ending === row.week_ending && s.platform === row.platform);
+      if (i === -1) state.adSpend.push(row); else state.adSpend[i] = row;
+    }
+    closeModal();
+    renderMarketingPage();
+    showToast('Ad spend saved');
+  } catch (err) { showToast(err.message, 'error'); }
+}
+
 function renderHomePage() {
   dashDestroyCharts();
 
@@ -5126,6 +5486,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     loadTeamMembers().catch(() => {}),
     loadSubscriptions().catch(() => {}),
     loadBrandFinance().catch(() => {}),
+    loadAdSpend().catch(() => {}),
     loadHomeSettings().catch(() => {}),
     loadIdeas().catch(() => {}),
     loadCommentBank().catch(() => {}),
