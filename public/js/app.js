@@ -72,6 +72,7 @@ const state = {
   teamMembers:        [],
   subscriptions:      [],
   brandFinance:       {},
+  dashChartMode:      'monthly',   // 'monthly' | 'channel'
   activeProjectId:    null,
   activePartnerId:    null,
   activeSubscriptionId: null,
@@ -3671,6 +3672,35 @@ function weekRevenue(w) {
        + (parseFloat(w.website_revenue) || 0);
 }
 
+// Roll the weekly log up into months. Weeks are attributed to the month
+// their week_ending falls in — a week straddling a month boundary counts
+// where it closed, which is how the numbers were entered.
+function dashMonths(n = 12) {
+  const byMonth = new Map();
+  (bf_getLog() || []).forEach(w => {
+    const m = (w.week_ending || '').slice(0, 7);
+    if (!m) return;
+    const cur = byMonth.get(m) || { month: m, total: 0, tiktok: 0, amazon: 0, website: 0, weeks: 0 };
+    cur.tiktok  += parseFloat(w.tiktok_revenue)  || 0;
+    cur.amazon  += parseFloat(w.amazon_revenue)  || 0;
+    cur.website += parseFloat(w.website_revenue) || 0;
+    cur.total   += weekRevenue(w);
+    cur.weeks   += 1;
+    byMonth.set(m, cur);
+  });
+  return [...byMonth.values()].sort((a, b) => a.month.localeCompare(b.month)).slice(-n);
+}
+
+function monthLabelShort(ym) {
+  const [y, m] = ym.split('-').map(Number);
+  return ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m - 1] + ' ' + String(y).slice(2);
+}
+
+function setDashChart(mode) {
+  state.dashChartMode = mode;
+  renderHomePage();
+}
+
 function renderHomePage() {
   dashDestroyCharts();
 
@@ -3690,7 +3720,10 @@ function renderHomePage() {
     .filter(s => s.status === 'active')
     .reduce((t, s) => t + subMonthly(s), 0);
 
-  const weeks    = dashWeeks(12);
+  const weeks     = dashWeeks(12);
+  const months    = dashMonths(12);
+  const chartMode = state.dashChartMode || 'monthly';
+  const hasRevenue = weeks.length > 0;
   const latest   = weeks[weeks.length - 1];
   const prev     = weeks[weeks.length - 2];
   const revNow   = latest ? weekRevenue(latest) : 0;
@@ -3742,11 +3775,19 @@ function renderHomePage() {
       <div class="dash-split pd-stagger" style="--i:1">
         <div class="dash-panel glow-surface">
           <div class="dash-panel-head">
-            <h3 class="pd-section-title">Revenue by channel</h3>
-            <span class="pd-count">last ${weeks.length || 0} weeks</span>
+            <h3 class="pd-section-title">${chartMode === 'monthly' ? 'Revenue by month' : 'Revenue by channel'}</h3>
+            <div class="dash-toggle">
+              <button class="dash-toggle-btn${chartMode === 'monthly' ? ' is-on' : ''}" onclick="setDashChart('monthly')">Monthly</button>
+              <button class="dash-toggle-btn${chartMode === 'channel' ? ' is-on' : ''}" onclick="setDashChart('channel')">By channel</button>
+            </div>
           </div>
-          ${weeks.length
-            ? `<div class="dash-chart"><canvas id="dash-rev"></canvas></div>`
+          ${hasRevenue
+            ? `<div class="dash-chart"><canvas id="dash-rev"></canvas></div>
+               <div class="dash-chart-foot">
+                 ${chartMode === 'monthly'
+                   ? `${months.length} month${months.length === 1 ? '' : 's'} · ${money(months.reduce((t, m) => t + m.total, 0))} total`
+                   : `last ${weeks.length} week${weeks.length === 1 ? '' : 's'}`}
+               </div>`
             : `<div class="dash-empty">
                  No weekly numbers yet.
                  <button class="dash-empty-link" onclick="navigate('brand-finance')">Add a week in Financials →</button>
@@ -3823,7 +3864,69 @@ function renderHomePage() {
 
   requestAnimationFrame(() => {
     animateHomeStats();
-    dashDrawRevenue(weeks);
+    if (chartMode === 'monthly') dashDrawMonthly(months);
+    else                          dashDrawRevenue(weeks);
+  });
+}
+
+// Monthly total — the ups and downs at a glance. A line rather than bars,
+// because the question here is the shape of the trend, not the split.
+function dashDrawMonthly(months) {
+  const el = document.getElementById('dash-rev');
+  if (!el || !months.length || typeof Chart === 'undefined') return;
+
+  const ctx = el.getContext('2d');
+  const fill = ctx.createLinearGradient(0, 0, 0, 232);
+  fill.addColorStop(0, 'rgba(242,244,249,0.22)');
+  fill.addColorStop(1, 'rgba(242,244,249,0)');
+
+  dashCharts.rev = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: months.map(m => monthLabelShort(m.month)),
+      datasets: [{
+        label: 'Total revenue',
+        data: months.map(m => Math.round(m.total)),
+        borderColor: 'rgba(242,244,249,0.9)',
+        backgroundColor: fill,
+        borderWidth: 2,
+        fill: true,
+        tension: 0.35,
+        pointRadius: 3,
+        pointBackgroundColor: '#06070c',
+        pointBorderColor: 'rgba(242,244,249,0.9)',
+        pointBorderWidth: 2,
+        pointHoverRadius: 5
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#12131b',
+          borderColor: 'rgba(255,255,255,0.12)',
+          borderWidth: 1,
+          titleColor: '#f2f4f9',
+          bodyColor: 'rgba(242,244,249,0.75)',
+          callbacks: {
+            label: c => money(c.raw),
+            // Month-to-month movement is the whole point, so name it
+            afterLabel: c => {
+              const prev = months[c.dataIndex - 1];
+              if (!prev || !prev.total) return '';
+              const d = Math.round(((months[c.dataIndex].total - prev.total) / prev.total) * 100);
+              return `${d >= 0 ? '▲' : '▼'} ${Math.abs(d)}% vs ${monthLabelShort(prev.month)}`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: DASH_TICK },
+        y: { grid: { color: DASH_GRID }, ticks: { ...DASH_TICK, callback: v => '$' + (v >= 1000 ? (v / 1000) + 'k' : v) }, beginAtZero: true }
+      }
+    }
   });
 }
 
