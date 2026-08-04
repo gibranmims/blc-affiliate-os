@@ -10414,3 +10414,7 @@ body { overscroll-behavior-y: none; }
   .dash-chart-tall { height: 250px; }
   .dash-panel-controls { justify-content: flex-start; }
 }
+
+/* Identity row is a label now, not a button — no hover or pointer. */
+.sidebar-user-static { cursor: default; }
+.sidebar-user-static:hover { background: none; }

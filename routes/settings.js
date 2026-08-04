@@ -8,7 +8,11 @@ const supabase = createClient(
 );
 
 // Keys that are allowed to be read/written via this public settings API
-const ALLOWED_KEYS = ['discord_invite_link', 'custom_issue_types', 'monthly_affiliate_goal', 'monthly_affiliate_revenue'];
+// Only custom_issue_types is still in use, by Customer Support. The Discord
+// invite fed affiliate welcome emails and the two affiliate goal figures fed
+// a dashboard banner — all three are gone. Existing rows are harmless; they
+// just stop being readable through this route.
+const ALLOWED_KEYS = ['custom_issue_types'];
 
 // GET /api/settings
 router.get('/', async (req, res) => {

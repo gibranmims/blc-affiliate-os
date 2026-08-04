@@ -88,8 +88,6 @@ const state = {
   calWeek:            null,
   teamCalendar:       [],
   tcStart:            null,
-  monthlyGoal:        0,
-  monthlyRevenue:     0,
   bfTab:              'overview',
   partnerLeads:      [],
   partnerTemplates:  [],
@@ -2617,39 +2615,7 @@ function copyOutput(id) {
 // SETTINGS
 // ============================================================
 
-async function openSettingsModal() {
-  let current = {};
-  try { current = await fetchAPI('/api/settings'); } catch (_) {}
-  openModal('App Settings', `
-    <div style="display:flex;flex-direction:column;gap:18px;">
-      <div class="dp-form-group">
-        <label>Discord Invite Link</label>
-        <input type="text" class="dp-input" id="settings-discord"
-          placeholder="https://discord.gg/..."
-          value="${esc(current.discord_invite_link || '')}">
-        <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Inserted into welcome emails when a creator is signed and onboarded.</div>
-      </div>
-      <div style="display:flex;gap:8px;justify-content:flex-end;">
-        <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
-        <button class="btn btn-primary" onclick="saveSettings()">Save</button>
-      </div>
-    </div>
-  `);
-}
 
-async function saveSettings() {
-  const discord = document.getElementById('settings-discord')?.value?.trim() || '';
-  try {
-    await fetchAPI('/api/settings', {
-      method: 'PUT',
-      body: JSON.stringify({ discord_invite_link: discord })
-    });
-    closeModal();
-    showToast('Settings saved ✓');
-  } catch (err) {
-    showToast(err.message, 'error');
-  }
-}
 
 // ============================================================
 // CUSTOMER SUPPORT TRACKER
@@ -4377,73 +4343,10 @@ function dashDrawRevenue(weeks) {
 // GOAL + REVENUE
 // ============================================================
 
-async function loadHomeSettings() {
-  try {
-    const s = await fetchAPI(API.settings);
-    state.monthlyGoal    = parseInt(s.monthly_affiliate_goal)    || 0;
-    state.monthlyRevenue = parseFloat(s.monthly_affiliate_revenue) || 0;
-  } catch {}
-}
 
-function openGoalEdit() {
-  openModal('Monthly Affiliate Goal', `
-    <div style="display:flex;flex-direction:column;gap:16px">
-      <p style="color:var(--text-secondary);font-size:14px;margin:0">Set a target for active affiliates — the progress ring on your dashboard will track toward this number.</p>
-      <div class="form-group">
-        <label class="form-label">Target (active affiliates)</label>
-        <input class="form-input" id="goal-input" type="number" min="1" max="9999"
-               value="${state.monthlyGoal || ''}" placeholder="e.g. 15">
-      </div>
-      <div style="display:flex;justify-content:space-between;align-items:center">
-        ${state.monthlyGoal ? `<button class="btn btn-secondary btn-sm" onclick="saveGoal(0)">Clear goal</button>` : '<span></span>'}
-        <div style="display:flex;gap:8px">
-          <button class="btn btn-secondary btn-sm" onclick="closeModal()">Cancel</button>
-          <button class="btn btn-primary btn-sm" onclick="saveGoal()">Set Goal</button>
-        </div>
-      </div>
-    </div>
-  `);
-  setTimeout(() => { const el = document.getElementById('goal-input'); el?.focus(); el?.select(); }, 60);
-}
 
-async function saveGoal(override) {
-  const val = override !== undefined ? override : (parseInt(document.getElementById('goal-input')?.value) || 0);
-  try {
-    await fetchAPI(API.settings, { method: 'PUT', body: JSON.stringify({ monthly_affiliate_goal: val || null }) });
-    state.monthlyGoal = val;
-    closeModal();
-    renderHomePage();
-  } catch (err) { showToast(err.message, 'error'); }
-}
 
-function openRevenueEdit() {
-  openModal('Affiliate Revenue — This Month', `
-    <div style="display:flex;flex-direction:column;gap:16px">
-      <p style="color:var(--text-secondary);font-size:14px;margin:0">Manually track affiliate-driven revenue for this month. Update anytime.</p>
-      <div class="form-group">
-        <label class="form-label">Revenue ($)</label>
-        <input class="form-input" id="revenue-input" type="number" min="0" step="1"
-               value="${state.monthlyRevenue || ''}" placeholder="e.g. 4200">
-      </div>
-      <div style="display:flex;justify-content:flex-end;gap:8px">
-        <button class="btn btn-secondary btn-sm" onclick="closeModal()">Cancel</button>
-        <button class="btn btn-primary btn-sm" onclick="saveRevenue()">Update</button>
-      </div>
-    </div>
-  `);
-  setTimeout(() => { const el = document.getElementById('revenue-input'); el?.focus(); el?.select(); }, 60);
-}
 
-async function saveRevenue() {
-  const val = parseFloat(document.getElementById('revenue-input')?.value) || 0;
-  try {
-    await fetchAPI(API.settings, { method: 'PUT', body: JSON.stringify({ monthly_affiliate_revenue: val || null }) });
-    state.monthlyRevenue = val;
-    closeModal();
-    renderHomePage();
-    showToast('Revenue updated');
-  } catch (err) { showToast(err.message, 'error'); }
-}
 
 // ============================================================
 // IDEA BOARD
@@ -5523,7 +5426,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     loadSubscriptions().catch(() => {}),
     loadBrandFinance().catch(() => {}),
     loadAdSpend().catch(() => {}),
-    loadHomeSettings().catch(() => {}),
     loadIdeas().catch(() => {}),
     loadCommentBank().catch(() => {}),
     loadContentCalendar().catch(() => {}),
