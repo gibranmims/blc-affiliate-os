@@ -130,6 +130,16 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
+// ── Error handler — /api requests always get JSON, never Express's
+// default HTML error page (which broke res.json() parsing on the client) ──
+app.use((err, req, res, next) => {
+  console.error(err);
+  if (req.path.startsWith('/api/')) {
+    return res.status(err.status || 500).json({ error: err.message || 'Server error' });
+  }
+  res.status(err.status || 500).send('Server error');
+});
+
 // ── Start ─────────────────────────────────────────────────────────
 app.listen(PORT, () => {
   console.log(`BLC OS running on http://localhost:${PORT}`);

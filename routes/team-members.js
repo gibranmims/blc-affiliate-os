@@ -4,7 +4,18 @@ const multer = require('multer');
 const { createClient } = require('@supabase/supabase-js');
 const { uploadPhoto, signedUrl } = require('../lib/storage');
 
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 8 * 1024 * 1024 } });
+
+// multer errors (e.g. LIMIT_FILE_SIZE) throw before the route body runs and
+// Express's default handler renders them as an HTML page, not JSON — which
+// breaks the frontend's res.json() parse. Catch them here instead.
+function handlePhotoUpload(req, res, next) {
+  upload.single('photo')(req, res, (err) => {
+    if (!err) return next();
+    if (err.code === 'LIMIT_FILE_SIZE') return res.status(400).json({ error: 'Photo must be under 8MB' });
+    res.status(400).json({ error: err.message });
+  });
+}
 
 function supabase() {
   return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
@@ -132,7 +143,7 @@ router.delete('/:id', async (req, res) => {
 });
 
 // POST /api/team-members/:id/photo — upload/replace headshot
-router.post('/:id/photo', upload.single('photo'), async (req, res) => {
+router.post('/:id/photo', handlePhotoUpload, async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No photo uploaded' });
     if (!req.file.mimetype.startsWith('image/')) {
