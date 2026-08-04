@@ -3009,14 +3009,17 @@ function activeMembers() {
   return rows.sort((a, b) => a.position - b.position);
 }
 
+// Both resolve through activeMembers so they honour the same fallback the
+// board uses. Reading state.teamMembers directly meant an unmigrated table
+// showed raw keys like "founder" next to a board that said "Gibran".
 function memberName(key) {
   if (key === 'for-founder') return 'For Founder';
-  return state.teamMembers.find(m => m.member_key === key)?.name || key;
+  return activeMembers().find(m => m.member_key === key)?.name || key;
 }
 
 function memberInitials(key) {
   if (key === 'for-founder') return 'F';
-  const m = state.teamMembers.find(m => m.member_key === key);
+  const m = activeMembers().find(m => m.member_key === key);
   return m?.initials || (m?.name || key || '?')[0].toUpperCase();
 }
 
@@ -3643,58 +3646,142 @@ function renderTasksPage() {
   `;
 }
 
+// ── Dashboard charts ────────────────────────────────────────────
+// Chart.js is already loaded for Financials. Instances are tracked so a
+// re-render replaces them instead of stacking canvases and leaking.
+const dashCharts = {};
+
+function dashDestroyCharts() {
+  Object.keys(dashCharts).forEach(k => { dashCharts[k].destroy(); delete dashCharts[k]; });
+}
+
+const DASH_GRID = 'rgba(255,255,255,0.06)';
+const DASH_TICK = { color: 'rgba(242,244,249,0.45)', font: { family: 'Poppins', size: 10 } };
+
+// The last N weeks of the Financials log, oldest first
+function dashWeeks(n = 12) {
+  return [...(bf_getLog() || [])]
+    .sort((a, b) => (a.week_ending || '').localeCompare(b.week_ending || ''))
+    .slice(-n);
+}
+
+function weekRevenue(w) {
+  return (parseFloat(w.tiktok_revenue) || 0)
+       + (parseFloat(w.amazon_revenue) || 0)
+       + (parseFloat(w.website_revenue) || 0);
+}
+
 function renderHomePage() {
+  dashDestroyCharts();
+
   const now = new Date();
   const h = now.getHours();
   const greeting = h < 5 ? 'Still at it —' : h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : h < 21 ? 'Good evening' : 'Good night';
   const dateStr = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
 
-  // Metrics
-  const challengers = state.challengers.length;
-  // Pro Partner leads actively in flight — reached out to, not yet resolved
-  const partnersInPipeline = state.partnerLeads
-    .filter(l => ['contacted', 'replied', 'applied'].includes(l.status)).length;
-
-  // Attention items
-  const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  const supportThisMonth = state.support.filter(i => (i.issue_date || '').startsWith(thisMonth)).length;
-
-  // Urgent tasks — overdue or due today/tomorrow
-  const urgentTasks = state.tasks
-    .filter(t => !t.completed && !t.archived && t.deadline && deadlineSortKey(t.deadline) <= 1)
-    .sort((a, b) => deadlineSortKey(a.deadline) - deadlineSortKey(b.deadline));
-
-  // The dashboard leads with projects now, so anything still in flight
-  // and not parked belongs up top.
+  const openTasks    = state.tasks.filter(t => !t.completed && !t.archived);
+  const overdue      = openTasks.filter(t => t.deadline && deadlineSortKey(t.deadline) < 0);
+  const dueSoon      = openTasks.filter(t => t.deadline && deadlineSortKey(t.deadline) >= 0 && deadlineSortKey(t.deadline) <= 1);
+  const thisMonth    = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const supportMonth = state.support.filter(i => (i.issue_date || '').startsWith(thisMonth)).length;
   const activeProjects = projectsSorted().filter(p => p.status === 'active' || p.status === 'planning');
+  const pipeline = state.partnerLeads.filter(l => ['contacted','replied','applied'].includes(l.status)).length;
+  const subsMonthly = state.subscriptions
+    .filter(s => s.status === 'active')
+    .reduce((t, s) => t + subMonthly(s), 0);
+
+  const weeks    = dashWeeks(12);
+  const latest   = weeks[weeks.length - 1];
+  const prev     = weeks[weeks.length - 2];
+  const revNow   = latest ? weekRevenue(latest) : 0;
+  const revPrev  = prev   ? weekRevenue(prev)   : 0;
+  const revDelta = revPrev > 0 ? Math.round(((revNow - revPrev) / revPrev) * 100) : null;
+
+  // Workload per person, so it's obvious who is buried
+  const workload = activeMembers().map(m => {
+    const mine = openTasks.filter(t => t.assignee === m.member_key);
+    return { ...m, open: mine.length, late: mine.filter(t => t.deadline && deadlineSortKey(t.deadline) < 0).length };
+  });
+  const heaviest = Math.max(1, ...workload.map(w => w.open));
+
+  const tile = (value, label, sub, page) => `
+    <button class="dash-tile glow-surface" onclick="navigate('${page}')">
+      <div class="dash-tile-value">${value}</div>
+      <div class="dash-tile-label">${label}</div>
+      <div class="dash-tile-sub">${sub}</div>
+    </button>`;
 
   document.getElementById('page-content').innerHTML = `
     <div class="home-page">
 
-      <!-- Header row: greeting + action buttons -->
       <div class="home-header-row">
         <div class="home-hero">
           <div class="home-greeting">${greeting}, team.</div>
           <div class="home-date">${dateStr}</div>
         </div>
         <div class="home-header-actions">
-          <button class="btn btn-secondary btn-icon" onclick="navigate('tasks')" title="Team Tasks">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
-          </button>
           <button class="btn btn-primary" onclick="navigate('tasks')">+ New Task</button>
         </div>
       </div>
 
-      <!-- Where the business is pushing. This replaced an affiliate-goal
-           ring: the agency owns recruiting now, so counting affiliates
-           measured work we no longer do. Projects are what we move. -->
-      <div class="home-section-heading-lg" style="margin-bottom:12px">Projects</div>
-      <div class="home-projects-row">
+      <div class="dash-tiles pd-stagger" style="--i:0">
+        ${tile(
+          revNow ? money(revNow) : '—',
+          'Revenue last week',
+          revDelta === null ? 'No prior week to compare' :
+            `${revDelta >= 0 ? '▲' : '▼'} ${Math.abs(revDelta)}% vs the week before`,
+          'brand-finance')}
+        ${tile(openTasks.length, 'Open tasks',
+          overdue.length ? `${overdue.length} overdue` : dueSoon.length ? `${dueSoon.length} due today` : 'Nothing overdue', 'tasks')}
+        ${tile(activeProjects.length, 'Active projects',
+          `${state.projects.length} tracked in total`, 'projects')}
+        ${tile(money(subsMonthly), 'Monthly subscriptions',
+          `${money(subsMonthly * 12)} a year`, 'subscriptions')}
+      </div>
+
+      <div class="dash-split pd-stagger" style="--i:1">
+        <div class="dash-panel glow-surface">
+          <div class="dash-panel-head">
+            <h3 class="pd-section-title">Revenue by channel</h3>
+            <span class="pd-count">last ${weeks.length || 0} weeks</span>
+          </div>
+          ${weeks.length
+            ? `<div class="dash-chart"><canvas id="dash-rev"></canvas></div>`
+            : `<div class="dash-empty">
+                 No weekly numbers yet.
+                 <button class="dash-empty-link" onclick="navigate('brand-finance')">Add a week in Financials →</button>
+               </div>`}
+        </div>
+
+        <div class="dash-panel glow-surface">
+          <div class="dash-panel-head">
+            <h3 class="pd-section-title">Who's carrying what</h3>
+            <span class="pd-count">${openTasks.length} open</span>
+          </div>
+          <div class="dash-workload">
+            ${workload.map(w => `
+              <button class="dash-person" onclick="navigate('tasks')">
+                <span class="focus-avatar">${esc(w.initials || w.name[0].toUpperCase())}</span>
+                <span class="dash-person-body">
+                  <span class="dash-person-top">
+                    <span class="dash-person-name">${esc(w.name)}</span>
+                    <span class="dash-person-count">${w.open}${w.late ? ` <span class="dash-late">${w.late} late</span>` : ''}</span>
+                  </span>
+                  <span class="dash-person-bar"><span class="dash-person-fill" style="width:${Math.round((w.open / heaviest) * 100)}%"></span></span>
+                </span>
+              </button>`).join('')}
+            ${workload.length ? '' : '<div class="dash-empty">No team members yet.</div>'}
+          </div>
+        </div>
+      </div>
+
+      <div class="dash-section-label pd-stagger" style="--i:2">Projects</div>
+      <div class="home-projects-row pd-stagger" style="--i:2">
         ${activeProjects.length ? activeProjects.map(p => {
           const pr  = projectProgress(p.id);
           const due = p.target_date ? fmtDeadline(p.target_date) : null;
           return `
-          <button class="home-project-card glow-surface" onclick="navigate('projects')">
+          <button class="home-project-card glow-surface" onclick="openProjectDetail('${p.id}')">
             <div class="home-project-name">${esc(p.name)}</div>
             <div class="proj-bar"><div class="proj-bar-fill" style="width:${pr.pct}%"></div></div>
             <div class="proj-meta">
@@ -3709,94 +3796,82 @@ function renderHomePage() {
           </button>`}
       </div>
 
-      ${supportThisMonth > 0 ? `
-      <div class="home-attention-inline" style="margin-bottom:24px">
-        <div class="home-attention-item" onclick="navigate('support')">
-          <span class="home-attn-dot home-attn-dot-orange"></span>
-          <span>${supportThisMonth} support issue${supportThisMonth !== 1 ? 's' : ''} this month</span>
-          <span class="home-attn-arrow">→</span>
-        </div>
+      ${(overdue.length || supportMonth) ? `
+      <div class="dash-section-label pd-stagger" style="--i:3">Needs attention</div>
+      <div class="dash-attention pd-stagger" style="--i:3">
+        ${overdue.slice(0, 5).map(t => {
+          const dl = fmtDeadline(t.deadline);
+          return `
+          <button class="dash-attn-row" onclick="navigate('tasks')">
+            <span class="focus-avatar">${esc(memberInitials(t.assignee))}</span>
+            <span class="dash-attn-who">${esc(memberName(t.assignee))}</span>
+            <span class="dash-attn-title">${esc(t.title)}</span>
+            <span class="task-deadline ${dl.cls}">${dl.text}</span>
+          </button>`;
+        }).join('')}
+        ${overdue.length > 5 ? `<button class="dash-attn-more" onclick="navigate('tasks')">${overdue.length - 5} more overdue →</button>` : ''}
+        ${supportMonth ? `
+          <button class="dash-attn-row" onclick="navigate('support')">
+            <span class="dash-attn-dot"></span>
+            <span class="dash-attn-title">${supportMonth} support issue${supportMonth !== 1 ? 's' : ''} logged this month</span>
+            <span class="dash-attn-arrow">→</span>
+          </button>` : ''}
       </div>` : ''}
-
-      <!-- Two-column: urgent+QA on left, timer sticky right -->
-      <div class="home-two-col">
-        <div class="home-left-col">
-
-          ${urgentTasks.length > 0 ? `
-          <div class="home-urgent-section">
-            <div class="home-section-heading-lg">
-              <span class="home-urgent-marker"></span>
-              Urgent Action Required
-            </div>
-            <div class="home-urgent-card">
-              <div class="home-urgent-list">
-                ${urgentTasks.map(t => {
-                  const dl = fmtDeadline(t.deadline);
-                  // Reads the team table, so a new member shows up here
-                  // without anyone editing a map
-                  const av = {
-                    lbl:  memberInitials(t.assignee),
-                    name: t.assignee === 'for-founder' ? 'For Review' : memberName(t.assignee),
-                    cls:  t.assignee === 'for-founder' ? 'ua-founder' : 'ua-gibran'
-                  };
-                  return `<div class="home-urgent-item" onclick="navigate('tasks')">
-                    <div class="home-urgent-who">
-                      <span class="home-urgent-avatar ${av.cls}">${av.lbl}</span>
-                      <span class="home-urgent-name">${av.name}</span>
-                    </div>
-                    <span class="home-urgent-title">${esc(t.title)}</span>
-                    ${dl ? `<span class="task-deadline ${dl.cls}">${dl.text}</span>` : ''}
-                  </div>`;
-                }).join('')}
-              </div>
-            </div>
-          </div>` : ''}
-
-          <div class="home-qa-section">
-            <div class="home-section-heading-lg">Quick Actions</div>
-            <div class="home-qa-grid home-qa-grid-4">
-              <button class="home-qa-card" onclick="navigate('partner-outreach')">
-                <div class="home-qa-icon">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-                </div>
-                <div class="home-qa-name">Pro Partner Outreach</div>
-                <div class="home-qa-stat">${partnersInPipeline}</div>
-                <div class="home-qa-sub">in pipeline</div>
-              </button>
-              <button class="home-qa-card" onclick="navigate('projects')">
-                <div class="home-qa-icon">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 01-9 9"/></svg>
-                </div>
-                <div class="home-qa-name">Projects</div>
-                <div class="home-qa-stat">${activeProjects.length}</div>
-                <div class="home-qa-sub">active</div>
-              </button>
-              <button class="home-qa-card" onclick="navigate('support');setTimeout(openLogIssueModal,150)">
-                <div class="home-qa-icon">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
-                </div>
-                <div class="home-qa-name">Log Support Issue</div>
-                <div class="home-qa-stat">${supportThisMonth}</div>
-                <div class="home-qa-sub">issues this month</div>
-              </button>
-              <button class="home-qa-card" onclick="navigate('challenge')">
-                <div class="home-qa-icon">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-                </div>
-                <div class="home-qa-name">Before &amp; Afters</div>
-                <div class="home-qa-stat">${challengers}</div>
-                <div class="home-qa-sub">challengers enrolled</div>
-              </button>
-            </div>
-          </div>
-
-        </div>
-      </div>
 
     </div>
   `;
-  // Animate numbers after DOM is painted
-  requestAnimationFrame(animateHomeStats);
+
+  requestAnimationFrame(() => {
+    animateHomeStats();
+    dashDrawRevenue(weeks);
+  });
+}
+
+// Monochrome by design — the three channels separate by lightness rather
+// than hue, so the chart belongs to the same black-and-white system.
+function dashDrawRevenue(weeks) {
+  const el = document.getElementById('dash-rev');
+  if (!el || !weeks.length || typeof Chart === 'undefined') return;
+
+  const label = w => (w.week_ending || '').slice(5);
+  const series = (key, shade) => ({
+    label: { tiktok_revenue: 'TikTok Shop', amazon_revenue: 'Amazon', website_revenue: 'Website' }[key],
+    data: weeks.map(w => parseFloat(w[key]) || 0),
+    backgroundColor: shade,
+    borderRadius: 3,
+    borderSkipped: false
+  });
+
+  dashCharts.rev = new Chart(el.getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: weeks.map(label),
+      datasets: [
+        series('tiktok_revenue',  'rgba(242,244,249,0.92)'),
+        series('amazon_revenue',  'rgba(242,244,249,0.52)'),
+        series('website_revenue', 'rgba(242,244,249,0.24)')
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { labels: { color: 'rgba(242,244,249,0.68)', font: { family: 'Poppins', size: 11 }, boxWidth: 9, padding: 14, usePointStyle: true } },
+        tooltip: {
+          backgroundColor: '#12131b',
+          borderColor: 'rgba(255,255,255,0.12)',
+          borderWidth: 1,
+          titleColor: '#f2f4f9',
+          bodyColor: 'rgba(242,244,249,0.75)',
+          callbacks: { label: c => `${c.dataset.label}: ${money(c.raw)}` }
+        }
+      },
+      scales: {
+        x: { stacked: true, grid: { display: false }, ticks: DASH_TICK },
+        y: { stacked: true, grid: { color: DASH_GRID }, ticks: { ...DASH_TICK, callback: v => '$' + (v >= 1000 ? (v / 1000) + 'k' : v) }, beginAtZero: true }
+      }
+    }
+  });
 }
 
 // ============================================================

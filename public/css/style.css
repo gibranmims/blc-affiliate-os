@@ -10112,3 +10112,249 @@ body { overscroll-behavior-y: none; }
   .pd-body { padding: 20px 16px 24px; }
   .pd-meta { gap: 18px; }
 }
+
+/* ════════════════════════════════════════════════════════════
+   DASHBOARD
+   KPI tiles, a revenue chart and a workload panel. Charts are
+   monochrome on purpose — the three channels separate by
+   lightness, not hue, so they belong to the same system.
+   ════════════════════════════════════════════════════════════ */
+
+.dash-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.dash-tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 18px 20px;
+  text-align: left;
+  font-family: var(--font);
+  cursor: pointer;
+  background: var(--bg-primary);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: var(--shadow-night), var(--glass-inset);
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@media (hover: hover) {
+  .dash-tile:hover { transform: translateY(-2px); border-color: rgba(255,255,255,0.18); }
+}
+
+.dash-tile-value {
+  font-family: var(--font-heading);
+  font-size: clamp(24px, 2.4vw, 32px);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.dash-tile-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.dash-tile-sub { font-size: 12px; color: var(--text-secondary); }
+
+/* ── Split: chart + workload ────────────────────────────────── */
+.dash-split {
+  display: grid;
+  grid-template-columns: 1.55fr 1fr;
+  gap: 12px;
+  margin-bottom: 26px;
+}
+
+@media (max-width: 980px) { .dash-split { grid-template-columns: 1fr; } }
+
+.dash-panel {
+  position: relative;
+  padding: 18px 20px 20px;
+  background: var(--bg-primary);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  box-shadow: var(--shadow-night), var(--glass-inset);
+  min-width: 0;
+}
+
+.dash-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.dash-chart { height: 232px; position: relative; }
+
+.dash-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 34px 0;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.dash-empty-link {
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.dash-empty-link:hover { text-decoration: underline; text-underline-offset: 2px; }
+
+/* ── Workload ───────────────────────────────────────────────── */
+.dash-workload { display: flex; flex-direction: column; gap: 12px; }
+
+.dash-person {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 0;
+  background: none;
+  border: none;
+  font-family: var(--font);
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+}
+
+.dash-person-body { flex: 1; min-width: 0; }
+
+.dash-person-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 5px;
+}
+
+.dash-person-name { font-size: 13.5px; font-weight: 600; color: var(--text-primary); }
+
+.dash-person-count {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.dash-late { color: var(--red); font-weight: 600; }
+
+.dash-person-bar {
+  display: block;
+  height: 4px;
+  width: 100%;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.08);
+  overflow: hidden;
+}
+
+.dash-person-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--text-primary);
+  transition: width 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.dash-person:hover .dash-person-name { text-decoration: underline; text-underline-offset: 2px; }
+
+/* ── Section labels & attention list ────────────────────────── */
+.dash-section-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+
+.dash-attention {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  overflow: hidden;
+  margin-bottom: 26px;
+}
+
+.dash-attn-row {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 12px 18px;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border-light);
+  font-family: var(--font);
+  font-size: 13.5px;
+  color: var(--text-primary);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.12s;
+}
+
+.dash-attn-row:last-child { border-bottom: none; }
+.dash-attn-row:hover { background: rgba(255,255,255,0.03); }
+
+.dash-attn-who {
+  font-size: 12px;
+  color: var(--text-muted);
+  min-width: 58px;
+  flex-shrink: 0;
+}
+
+.dash-attn-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dash-attn-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--orange);
+  flex-shrink: 0;
+}
+
+.dash-attn-arrow { color: var(--text-muted); }
+
+.dash-attn-more {
+  padding: 11px 18px;
+  background: none;
+  border: none;
+  border-top: 1px solid var(--border-light);
+  font-family: var(--font);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  text-align: left;
+}
+
+.dash-attn-more:hover { color: var(--text-primary); }
