@@ -956,7 +956,7 @@ body {
 .modal-overlay.hidden { display: none; }
 
 .modal {
-  background: var(--bg-secondary);
+  background: var(--bg-elevated);
   border: 1px solid var(--border);
   border-radius: var(--radius-xl);
   width: 100%;
@@ -980,7 +980,9 @@ body {
   border-bottom: 1px solid var(--border);
   position: sticky;
   top: 0;
-  background: var(--bg-secondary);
+  /* Sticky over scrolling content — translucent would let the rows slide
+     visibly underneath the title. */
+  background: var(--bg-elevated);
   z-index: 1;
   border-radius: var(--radius-xl) var(--radius-xl) 0 0;
 }
@@ -1799,7 +1801,7 @@ body {
 
 .detail-drawer {
   width: 580px;
-  background: var(--bg-secondary);
+  background: var(--bg-elevated);
   border-left: 1px solid var(--border-light);
   display: flex;
   flex-direction: column;
@@ -1813,7 +1815,7 @@ body {
   justify-content: space-between;
   padding: 16px 20px;
   border-bottom: 1px solid var(--border);
-  background: var(--bg-tertiary);
+  background: var(--near-black);
   flex-shrink: 0;
 }
 
@@ -3243,7 +3245,7 @@ body {
 }
 
 .draft-modal {
-  background: var(--bg-secondary);
+  background: var(--bg-elevated);
   border: 1px solid rgba(74,222,128,0.25);
   border-radius: var(--radius-lg);
   padding: 48px 44px 40px;
@@ -5953,12 +5955,19 @@ a.cl-profile-handle:hover {
    ============================================================ */
 
 /* ── Global card/surface elevation ─────────────────────────── */
-.detail-drawer,
-.rs-drawer,
+/* Cards sit on the canvas, so translucent glass is right for them. */
 .fin-card,
 .rs-roster-card {
   background: var(--bg-secondary) !important;
   box-shadow: var(--shadow-sm) !important;
+}
+
+/* Drawers cover the page, so they have to be opaque — glass here lets the
+   content behind read straight through and the two overlap illegibly. */
+.detail-drawer,
+.rs-drawer {
+  background: var(--bg-elevated) !important;
+  box-shadow: var(--shadow-xl) !important;
 }
 
 /* ── Filter tabs (pill tabs used across pages) ──────────────── */
@@ -6044,7 +6053,8 @@ textarea:focus {
 
 /* ── Detail panel (drawer) ────────────────────────────────── */
 .detail-drawer {
-  background: var(--bg-secondary) !important;
+  /* Opaque, not glass — this slides over the page and has to hide it. */
+  background: var(--bg-elevated) !important;
 }
 
 .detail-drawer-header {
@@ -7045,7 +7055,7 @@ textarea:focus {
   z-index: 40;
   min-width: 132px;
   padding: 4px;
-  background: var(--bg-primary);
+  background: var(--bg-elevated);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   box-shadow: var(--shadow-md);
