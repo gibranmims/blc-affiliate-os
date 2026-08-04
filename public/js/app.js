@@ -775,7 +775,6 @@ const HUBS = {
       name: 'Content Calendar', desc: 'Plan what goes out and when', cta: 'Plan the week →'
     },
     cards: [
-      { page: 'team-calendar', icon: 'calCheck', name: 'Team Calendar',  desc: "Who's out, off, or slow to reply", cta: 'Check →' },
       { page: 'comment-bank',  icon: 'comment',  name: 'Comment Bank',   desc: 'Comments worth replying to',       cta: 'Reply →' },
       { page: 'scripts',       icon: 'flask',    name: 'Creative Lab',   desc: 'Write, rewrite and analyse scripts', cta: 'Open →' },
       { page: 'challenge',     icon: 'images',   name: 'Before & Afters', desc: 'The BBL challenge and its results', cta: 'View →' }
@@ -821,6 +820,7 @@ const HUBS = {
       { page: 'partners',      icon: 'handshake', name: 'Partners',         desc: 'Manufacturing, Amazon, accounting, agencies', cta: 'Open →' },
       { page: 'subscriptions', icon: 'card',      name: 'Subscriptions',    desc: 'What we pay for every month, and the total', cta: 'Track →' },
       { page: 'meetings',      icon: 'doc',       name: 'Meetings',         desc: 'Minutes and decisions, searchable',          cta: 'Open →' },
+      { page: 'team-calendar', icon: 'calCheck',  name: 'Team Calendar',    desc: "Who's out, off, or slow to reply",           cta: 'Check →' },
       { page: 'team',          icon: 'users',     name: 'Team',             desc: 'Add people and give them a task column',    cta: 'Manage →' }
     ]
   }
@@ -2024,6 +2024,18 @@ function renderMeetingDetailPage() {
       <div class="detail-notes-body">${esc(m.decisions)}</div>
     </div>` : ''}
 
+    <div class="detail-notes mt-actions-block">
+      <div class="mt-actions-head">
+        <div class="detail-label" style="margin:0">Action items</div>
+        <span class="pd-count">${(m.action_items || []).filter(a => a.task_id).length}/${(m.action_items || []).length} on the board</span>
+      </div>
+      <div class="mt-actions" id="mt-actions">${meetingActionsHTML(m)}</div>
+      <button class="focus-add-btn" style="max-width:240px" onclick="startAddActionItem('${m.id}')">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Add an action item
+      </button>
+    </div>
+
     <div class="detail-notes">
       <div class="detail-label">Notes</div>
       <div class="detail-notes-body">${m.notes ? esc(m.notes) : '<span class="pd-muted">No notes recorded</span>'}</div>
@@ -2034,6 +2046,129 @@ function renderMeetingDetailPage() {
       <button class="btn btn-danger btn-sm" onclick="deleteMeeting('${m.id}')">Delete</button>
     </div>
   `;
+}
+
+// An item is a suggestion until task_id is set. Once it points at a task,
+// its state is read live off the board rather than copied — so a meeting
+// from three weeks ago shows what actually happened, not what was assumed.
+function meetingActionsHTML(m) {
+  const items = m.action_items || [];
+  if (!items.length) {
+    return `<div class="focus-empty">Nothing captured yet — add what people agreed to do.</div>`;
+  }
+  return items.map(a => {
+    const task = a.task_id ? state.tasks.find(t => t.id === a.task_id) : null;
+    let status;
+    if (!a.task_id) {
+      status = `<button class="mt-add-btn" onclick="promoteActionItem('${m.id}','${a.id}')">Add to tasks →</button>`;
+    } else if (!task) {
+      status = `<span class="mt-state mt-state-gone">Task deleted</span>`;
+    } else if (task.completed) {
+      status = `<span class="mt-state mt-state-done">Done</span>`;
+    } else if (task.deadline && deadlineSortKey(task.deadline) < 0) {
+      status = `<span class="mt-state mt-state-late">Overdue</span>`;
+    } else {
+      status = `<span class="mt-state">On the board</span>`;
+    }
+    return `
+      <div class="mt-action${a.task_id ? ' is-live' : ''}">
+        <span class="mt-action-text">${esc(a.text)}</span>
+        <select class="mt-action-who" onchange="setActionAssignee('${m.id}','${a.id}',this.value)" ${a.task_id ? 'disabled' : ''}>
+          <option value="">Unassigned</option>
+          ${activeMembers().map(mem => `<option value="${mem.member_key}" ${a.assignee === mem.member_key ? 'selected' : ''}>${esc(mem.name)}</option>`).join('')}
+        </select>
+        ${status}
+        <button class="mt-action-x" onclick="removeActionItem('${m.id}','${a.id}')" title="Remove from this meeting">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>`;
+  }).join('');
+}
+
+async function saveActionItems(meetingId, items) {
+  const m = state.meetings.find(x => x.id === meetingId);
+  if (!m) return;
+  const previous = m.action_items || [];
+  m.action_items = items;                       // optimistic
+  renderMeetingDetailPage();
+  try {
+    const updated = await fetchAPI(`${API.meetings}/${meetingId}`, {
+      method: 'PUT', body: JSON.stringify({ action_items: items })
+    });
+    const i = state.meetings.findIndex(x => x.id === meetingId);
+    if (i !== -1) state.meetings[i] = updated;
+  } catch (err) {
+    m.action_items = previous;
+    renderMeetingDetailPage();
+    showToast(err.message, 'error');
+  }
+}
+
+function startAddActionItem(meetingId) {
+  const list = document.getElementById('mt-actions');
+  if (!list || list.querySelector('.mt-action-input')) return;
+  list.querySelector('.focus-empty')?.remove();
+  const row = document.createElement('div');
+  row.className = 'mt-action';
+  row.innerHTML = `<input class="mt-action-input" type="text" placeholder="e.g. Boris to confirm packaging" maxlength="300">`;
+  list.appendChild(row);
+  const input = row.querySelector('input');
+  input.focus();
+
+  let settled = false;
+  function commit() {
+    if (settled) return;
+    settled = true;
+    const text = input.value.trim();
+    row.remove();
+    if (!text) { renderMeetingDetailPage(); return; }
+    const m = state.meetings.find(x => x.id === meetingId);
+    saveActionItems(meetingId, [...(m.action_items || []),
+      { id: Math.random().toString(36).slice(2, 10), text, assignee: null, task_id: null }]);
+  }
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter')  commit();
+    if (e.key === 'Escape') { settled = true; row.remove(); renderMeetingDetailPage(); }
+  });
+  input.addEventListener('blur', () => setTimeout(commit, 150));
+}
+
+function setActionAssignee(meetingId, itemId, assignee) {
+  const m = state.meetings.find(x => x.id === meetingId);
+  if (!m) return;
+  saveActionItems(meetingId, (m.action_items || [])
+    .map(a => a.id === itemId ? { ...a, assignee: assignee || null } : a));
+}
+
+// The suggestion becomes real work here, and only here.
+async function promoteActionItem(meetingId, itemId) {
+  const m = state.meetings.find(x => x.id === meetingId);
+  const item = (m?.action_items || []).find(a => a.id === itemId);
+  if (!item) return;
+  try {
+    const task = await fetchAPI(API.tasks, {
+      method: 'POST',
+      body: JSON.stringify({
+        title: item.text,
+        assignee: item.assignee || 'founder',
+        notes: `From the meeting: ${m.title} (${m.met_on})`
+      })
+    });
+    state.tasks.push(task);
+    updateTasksUrgentBadge();
+    await saveActionItems(meetingId, m.action_items.map(a => a.id === itemId ? { ...a, task_id: task.id } : a));
+    showToast(`Added to ${memberName(task.assignee)}'s tasks`);
+  } catch (err) { showToast(err.message, 'error'); }
+}
+
+// Removing it here leaves any task it created alone — the work is real now
+// and outliving its meeting is the point.
+function removeActionItem(meetingId, itemId) {
+  const m = state.meetings.find(x => x.id === meetingId);
+  if (!m) return;
+  const item = (m.action_items || []).find(a => a.id === itemId);
+  if (item?.task_id && !confirm('Remove this from the meeting?\n\nThe task it created stays on the board.')) return;
+  saveActionItems(meetingId, (m.action_items || []).filter(a => a.id !== itemId));
 }
 
 function openMeetingEditor(id) {
@@ -2070,6 +2205,11 @@ function openMeetingEditor(id) {
         <textarea class="form-input" id="mt-decisions" rows="3" style="resize:vertical"
                   placeholder="What was actually agreed — kept separate so it's findable later">${m ? esc(m.decisions || '') : ''}</textarea>
       </div>
+      <div class="form-group">
+        <label class="form-label">Action items${m ? ' to add' : ''}</label>
+        <textarea class="form-input" id="mt-actions-paste" rows="3" style="resize:vertical"
+                  placeholder="One per line — paste Fathom's list straight in. They stay suggestions until you add them to the board."></textarea>
+      </div>
       <div style="display:flex;gap:8px;justify-content:flex-end;padding-top:4px">
         <button class="btn btn-secondary btn-sm" onclick="closeModal()">Cancel</button>
         <button class="btn btn-primary btn-sm" onclick="saveMeeting(${m ? `'${id}'` : 'null'})">Save</button>
@@ -2090,6 +2230,17 @@ async function saveMeeting(id) {
   };
   if (!body.met_on) { showToast('Pick a date', 'error'); return; }
   if (!body.title)  { showToast('Give it a title', 'error'); return; }
+
+  // Pasted lines append as suggestions — strip the bullet or dash people
+  // paste along with them, and keep whatever is already captured.
+  const existing = id ? (state.meetings.find(x => x.id === id)?.action_items || []) : [];
+  const pasted = (document.getElementById('mt-actions-paste')?.value || '')
+    .split('\n')
+    .map(l => l.replace(/^\s*[-*•\d.)\]]+\s*/, '').trim())
+    .filter(Boolean)
+    .map(text => ({ id: Math.random().toString(36).slice(2, 10), text, assignee: null, task_id: null }));
+  body.action_items = [...existing, ...pasted];
+
   try {
     if (id) {
       const updated = await fetchAPI(`${API.meetings}/${id}`, { method: 'PUT', body: JSON.stringify(body) });

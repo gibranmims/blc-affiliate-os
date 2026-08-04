@@ -6,6 +6,17 @@ function supabase() {
   return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
 }
 
+// Shape-check each item so a malformed payload cannot corrupt the column.
+function cleanActionItems(v) {
+  if (!Array.isArray(v)) return [];
+  return v.slice(0, 50).map(a => ({
+    id: String(a.id || "").slice(0, 40) || Math.random().toString(36).slice(2, 10),
+    text: String(a.text || "").trim().slice(0, 300),
+    assignee: a.assignee ? String(a.assignee).slice(0, 40) : null,
+    task_id: a.task_id ? String(a.task_id).slice(0, 40) : null
+  })).filter(a => a.text);
+}
+
 function cleanAttendees(v) {
   if (!Array.isArray(v)) return [];
   return v.map(a => String(a).trim()).filter(Boolean).slice(0, 30);
@@ -36,6 +47,7 @@ router.post('/', async (req, res) => {
       met_on: req.body.met_on,
       title: title.slice(0, 140),
       attendees: cleanAttendees(req.body.attendees),
+      action_items: cleanActionItems(req.body.action_items),
       notes: req.body.notes?.trim() || null,
       decisions: req.body.decisions?.trim() || null
     };
@@ -59,7 +71,8 @@ router.put('/:id', async (req, res) => {
     }
     if (req.body.attendees !== undefined) updates.attendees = cleanAttendees(req.body.attendees);
     if (req.body.notes     !== undefined) updates.notes     = req.body.notes?.trim() || null;
-    if (req.body.decisions !== undefined) updates.decisions = req.body.decisions?.trim() || null;
+    if (req.body.decisions    !== undefined) updates.decisions    = req.body.decisions?.trim() || null;
+    if (req.body.action_items !== undefined) updates.action_items = cleanActionItems(req.body.action_items);
 
     const { data, error } = await supabase()
       .from('meetings').update(updates).eq('id', req.params.id).select().single();
