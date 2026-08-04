@@ -5420,25 +5420,43 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
+  // Each loader used to swallow its own failure, which meant an unreachable
+  // table looked exactly like an empty one — Content Calendar, Idea Board,
+  // Comment Bank and the Script Library were all broken for a long stretch
+  // and simply rendered as "nothing here yet". Failures are collected and
+  // reported once now, so a missing grant announces itself.
+  const failed = [];
+  const load = (label, fn) => fn().catch(err => {
+    failed.push(label);
+    console.error(`${label} failed to load:`, err);
+  });
+
   await Promise.all([
-    loadChallengers().catch(err => console.error('Challengers load failed:', err)),
-    loadSupport().catch(err => console.error('Support load failed:', err)),
-    loadCustomIssueTypes().catch(() => {}),
-    loadTasks().catch(() => {}),
-    loadProjects().catch(() => {}),
-    loadProjectAttachments().catch(() => {}),
-    loadPartners().catch(() => {}),
-    loadTeamMembers().catch(() => {}),
-    loadSubscriptions().catch(() => {}),
-    loadBrandFinance().catch(() => {}),
-    loadAdSpend().catch(() => {}),
-    loadExpenses().catch(() => {}),
-    loadIdeas().catch(() => {}),
-    loadCommentBank().catch(() => {}),
-    loadContentCalendar().catch(() => {}),
-    loadContentIdeas().catch(() => {}),
-    loadPartnerOutreach().catch(err => console.error('Partner outreach load failed:', err))
+    load('Challengers',       loadChallengers),
+    load('Support',           loadSupport),
+    load('Issue types',       loadCustomIssueTypes),
+    load('Tasks',             loadTasks),
+    load('Projects',          loadProjects),
+    load('Attachments',       loadProjectAttachments),
+    load('Partners',          loadPartners),
+    load('Team',              loadTeamMembers),
+    load('Subscriptions',     loadSubscriptions),
+    load('Financials',        loadBrandFinance),
+    load('Ad spend',          loadAdSpend),
+    load('Expenses',          loadExpenses),
+    load('Ideas',             loadIdeas),
+    load('Comment Bank',      loadCommentBank),
+    load('Content Calendar',  loadContentCalendar),
+    load('Content ideas',     loadContentIdeas),
+    load('Pro Partner leads', loadPartnerOutreach)
   ]);
+
+  if (failed.length) {
+    setTimeout(() => showToast(
+      `Couldn't load: ${failed.join(', ')}. Those pages will look empty until it's fixed.`,
+      'error'
+    ), 900);
+  }
 
   const params = new URLSearchParams(window.location.search);
   const tiktokResult = params.get('tiktok');
