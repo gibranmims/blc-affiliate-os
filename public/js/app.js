@@ -4560,30 +4560,9 @@ function renderHomePage() {
         </div>
       </div>
 
-      <div class="dash-section-label pd-stagger" style="--i:2">Projects</div>
-      <div class="home-projects-row pd-stagger" style="--i:2">
-        ${activeProjects.length ? activeProjects.map(p => {
-          const pr  = projectProgress(p.id);
-          const due = p.target_date ? fmtDeadline(p.target_date) : null;
-          return `
-          <button class="home-project-card glow-surface" onclick="openProjectDetail('${p.id}')">
-            <div class="home-project-name">${esc(p.name)}</div>
-            <div class="proj-bar"><div class="proj-bar-fill" style="width:${pr.pct}%"></div></div>
-            <div class="proj-meta">
-              <span>${pr.total ? `${pr.done}/${pr.total} tasks` : 'No tasks yet'}</span>
-              ${due ? `<span class="task-deadline ${due.cls}">${due.text}</span>` : `<span>${pr.pct}%</span>`}
-            </div>
-          </button>`;
-        }).join('') : `
-          <button class="home-project-card home-project-empty" onclick="navigate('projects')">
-            <div class="home-project-name">No active projects</div>
-            <div class="proj-meta"><span>Add one to start tracking</span></div>
-          </button>`}
-      </div>
-
       ${(overdue.length || supportMonth) ? `
-      <div class="dash-section-label pd-stagger" style="--i:3">Needs attention</div>
-      <div class="dash-attention pd-stagger" style="--i:3">
+      <div class="dash-section-label pd-stagger" style="--i:2">Needs attention</div>
+      <div class="dash-attention pd-stagger" style="--i:2">
         ${overdue.slice(0, 5).map(t => {
           const dl = fmtDeadline(t.deadline);
           return `
