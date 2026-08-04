@@ -5989,6 +5989,13 @@ function bf_avgDailyU() {
   if (!w.length) return 0;
   return w.reduce((s, x) => s + bf_wkU(x), 0) / (w.length * 7);
 }
+
+// "0.0 units/day" with nothing logged reads as a measurement — as though we
+// genuinely sold nothing — when the truth is there is nothing to average.
+// Null means no weeks recorded, and the tiles show an em dash instead.
+function bf_velocityOrNull() {
+  return bf_last4().length ? bf_avgDailyU() : null;
+}
 function bf_runway() {
   const l = bf_latestLog(); if (!l) return null;
   const v = bf_avgDailyU(); if (!v) return null;
@@ -6595,8 +6602,10 @@ function bf_renderOverview() {
       </div>
       <div class="bf-stat-card">
         <div class="bf-stat-label">Selling Per Day</div>
-        <div class="bf-stat-value">${vel.toFixed(1)}</div>
-        <div class="bf-stat-sub">avg units/day · ~${bf_N(Math.round(vel * 7))} this week</div>
+        <div class="bf-stat-value">${bf_velocityOrNull() === null ? '—' : vel.toFixed(1)}</div>
+        <div class="bf-stat-sub">${bf_velocityOrNull() === null
+          ? 'No weeks logged yet'
+          : `avg units/day · ~${bf_N(Math.round(vel * 7))} this week`}</div>
       </div>
       <div class="bf-stat-card">
         <div class="bf-stat-label">💵 This Week's Revenue</div>
@@ -6804,7 +6813,7 @@ function bf_renderInventory() {
   document.getElementById('bf-content').innerHTML = `
     <div class="bf-stat-grid" style="grid-template-columns:repeat(4,1fr)">
       <div class="bf-stat-card"><div class="bf-stat-label">Stock On Hand</div><div class="bf-stat-value">${bf_N(latest?.inventory_units || 0)}</div><div class="bf-stat-sub">units right now</div></div>
-      <div class="bf-stat-card"><div class="bf-stat-label">Selling Per Day</div><div class="bf-stat-value">${vel.toFixed(1)}</div><div class="bf-stat-sub">avg over last 4 weeks</div></div>
+      <div class="bf-stat-card"><div class="bf-stat-label">Selling Per Day</div><div class="bf-stat-value">${bf_velocityOrNull() === null ? '—' : vel.toFixed(1)}</div><div class="bf-stat-sub">${bf_velocityOrNull() === null ? 'No weeks logged yet' : 'avg over last 4 weeks'}</div></div>
       <div class="bf-stat-card" style="border-color:${rwy !== null && rwy <= 15 ? 'var(--red)' : rwy !== null && rwy <= 45 ? 'var(--yellow)' : 'var(--border)'}">
         <div class="bf-stat-label">⏳ Days Until Sold Out</div>
         <div class="bf-stat-value" style="color:${rwyCol}">${rwy !== null ? rwy : '—'}</div>
