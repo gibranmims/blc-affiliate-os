@@ -1029,7 +1029,7 @@ function renderProjectDetailPage() {
               <div class="pd-people">
                 ${people.length ? people.map(k => `
                   <span class="pd-person">
-                    <span class="focus-avatar">${esc(memberInitials(k))}</span>
+                    <span class="focus-avatar">${avatarInnerForKey(k)}</span>
                     <span>${esc(memberName(k))}</span>
                   </span>`).join('') : '<span class="pd-muted">Unassigned</span>'}
               </div>
@@ -1618,7 +1618,7 @@ function renderTeamPage() {
         <button class="hub-card partner-card${m.active ? '' : ' is-inactive'}" onclick="openMemberEditor('${m.id}')">
           <span class="partner-cat">${m.active ? 'Active' : 'Inactive'}</span>
           <div class="team-row">
-            <span class="focus-avatar">${esc(m.initials || m.name[0].toUpperCase())}</span>
+            <span class="focus-avatar">${avatarInner(m)}</span>
             <div class="hub-card-name">${esc(m.name)}</div>
           </div>
           <div class="hub-card-desc">${load(m.member_key)} open task${load(m.member_key) === 1 ? '' : 's'}</div>
@@ -1638,6 +1638,16 @@ function openMemberEditor(id) {
   const m = id ? state.teamMembers.find(x => x.id === id) : null;
   openModal(m ? 'Edit Team Member' : 'Add Team Member', `
     <div style="display:flex;flex-direction:column;gap:16px">
+      ${m ? `
+      <div style="display:flex;align-items:center;gap:14px">
+        <div id="tm-photo-preview" class="focus-avatar" style="width:56px;height:56px;font-size:18px;cursor:pointer" onclick="document.getElementById('tm-photo-input').click()" title="Upload a headshot">
+          ${avatarInner(m)}
+        </div>
+        <div>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('tm-photo-input').click()">Upload headshot</button>
+          <input type="file" id="tm-photo-input" accept="image/*" style="display:none" onchange="handleMemberPhotoChange('${id}')">
+        </div>
+      </div>` : ''}
       <div style="display:grid;grid-template-columns:2fr 1fr;gap:12px">
         <div class="form-group" style="margin:0">
           <label class="form-label">Name</label>
@@ -1686,6 +1696,26 @@ async function saveMember(id) {
     closeModal();
     renderTeamPage();
     showToast('Saved');
+  } catch (err) { showToast(err.message, 'error'); }
+}
+
+async function handleMemberPhotoChange(id) {
+  const input = document.getElementById('tm-photo-input');
+  const file = input?.files?.[0];
+  if (!file) return;
+  try {
+    const formData = new FormData();
+    formData.append('photo', file);
+    const res = await fetch(`${API.teamMembers}/${id}/photo`, { method: 'POST', body: formData });
+    const updated = await res.json();
+    if (!res.ok) throw new Error(updated.error || `Upload failed (${res.status})`);
+
+    const i = state.teamMembers.findIndex(x => x.id === id);
+    if (i !== -1) state.teamMembers[i] = updated;
+    const preview = document.getElementById('tm-photo-preview');
+    if (preview) preview.innerHTML = avatarInner(updated);
+    renderTeamPage();
+    showToast('Photo updated');
   } catch (err) { showToast(err.message, 'error'); }
 }
 
@@ -3353,6 +3383,21 @@ function memberInitials(key) {
   return m?.initials || (m?.name || key || '?')[0].toUpperCase();
 }
 
+// Renders into any avatar container (.focus-avatar, .tc-avatar, .tc-chip-avatar):
+// a headshot <img> when the member has one uploaded, initials text otherwise.
+function avatarInner(member) {
+  if (member && member.photo_path && member.id) {
+    return '<img src="/api/team-members/' + member.id + '/photo" class="avatar-img" alt="">';
+  }
+  const initials = member ? (member.initials || (member.name || '?')[0].toUpperCase()) : '?';
+  return esc(initials);
+}
+
+function avatarInnerForKey(key) {
+  if (key === 'for-founder') return 'F';
+  return avatarInner(activeMembers().find(m => m.member_key === key));
+}
+
 function updateTasksUrgentBadge() {
   const urgentCount = state.tasks.filter(t =>
     !t.completed && !t.archived && t.deadline && deadlineSortKey(t.deadline) <= 1
@@ -3942,7 +3987,7 @@ function renderTasksPage() {
         ${activeMembers().map(m => `
         <div class="focus-col">
           <div class="focus-col-head">
-            <span class="focus-avatar">${esc(m.initials || m.name[0].toUpperCase())}</span>
+            <span class="focus-avatar">${avatarInner(m)}</span>
             <span class="focus-col-name">${esc(m.name)}</span>
           </div>
           <div class="focus-list" id="tasks-${m.member_key}">${renderBucketedColumn(m.member_key)}</div>
@@ -4501,7 +4546,7 @@ function renderHomePage() {
           <div class="dash-workload">
             ${workload.map(w => `
               <button class="dash-person" onclick="navigate('tasks')">
-                <span class="focus-avatar">${esc(w.initials || w.name[0].toUpperCase())}</span>
+                <span class="focus-avatar">${avatarInner(w)}</span>
                 <span class="dash-person-body">
                   <span class="dash-person-top">
                     <span class="dash-person-name">${esc(w.name)}</span>
@@ -4543,7 +4588,7 @@ function renderHomePage() {
           const dl = fmtDeadline(t.deadline);
           return `
           <button class="dash-attn-row" onclick="navigate('tasks')">
-            <span class="focus-avatar">${esc(memberInitials(t.assignee))}</span>
+            <span class="focus-avatar">${avatarInnerForKey(t.assignee)}</span>
             <span class="dash-attn-who">${esc(memberName(t.assignee))}</span>
             <span class="dash-attn-title">${esc(t.title)}</span>
             <span class="task-deadline ${dl.cls}">${dl.text}</span>
@@ -7486,10 +7531,12 @@ function bf_saveAccs(e) {
 // person added once appears in both.
 function teamCalendarMembers() {
   return activeMembers().map(m => ({
-    key:      m.member_key,
-    name:     m.name,
-    color:    m.color || '#f2f4f9',
-    initials: m.initials || m.name[0].toUpperCase()
+    id:         m.id,
+    key:        m.member_key,
+    name:       m.name,
+    color:      m.color || '#f2f4f9',
+    initials:   m.initials || m.name[0].toUpperCase(),
+    photo_path: m.photo_path
   }));
 }
 
@@ -7613,7 +7660,7 @@ async function renderTeamCalendarPage() {
         const m  = teamCalendarMembers().find(t => t.key === a.member_key);
         const at = ABSENCE_TYPES.find(t => t.key === a.absence_type);
         return '<div class="tc-banner-chip">' +
-          '<div class="tc-chip-avatar" style="background:' + (m ? m.color : '#444') + '">' + (m ? m.initials : '?') + '</div>' +
+          '<div class="tc-chip-avatar" style="background:' + (m ? m.color : '#444') + '">' + avatarInner(m) + '</div>' +
           '<div>' +
             '<div class="tc-chip-name">' + (m ? m.name : a.member_key) + '</div>' +
             '<div class="tc-chip-type" style="color:' + (at ? at.color : '#888') + '">' + (at ? at.label : a.absence_type) + ' · until ' + tcFmtDate(a.end_date) + '</div>' +
@@ -7635,7 +7682,7 @@ async function renderTeamCalendarPage() {
   const memberRows = teamCalendarMembers().map(function(member) {
     return '<div class="tc-member-row">' +
       '<div class="tc-name-col">' +
-        '<div class="tc-avatar" style="background:' + member.color + '">' + member.initials + '</div>' +
+        '<div class="tc-avatar" style="background:' + member.color + '">' + avatarInner(member) + '</div>' +
         '<span class="tc-member-name">' + member.name + '</span>' +
       '</div>' +
       days.map(d => dayCell(member, d)).join('') +

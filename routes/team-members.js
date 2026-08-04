@@ -1,6 +1,10 @@
 const express = require('express');
 const router = express.Router();
+const multer = require('multer');
 const { createClient } = require('@supabase/supabase-js');
+const { uploadPhoto, signedUrl } = require('../lib/storage');
+
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
 function supabase() {
   return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
@@ -122,6 +126,50 @@ router.delete('/:id', async (req, res) => {
     const { error } = await db.from('team_members').delete().eq('id', req.params.id);
     if (error) throw error;
     res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/team-members/:id/photo — upload/replace headshot
+router.post('/:id/photo', upload.single('photo'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No photo uploaded' });
+    if (!req.file.mimetype.startsWith('image/')) {
+      return res.status(400).json({ error: 'File must be an image' });
+    }
+
+    const db = supabase();
+    const { data: member, error: findErr } = await db
+      .from('team_members').select('id').eq('id', req.params.id).single();
+    if (findErr || !member) return res.status(404).json({ error: 'Team member not found' });
+
+    const ext = (req.file.mimetype.split('/')[1] || 'jpg').replace('jpeg', 'jpg');
+    const storagePath = `team-members/${req.params.id}.${ext}`;
+    await uploadPhoto(req.file.buffer, storagePath, req.file.mimetype);
+
+    const { data, error } = await db
+      .from('team_members')
+      .update({ photo_path: storagePath })
+      .eq('id', req.params.id)
+      .select()
+      .single();
+    if (error) throw error;
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/team-members/:id/photo — proxy through a fresh signed URL
+// (challenge-photos is a private bucket, so nothing gets a durable public URL)
+router.get('/:id/photo', async (req, res) => {
+  try {
+    const { data: member, error } = await supabase()
+      .from('team_members').select('photo_path').eq('id', req.params.id).single();
+    if (error || !member?.photo_path) return res.status(404).end();
+    const url = await signedUrl(member.photo_path, 3600);
+    res.redirect(url);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
