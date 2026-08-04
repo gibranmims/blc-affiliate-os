@@ -6933,9 +6933,12 @@ textarea:focus {
   justify-content: space-between;
   margin-bottom: 28px;
 }
+/* Columns come from the team table now, so the count is not fixed at
+   three. auto-fit keeps them even at any roster size and wraps to a new
+   row only when a column would get too narrow to read. */
 .tasks-focus-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
   gap: 20px;
 }
 .tasks-focus-grid .focus-col {

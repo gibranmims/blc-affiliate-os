@@ -7810,9 +7810,6 @@ function renderHomePage() {
 
   // Metrics
   const activeAffiliates = state.roster.filter(r => r.status === 'active').length;
-  const pipelineExcluded = new Set(['signed', 'archived', 'counter_rejected']);
-  const inPipeline = state.outreach.filter(o => !pipelineExcluded.has(o.status)).length;
-  const signed = state.outreach.filter(o => o.status === 'signed').length;
   const challengers = state.challengers.length;
   // Pro Partner leads actively in flight — reached out to, not yet resolved
   const partnersInPipeline = state.partnerLeads
