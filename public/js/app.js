@@ -10,6 +10,7 @@ const API = {
   tasks:       '/api/tasks',
   taskBuckets: '/api/task-buckets',
   projects:    '/api/projects',
+  projectAttachments: '/api/project-attachments',
   partners:    '/api/partners',
   teamMembers:   '/api/team-members',
   subscriptions: '/api/subscriptions',
@@ -66,6 +67,7 @@ const state = {
   tasks:              [],
   taskBuckets:        [],
   projects:           [],
+  projectAttachments: [],
   partners:           [],
   teamMembers:        [],
   subscriptions:      [],
@@ -732,7 +734,10 @@ const HUB_ICONS = {
   chart:     '<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>',
   handshake: '<path d="M8 21V9a2 2 0 012-2h4a2 2 0 012 2v12"/><path d="M2 21h20"/><path d="M4 21V11l4-3M20 21V11l-4-3"/>',
   plus:      '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>',
-  card:      '<rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/>'
+  card:      '<rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/>',
+  tag:       '<path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/>',
+  paperclip: '<path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/>',
+  doc:       '<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>'
 };
 
 function hubIcon(key) {
@@ -950,6 +955,32 @@ function openProjectDetail(id) {
   navigate('project');
 }
 
+// A task's row status. Tasks are a completed boolean, not a tri-state, so
+// this is derived rather than stored: dated-and-unfinished work is moving,
+// undated work is not scheduled yet.
+function projectTaskStatus(t) {
+  if (t.completed) return { label: 'Completed', cls: 'pd-st-done' };
+  if (t.deadline) {
+    return deadlineSortKey(t.deadline) < 0
+      ? { label: 'Overdue', cls: 'pd-st-late' }
+      : { label: 'In Progress', cls: 'pd-st-going' };
+  }
+  return { label: 'Pending', cls: 'pd-st-idle' };
+}
+
+const ATTACH_ICONS = {
+  figma: '<rect x="7" y="2" width="10" height="20" rx="5"/><circle cx="12" cy="12" r="3"/>',
+  drive: '<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/>',
+  pdf:   '<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="15" y2="15"/>',
+  doc:   '<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/>',
+  link:  '<path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/>'
+};
+
+function attachIcon(kind) {
+  return `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${ATTACH_ICONS[kind] || ATTACH_ICONS.link}</svg>`;
+}
+
 function renderProjectDetailPage() {
   const p = state.projects.find(x => x.id === state.activeProjectId);
   if (!p) { navigate('projects'); return; }
@@ -958,66 +989,235 @@ function renderProjectDetailPage() {
     if (a.completed !== b.completed) return a.completed ? 1 : -1;
     return deadlineSortKey(a.deadline) - deadlineSortKey(b.deadline);
   });
-  const pr   = projectProgress(p.id);
-  const st   = PROJECT_STATUSES.find(s => s.key === p.status) || PROJECT_STATUSES[1];
-  const due  = p.target_date ? fmtDeadline(p.target_date) : null;
-  const who  = { founder: 'Gibran', tamar: 'Tamar', 'for-founder': 'For Founder' };
-  const open = tasks.filter(t => !t.completed).length;
+  const pr  = projectProgress(p.id);
+  const st  = PROJECT_STATUSES.find(s => s.key === p.status) || PROJECT_STATUSES[1];
+  const files = (state.projectAttachments || []).filter(a => a.project_id === p.id);
+
+  // "Assignees" plural in the design, but a project stores one owner. The
+  // people actually doing the work are more informative, so the owner leads
+  // and anyone with a task here follows.
+  const workers = [...new Set(tasks.map(t => t.assignee).filter(k => k && k !== 'for-founder'))];
+  const people  = [...new Set([p.owner, ...workers].filter(Boolean))];
+
+  const started = p.created_at ? p.created_at.slice(0, 10) : null;
+  const tags    = Array.isArray(p.tags) ? p.tags : [];
 
   document.getElementById('page-content').innerHTML = `
-    <button class="proj-back" onclick="navigate('projects')">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
-      All projects
-    </button>
+    <div class="pd-shell">
 
-    <div class="hub-banner">
-      <span class="proj-status proj-status-${p.status}" style="top:26px;right:30px">${st.label}</span>
-      <h1 class="hub-title">${esc(p.name)}</h1>
-      ${p.description ? `<div class="hub-sub" style="margin-top:8px;max-width:62ch">${esc(p.description)}</div>` : ''}
-      <div class="proj-bar" style="margin-top:18px;max-width:520px"><div class="proj-bar-fill" style="width:${pr.pct}%"></div></div>
-      <div class="hub-stats">
-        <div class="hub-stat"><div class="hub-stat-value">${pr.pct}%</div><div class="hub-stat-label">Complete</div></div>
-        <div class="hub-stat"><div class="hub-stat-value">${open}</div><div class="hub-stat-label">Open</div></div>
-        <div class="hub-stat"><div class="hub-stat-value">${pr.done}</div><div class="hub-stat-label">Done</div></div>
-        <div class="hub-stat">
-          <div class="hub-stat-value" style="font-size:18px;padding-top:10px">${p.owner ? esc(who[p.owner] || p.owner) : '—'}</div>
-          <div class="hub-stat-label">Owner</div>
+      <div class="pd-topbar">
+        <div class="pd-crumbs">
+          <button class="pd-crumb-link" onclick="navigate('projects')">Projects</button>
+          <span class="pd-crumb-sep">/</span>
+          <span class="pd-crumb-here">${esc(p.name)}</span>
         </div>
-        <div class="hub-stat">
-          <div class="hub-stat-value" style="font-size:18px;padding-top:10px">${p.target_date || '—'}</div>
-          <div class="hub-stat-label">Target${due ? ` · ${due.text}` : ''}</div>
+        <div class="pd-topbar-actions">
+          <button class="pd-icon-btn" onclick="openProjectEditor('${p.id}')" title="Edit project">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          </button>
+          <button class="pd-icon-btn pd-icon-danger" onclick="deleteProject('${p.id}')" title="Delete project">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+          </button>
+          <button class="pd-icon-btn" onclick="navigate('projects')" title="Close">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="pd-body">
+        <h1 class="pd-title pd-stagger" style="--i:0">${esc(p.name)}</h1>
+
+        <div class="pd-meta pd-stagger" style="--i:1">
+          <div class="pd-meta-item">
+            <span class="pd-meta-ico">${hubIcon('chart')}</span>
+            <div>
+              <div class="pd-meta-label">Status</div>
+              <span class="pd-pill pd-pill-${p.status}">
+                <span class="pd-pill-dot"></span>${st.label}
+              </span>
+            </div>
+          </div>
+
+          <div class="pd-meta-item">
+            <span class="pd-meta-ico">${hubIcon('users')}</span>
+            <div>
+              <div class="pd-meta-label">${people.length > 1 ? 'People' : 'Owner'}</div>
+              <div class="pd-people">
+                ${people.length ? people.map(k => `
+                  <span class="pd-person">
+                    <span class="focus-avatar">${esc(memberInitials(k))}</span>
+                    <span>${esc(memberName(k))}</span>
+                  </span>`).join('') : '<span class="pd-muted">Unassigned</span>'}
+              </div>
+            </div>
+          </div>
+
+          <div class="pd-meta-item">
+            <span class="pd-meta-ico">${hubIcon('calendar')}</span>
+            <div>
+              <div class="pd-meta-label">Dates</div>
+              <div class="pd-dates">
+                <span>${started || '—'}</span>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+                <span>${p.target_date || 'No target'}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="pd-meta-item">
+            <span class="pd-meta-ico">${hubIcon('tag')}</span>
+            <div>
+              <div class="pd-meta-label">Tags</div>
+              <div class="pd-tags">
+                ${tags.length
+                  ? tags.map(t => `<span class="pd-tag">${esc(t)}</span>`).join('')
+                  : '<span class="pd-muted">None yet — add them in Edit project</span>'}
+              </div>
+            </div>
+          </div>
+
+          <div class="pd-meta-item pd-meta-wide">
+            <span class="pd-meta-ico">${hubIcon('doc')}</span>
+            <div>
+              <div class="pd-meta-label">Description</div>
+              <div class="pd-desc">${p.description ? esc(p.description) : '<span class="pd-muted">No description yet</span>'}</div>
+            </div>
+          </div>
+
+          <div class="pd-meta-item">
+            <span class="pd-meta-ico">${hubIcon('tasks')}</span>
+            <div>
+              <div class="pd-meta-label">Progress</div>
+              <div class="pd-progress-line">
+                <div class="proj-bar" style="width:120px"><div class="proj-bar-fill" style="width:${pr.pct}%"></div></div>
+                <span class="pd-progress-num">${pr.pct}%</span>
+              </div>
+              <div class="pd-muted" style="margin-top:3px">${pr.total ? `${pr.done} of ${pr.total} done` : 'No tasks yet'}</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="pd-section pd-stagger" style="--i:2">
+          <div class="pd-section-head">
+            <h3 class="pd-section-title">
+              ${hubIcon('paperclip')} Attachments
+              <span class="pd-count">${files.length}</span>
+            </h3>
+          </div>
+          <div class="pd-files">
+            ${files.map(f => `
+              <div class="pd-file">
+                <a class="pd-file-main" href="${esc(f.url)}" target="_blank" rel="noopener noreferrer">
+                  <span class="pd-file-ico">${attachIcon(f.kind)}</span>
+                  <span class="pd-file-text">
+                    <span class="pd-file-name">${esc(f.name)}</span>
+                    <span class="pd-file-kind">${esc(f.kind || 'link')}</span>
+                  </span>
+                </a>
+                <button class="pd-file-x" onclick="deleteAttachment('${f.id}')" title="Remove">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+              </div>`).join('')}
+            <button class="pd-file-add" onclick="openAttachmentModal('${p.id}')">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="pd-section pd-stagger" style="--i:3">
+          <div class="pd-section-head">
+            <h3 class="pd-section-title">Task list <span class="pd-count">${tasks.length}</span></h3>
+          </div>
+          <div class="pd-table-wrap">
+            <table class="pd-table">
+              <thead>
+                <tr>
+                  <th style="width:44px">No</th>
+                  <th>Task</th>
+                  <th style="width:120px">Category</th>
+                  <th style="width:130px">Status</th>
+                  <th style="width:120px" class="pd-right">Due</th>
+                </tr>
+              </thead>
+              <tbody id="pd-task-rows">
+                ${tasks.length ? tasks.map((t, i) => {
+                  const s  = projectTaskStatus(t);
+                  const dl = fmtDeadline(t.deadline);
+                  const cat = t.tag === 'revenue' ? 'Revenue' : t.tag === 'brand' ? 'Brand' : '—';
+                  return `
+                  <tr class="${t.completed ? 'pd-row-done' : ''}">
+                    <td class="pd-muted">${i + 1}</td>
+                    <td>
+                      <button class="pd-task-check${t.completed ? ' pd-checked' : ''}" onclick="toggleProjectTask('${t.id}')" title="${t.completed ? 'Mark not done' : 'Mark done'}">
+                        ${t.completed ? `<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5"><polyline points="20 6 9 17 4 12"/></svg>` : ''}
+                      </button>
+                      <span class="pd-task-name" onclick="openTaskDetail('${t.id}')">${esc(t.title)}</span>
+                    </td>
+                    <td class="pd-muted">${cat}</td>
+                    <td><span class="pd-status ${s.cls}">${s.label}</span></td>
+                    <td class="pd-right">${dl ? `<span class="task-deadline ${dl.cls}">${dl.text}</span>` : '<span class="pd-muted">—</span>'}</td>
+                  </tr>`;
+                }).join('') : `
+                  <tr><td colspan="5" class="pd-empty">Nothing here yet — add the first piece of work below.</td></tr>`}
+              </tbody>
+            </table>
+          </div>
+          <button class="focus-add-btn" style="max-width:280px" onclick="startAddProjectTask('${p.id}')">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Add task to this project
+          </button>
         </div>
       </div>
     </div>
-
-    <div class="proj-page-actions">
-      <button class="btn btn-secondary btn-sm" onclick="openProjectEditor('${p.id}')">Edit project</button>
-      <button class="btn btn-danger btn-sm" onclick="deleteProject('${p.id}')">Delete</button>
-    </div>
-
-    <div class="home-section-heading-lg" style="margin:26px 0 12px">Work in this project</div>
-    <div class="proj-page-tasks" id="proj-page-tasks">
-      ${tasks.length
-        ? tasks.map(t => {
-            const dl = fmtDeadline(t.deadline);
-            return `
-            <div class="focus-task${t.completed ? ' focus-done' : ''}">
-              <button class="focus-check${t.completed ? ' focus-checked' : ''}" onclick="toggleProjectTask('${t.id}')">
-                ${t.completed ? `<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5"><polyline points="20 6 9 17 4 12"/></svg>` : ''}
-              </button>
-              <span class="focus-task-title" onclick="openTaskDetail('${t.id}')">${esc(t.title)}</span>
-              ${taskTagBadge(t.tag)}
-              <span class="proj-task-who">${esc(who[t.assignee] || t.assignee)}</span>
-              ${dl ? `<span class="task-deadline ${dl.cls}">${dl.text}</span>` : ''}
-            </div>`;
-          }).join('')
-        : `<div class="focus-empty">Nothing here yet — add the first piece of work below.</div>`}
-    </div>
-    <button class="focus-add-btn" style="max-width:260px" onclick="startAddProjectTask('${p.id}')">
-      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-      Add task to this project
-    </button>
   `;
+}
+
+// ── Attachments ─────────────────────────────────────────────────
+async function loadProjectAttachments() {
+  state.projectAttachments = await fetchAPI(API.projectAttachments).catch(() => []) || [];
+}
+
+function openAttachmentModal(projectId) {
+  openModal('Add Attachment', `
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div class="form-group">
+        <label class="form-label">Link</label>
+        <input class="form-input" id="at-url" placeholder="Figma, Google Doc, Notion page, any URL">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Label</label>
+        <input class="form-input" id="at-name" placeholder="Optional — defaults to the site name" maxlength="120">
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;padding-top:4px">
+        <button class="btn btn-secondary btn-sm" onclick="closeModal()">Cancel</button>
+        <button class="btn btn-primary btn-sm" onclick="saveAttachment('${projectId}')">Add</button>
+      </div>
+    </div>
+  `);
+  setTimeout(() => document.getElementById('at-url')?.focus(), 60);
+}
+
+async function saveAttachment(projectId) {
+  const url  = document.getElementById('at-url')?.value.trim();
+  const name = document.getElementById('at-name')?.value.trim();
+  if (!url) { showToast('A link is required', 'error'); return; }
+  try {
+    const row = await fetchAPI(API.projectAttachments, {
+      method: 'POST',
+      body: JSON.stringify({ project_id: projectId, url, name: name || null })
+    });
+    state.projectAttachments.push(row);
+    closeModal();
+    renderProjectDetailPage();
+  } catch (err) { showToast(err.message, 'error'); }
+}
+
+async function deleteAttachment(id) {
+  try {
+    await fetchAPI(`${API.projectAttachments}/${id}`, { method: 'DELETE' });
+    state.projectAttachments = state.projectAttachments.filter(a => a.id !== id);
+    renderProjectDetailPage();
+  } catch (err) { showToast(err.message, 'error'); }
 }
 
 // Toggling from the project page re-renders here rather than the board
@@ -1087,6 +1287,11 @@ function openProjectEditor(id) {
         <label class="form-label">Description</label>
         <textarea class="form-input" id="pj-desc" rows="2" placeholder="What does winning look like?">${p ? esc(p.description || '') : ''}</textarea>
       </div>
+      <div class="form-group">
+        <label class="form-label">Tags</label>
+        <input class="form-input" id="pj-tags" placeholder="Comma separated — e.g. Revenue, Q3"
+               value="${p && Array.isArray(p.tags) ? esc(p.tags.join(', ')) : ''}">
+      </div>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
         <div class="form-group" style="margin:0">
           <label class="form-label">Status</label>
@@ -1121,7 +1326,9 @@ async function saveProject(id) {
     description: document.getElementById('pj-desc')?.value.trim() || null,
     status:      document.getElementById('pj-status')?.value,
     owner:       document.getElementById('pj-owner')?.value || null,
-    target_date: document.getElementById('pj-target')?.value || null
+    target_date: document.getElementById('pj-target')?.value || null,
+    tags: (document.getElementById('pj-tags')?.value || '')
+            .split(',').map(t => t.trim()).filter(Boolean)
   };
   if (!body.name) { showToast('Name is required', 'error'); return; }
   try {
@@ -4736,6 +4943,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     loadCustomIssueTypes().catch(() => {}),
     loadTasks().catch(() => {}),
     loadProjects().catch(() => {}),
+    loadProjectAttachments().catch(() => {}),
     loadPartners().catch(() => {}),
     loadTeamMembers().catch(() => {}),
     loadSubscriptions().catch(() => {}),

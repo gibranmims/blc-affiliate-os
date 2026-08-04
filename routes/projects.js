@@ -43,6 +43,7 @@ router.post('/', async (req, res) => {
     if (description) row.description = description.trim();
     if (owner)       row.owner       = owner;
     if (target_date) row.target_date = target_date;
+    if (Array.isArray(req.body.tags)) row.tags = req.body.tags.map(t => String(t).trim()).filter(Boolean);
 
     const { data, error } = await supabase().from('projects').insert(row).select().single();
     if (error) throw error;
@@ -80,6 +81,10 @@ router.put('/:id', async (req, res) => {
     if (req.body.description !== undefined) updates.description = req.body.description || null;
     if (req.body.owner       !== undefined) updates.owner       = req.body.owner || null;
     if (req.body.target_date !== undefined) updates.target_date = req.body.target_date || null;
+    if (req.body.tags        !== undefined) {
+      updates.tags = Array.isArray(req.body.tags)
+        ? req.body.tags.map(t => String(t).trim()).filter(Boolean) : [];
+    }
     if (req.body.status      !== undefined) {
       if (!STATUSES.includes(req.body.status)) return res.status(400).json({ error: 'Invalid status' });
       updates.status = req.body.status;

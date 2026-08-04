@@ -9691,3 +9691,424 @@ body { overscroll-behavior-y: none; }
   color: var(--text-secondary);
   white-space: pre-wrap;
 }
+
+/* ════════════════════════════════════════════════════════════
+   PROJECT DETAIL
+   Recreates the reference component's layout — breadcrumb bar,
+   title, meta grid, attachments, task table — in the monochrome
+   dark system. The reference leaned on colour to separate status;
+   here that job falls to weight, opacity and a single dot.
+   ════════════════════════════════════════════════════════════ */
+
+.pd-shell {
+  background: var(--bg-primary);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  box-shadow: var(--shadow-night), var(--glass-inset);
+  overflow: hidden;
+}
+
+/* ── Breadcrumb bar ─────────────────────────────────────────── */
+.pd-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-secondary);
+}
+
+.pd-crumbs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  min-width: 0;
+}
+
+.pd-crumb-link {
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: var(--font);
+  font-size: 12.5px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.12s;
+}
+
+.pd-crumb-link:hover { color: var(--text-primary); }
+.pd-crumb-sep  { color: var(--text-muted); opacity: 0.5; }
+.pd-crumb-here {
+  color: var(--text-primary);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pd-topbar-actions { display: flex; gap: 4px; flex-shrink: 0; }
+
+.pd-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+
+.pd-icon-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+.pd-icon-danger:hover { color: var(--red); }
+
+/* ── Body ───────────────────────────────────────────────────── */
+.pd-body { padding: 26px 30px 30px; }
+
+.pd-title {
+  font-family: var(--font-heading);
+  font-size: clamp(26px, 3vw, 34px);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  color: var(--text-primary);
+  margin-bottom: 26px;
+}
+
+/* Reference used a framer-motion stagger; this is the same idea with
+   an animation-delay step and no library. */
+.pd-stagger {
+  opacity: 0;
+  animation: pdRise 0.42s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation-delay: calc(var(--i, 0) * 70ms);
+}
+
+@keyframes pdRise {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pd-stagger { animation: none; opacity: 1; }
+}
+
+/* ── Meta grid ──────────────────────────────────────────────── */
+.pd-meta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 22px 26px;
+  padding-bottom: 26px;
+  border-bottom: 1px solid var(--border);
+}
+
+.pd-meta-wide { grid-column: span 2; }
+@media (max-width: 760px) { .pd-meta-wide { grid-column: span 1; } }
+
+.pd-meta-item { display: flex; align-items: flex-start; gap: 11px; min-width: 0; }
+
+.pd-meta-ico {
+  display: flex;
+  color: var(--text-muted);
+  margin-top: 1px;
+  flex-shrink: 0;
+}
+
+.pd-meta-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.pd-muted { color: var(--text-muted); font-size: 13px; }
+
+.pd-desc {
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+}
+
+/* Status pill — the dot carries the state, not a background colour */
+.pd-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 3px 11px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.pd-pill-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-muted);
+}
+
+.pd-pill-active   { border-color: rgba(255,255,255,0.28); }
+.pd-pill-active   .pd-pill-dot { background: #f2f4f9; animation: pdPulse 2s ease-in-out infinite; }
+.pd-pill-planning .pd-pill-dot { background: rgba(242,244,249,0.55); }
+.pd-pill-paused   { opacity: 0.6; }
+.pd-pill-done     { color: var(--green); border-color: var(--green-light); }
+.pd-pill-done     .pd-pill-dot { background: var(--green); }
+
+@keyframes pdPulse { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .pd-pill-active .pd-pill-dot { animation: none; }
+}
+
+.pd-people { display: flex; flex-wrap: wrap; gap: 10px; }
+.pd-person {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.pd-dates {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.pd-dates svg { color: var(--text-muted); flex-shrink: 0; }
+
+.pd-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.pd-tag {
+  padding: 2px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-secondary);
+  font-size: 11.5px;
+  color: var(--text-secondary);
+}
+
+.pd-progress-line { display: flex; align-items: center; gap: 10px; }
+.pd-progress-num {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Sections ───────────────────────────────────────────────── */
+.pd-section { padding-top: 24px; }
+
+.pd-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 13px;
+}
+
+.pd-section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+}
+
+.pd-section-title svg { color: var(--text-muted); }
+
+.pd-count {
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Attachments ────────────────────────────────────────────── */
+.pd-files {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 10px;
+}
+
+.pd-file {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 10px 10px 12px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  transition: border-color 0.15s;
+  min-width: 0;
+}
+
+.pd-file:hover { border-color: rgba(255,255,255,0.18); }
+
+.pd-file-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+  text-decoration: none;
+  color: inherit;
+}
+
+.pd-file-ico { display: flex; color: var(--text-secondary); flex-shrink: 0; }
+.pd-file-text { min-width: 0; }
+
+.pd-file-name {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pd-file-kind {
+  display: block;
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: capitalize;
+}
+
+.pd-file-x {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  background: none;
+  border: none;
+  border-radius: var(--radius-xs);
+  color: transparent;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.pd-file:hover .pd-file-x { color: var(--text-muted); }
+.pd-file-x:hover { background: var(--bg-hover); color: var(--red); }
+
+.pd-file-add {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 62px;
+  background: none;
+  border: 1.5px dashed var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+
+.pd-file-add:hover {
+  border-color: rgba(255,255,255,0.24);
+  color: var(--text-primary);
+  background: var(--bg-secondary);
+}
+
+/* ── Task table ─────────────────────────────────────────────── */
+.pd-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.pd-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+
+.pd-table th {
+  padding: 10px 14px;
+  text-align: left;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.pd-table td {
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--border-light);
+  color: var(--text-primary);
+  vertical-align: middle;
+}
+
+.pd-table tr:last-child td { border-bottom: none; }
+.pd-table tbody tr:hover { background: rgba(255,255,255,0.02); }
+.pd-right { text-align: right; }
+.pd-row-done .pd-task-name { text-decoration: line-through; color: var(--text-muted); }
+
+.pd-task-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  margin-right: 9px;
+  vertical-align: -2px;
+  border: 1.5px solid var(--gray-mid);
+  border-radius: 4px;
+  background: none;
+  color: var(--on-fill-strong);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.12s, border-color 0.12s;
+}
+
+.pd-task-check:hover { border-color: var(--text-primary); }
+.pd-checked { background: var(--fill-strong); border-color: var(--fill-strong); }
+
+.pd-task-name { cursor: pointer; }
+.pd-task-name:hover { text-decoration: underline; text-underline-offset: 2px; }
+
+.pd-status {
+  display: inline-block;
+  padding: 2px 9px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.pd-st-done  { color: var(--green);  border-color: var(--green-light); }
+.pd-st-late  { color: var(--red);    border-color: var(--red-light); }
+.pd-st-going { color: var(--text-primary); border-color: rgba(255,255,255,0.22); }
+.pd-st-idle  { color: var(--text-muted); }
+
+.pd-empty {
+  padding: 22px 14px !important;
+  text-align: center;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+@media (max-width: 700px) {
+  .pd-body { padding: 20px 16px 24px; }
+  .pd-meta { gap: 18px; }
+}
