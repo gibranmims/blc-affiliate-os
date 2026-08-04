@@ -16,6 +16,7 @@ const API = {
   partners:    '/api/partners',
   teamMembers:   '/api/team-members',
   subscriptions: '/api/subscriptions',
+  brandFinance:  '/api/brand-finance',
   ideas:           '/api/ideas',
   commentBank:     '/api/comment-bank',
   contentCalendar: '/api/content-calendar',
@@ -82,6 +83,7 @@ const state = {
   partners:           [],
   teamMembers:        [],
   subscriptions:      [],
+  brandFinance:       {},
   activeProjectId:    null,
   activePartnerId:    null,
   activeSubscriptionId: null,
@@ -9117,6 +9119,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     loadPartners().catch(() => {}),
     loadTeamMembers().catch(() => {}),
     loadSubscriptions().catch(() => {}),
+    loadBrandFinance().catch(() => {}),
     loadHomeSettings().catch(() => {}),
     loadIdeas().catch(() => {}),
     loadCommentBank().catch(() => {}),
@@ -9587,12 +9590,65 @@ function bf_N(v) { return Number(v || 0).toLocaleString('en-US'); }
 function bf_pct(v) { return v.toFixed(1) + '%'; }
 
 // ── Data ─────────────────────────────────────────────────────
-function bf_load(k)    { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } }
-function bf_save(k, v) { localStorage.setItem(k, JSON.stringify(v)); }
+// This page used to read and write localStorage directly, so its numbers
+// existed in exactly one browser — not shared, not backed up, invisible to
+// anyone else. It's on Supabase now, but bf_load/bf_save keep their
+// synchronous shape: they work off a cache hydrated at startup, and saves
+// write through in the background. That keeps the page's own logic, which
+// mutates whole arrays and objects in place, entirely unchanged.
+function bf_load(k) {
+  return state.brandFinance[k] !== undefined ? state.brandFinance[k] : null;
+}
+
+function bf_save(k, v) {
+  state.brandFinance[k] = v;
+  localStorage.setItem(k, JSON.stringify(v));   // local mirror, so a failed
+                                                // write is never a lost entry
+  fetchAPI(`${API.brandFinance}/${k}`, {
+    method: 'PUT',
+    body: JSON.stringify({ value: v })
+  }).catch(err => showToast(`Couldn't sync to the team: ${err.message}`, 'error'));
+}
+
+// Pull the shared copy. First run against an empty table pushes up whatever
+// is already in this browser, so nothing recorded before the move is lost.
+async function loadBrandFinance() {
+  const KEYS = [BF_K.LOG, BF_K.POS, BF_K.ACCOUNTS, BF_K.PRICING];
+  let remote = {};
+  try { remote = await fetchAPI(API.brandFinance) || {}; }
+  catch { remote = {}; }
+
+  state.brandFinance = remote;
+
+  const orphaned = KEYS.filter(k => remote[k] === undefined && localStorage.getItem(k));
+  if (!orphaned.length) return;
+
+  let uploaded = 0;
+  for (const k of orphaned) {
+    try {
+      const value = JSON.parse(localStorage.getItem(k));
+      if (value === null) continue;
+      await fetchAPI(`${API.brandFinance}/${k}`, { method: 'PUT', body: JSON.stringify({ value }) });
+      state.brandFinance[k] = value;
+      uploaded++;
+    } catch {
+      // Table missing or unreachable. Fall back to the local copy so the
+      // page still shows the real numbers, and try again next load.
+      try { state.brandFinance[k] = JSON.parse(localStorage.getItem(k)); } catch {}
+    }
+  }
+  // Only claim the move happened for what actually landed
+  if (uploaded) {
+    showToast(`Financials moved to the shared database — ${uploaded} record${uploaded === 1 ? '' : 's'} uploaded`);
+  }
+}
+
 function bf_getLog()    { return bf_load(BF_K.LOG)      || []; }
 function bf_getPOs()    { return bf_load(BF_K.POS)      || []; }
 function bf_getAccs()   { return bf_load(BF_K.ACCOUNTS) || {}; }
 function bf_getPNotes() { return bf_load(BF_K.PRICING)  || {}; }
+// The Anthropic key stays per-browser on purpose — it's a secret, and a
+// shared table the anon key can read is the wrong place for it.
 function bf_getApiKey() { return localStorage.getItem(BF_K.APIKEY) || ''; }
 
 function bf_seed() {
