@@ -8,7 +8,7 @@ function supabase() {
 
 // Only these keys are storable — an unknown key is a bug, not a feature,
 // and this keeps a typo from quietly creating a second source of truth.
-const KEYS = new Set(['blc_weekly_log', 'blc_pos', 'blc_accounts', 'blc_pricing_notes']);
+const KEYS = new Set(['blc_weekly_log', 'blc_pos', 'blc_accounts', 'blc_pricing_notes', 'blc_cogs']);
 
 // GET /api/brand-finance → { key: value, ... }
 router.get('/', async (req, res) => {

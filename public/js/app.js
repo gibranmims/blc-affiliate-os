@@ -16,6 +16,7 @@ const API = {
   subscriptions: '/api/subscriptions',
   brandFinance:  '/api/brand-finance',
   adSpend:       '/api/ad-spend',
+  expenses:      '/api/expenses',
   ideas:           '/api/ideas',
   commentBank:     '/api/comment-bank',
   contentCalendar: '/api/content-calendar',
@@ -74,6 +75,8 @@ const state = {
   subscriptions:      [],
   brandFinance:       {},
   adSpend:            [],
+  expenses:           [],
+  plMonth:            null,
   dashChartMode:      'monthly',   // 'monthly' | 'channel'
   mktContentView:     'all',      // platform key or 'all'
   mktChartView:       'output',   // 'output' | 'spend' | 'impact'
@@ -1741,6 +1744,9 @@ function subMonthly(s) {
 }
 
 const money = n => '$' + n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+// Cents matter for a per-unit cost — rounding $6.40 to $6 is a 6% error on
+// every margin computed from it.
+const money2 = n => '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 function renderSubscriptionsPage() {
   const subs    = [...state.subscriptions].sort((a, b) => a.position - b.position);
@@ -5426,6 +5432,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     loadSubscriptions().catch(() => {}),
     loadBrandFinance().catch(() => {}),
     loadAdSpend().catch(() => {}),
+    loadExpenses().catch(() => {}),
     loadIdeas().catch(() => {}),
     loadCommentBank().catch(() => {}),
     loadContentCalendar().catch(() => {}),
@@ -6274,6 +6281,7 @@ function renderBrandFinancePage(tab) {
 
   const tabs = [
     { id: 'overview',  label: 'Overview' },
+    { id: 'pl',        label: 'Profit & Loss' },
     { id: 'weekly',    label: 'Weekly Log' },
     { id: 'inventory', label: 'Inventory' },
     { id: 'pricing',   label: '💲 Pricing Lab' },
@@ -6301,11 +6309,267 @@ function renderBrandFinancePage(tab) {
 
   bf_updateKeyUI();
 
-  const subRenderers = { overview: bf_renderOverview, weekly: bf_renderWeeklyLog, inventory: bf_renderInventory, pricing: bf_renderPricing, accounts: bf_renderAccounts };
+  const subRenderers = { overview: bf_renderOverview, pl: bf_renderPL, weekly: bf_renderWeeklyLog, inventory: bf_renderInventory, pricing: bf_renderPricing, accounts: bf_renderAccounts };
   if (subRenderers[state.bfTab]) subRenderers[state.bfTab]();
 }
 
 // ── Overview tab ──────────────────────────────────────────────
+// ── Profit & Loss ─────────────────────────────────────────────
+// Everything here is assembled from data already being kept: revenue and
+// units from the weekly log, ads from ad_spend, software from
+// subscriptions, everything else from expenses. The only figure that has
+// to be entered for this tab is cost per unit.
+
+async function loadExpenses() {
+  state.expenses = await fetchAPI(API.expenses).catch(() => []) || [];
+}
+
+function bf_unitCost() {
+  return parseFloat((bf_load('blc_cogs') || {}).unit_cost) || 0;
+}
+
+function bf_plMonths() {
+  const months = new Set();
+  (bf_getLog() || []).forEach(w => { if (w.week_ending) months.add(w.week_ending.slice(0, 7)); });
+  (state.adSpend  || []).forEach(s => { if (s.week_ending) months.add(s.week_ending.slice(0, 7)); });
+  (state.expenses || []).forEach(e => { if (e.spent_on)    months.add(e.spent_on.slice(0, 7)); });
+  return [...months].sort().reverse();
+}
+
+// One month's numbers, top to bottom.
+function bf_plFor(month) {
+  const weeks = (bf_getLog() || []).filter(w => (w.week_ending || '').startsWith(month));
+  const num = (o, k) => parseFloat(o[k]) || 0;
+
+  const revenue = {
+    tiktok:  weeks.reduce((t, w) => t + num(w, 'tiktok_revenue'), 0),
+    amazon:  weeks.reduce((t, w) => t + num(w, 'amazon_revenue'), 0),
+    website: weeks.reduce((t, w) => t + num(w, 'website_revenue'), 0)
+  };
+  revenue.total = revenue.tiktok + revenue.amazon + revenue.website;
+
+  const units = weeks.reduce((t, w) =>
+    t + num(w, 'tiktok_orders') + num(w, 'amazon_orders') + num(w, 'website_orders'), 0);
+  const cogs = units * bf_unitCost();
+  const gross = revenue.total - cogs;
+
+  const ads = (state.adSpend || [])
+    .filter(s => (s.week_ending || '').startsWith(month))
+    .reduce((t, s) => t + (parseFloat(s.amount) || 0), 0);
+
+  // Subscriptions are a standing monthly cost, not something logged per
+  // month, so the active ones are charged at their monthly equivalent.
+  const software = (state.subscriptions || [])
+    .filter(s => s.status === 'active')
+    .reduce((t, s) => t + subMonthly(s), 0);
+
+  const logged = (state.expenses || []).filter(e => (e.spent_on || '').startsWith(month));
+  const byCategory = {};
+  logged.forEach(e => {
+    const c = e.category || 'Other';
+    byCategory[c] = (byCategory[c] || 0) + (parseFloat(e.amount) || 0);
+  });
+  const otherTotal = Object.values(byCategory).reduce((t, v) => t + v, 0);
+
+  const opex = ads + software + otherTotal;
+  return {
+    month, weeks: weeks.length, revenue, units, cogs, gross,
+    ads, software, byCategory, otherTotal, opex,
+    net: gross - opex,
+    grossMargin: revenue.total > 0 ? (gross / revenue.total) * 100 : null,
+    netMargin:   revenue.total > 0 ? ((gross - opex) / revenue.total) * 100 : null
+  };
+}
+
+function bf_setPLMonth(m) { state.plMonth = m; bf_renderPL(); }
+
+function bf_renderPL() {
+  const months = bf_plMonths();
+  if (!months.length) {
+    document.getElementById('bf-content').innerHTML = `
+      <div class="bf-card">
+        <div class="dash-empty">
+          Nothing to report on yet — a P&amp;L needs at least one week of numbers.
+          <button class="dash-empty-link" onclick="renderBrandFinancePage('weekly')">Add a week in the Weekly Log →</button>
+        </div>
+      </div>`;
+    return;
+  }
+
+  const month = months.includes(state.plMonth) ? state.plMonth : months[0];
+  state.plMonth = month;
+  const p    = bf_plFor(month);
+  const prev = months[months.indexOf(month) + 1] ? bf_plFor(months[months.indexOf(month) + 1]) : null;
+  const unitCost = bf_unitCost();
+
+  // Rising revenue is good, rising costs are not — so cost rows invert the
+  // colour. Showing "operating costs ▲85%" in green would read as a win.
+  const delta = (now, before, isCost = false) => {
+    if (before === null || before === undefined || !before) return '';
+    const d = Math.round(((now - before) / Math.abs(before)) * 100);
+    const good = isCost ? d < 0 : d >= 0;
+    return `<span class="pl-delta ${good ? 'pl-up' : 'pl-down'}">${d >= 0 ? '▲' : '▼'} ${Math.abs(d)}%</span>`;
+  };
+  const row = (label, value, opts = {}) => `
+    <div class="pl-row${opts.cls ? ' ' + opts.cls : ''}">
+      <span class="pl-label">${esc(label)}${opts.hint ? `<span class="pl-hint">${esc(opts.hint)}</span>` : ''}</span>
+      <span class="pl-value">${opts.negative && value > 0 ? '−' : ''}${money(Math.abs(value))}${opts.delta || ''}</span>
+    </div>`;
+
+  document.getElementById('bf-content').innerHTML = `
+    <div class="pl-head">
+      <select class="form-input pl-month" onchange="bf_setPLMonth(this.value)">
+        ${months.map(m => `<option value="${m}" ${m === month ? 'selected' : ''}>${monthLabelShort(m)}</option>`).join('')}
+      </select>
+      <div class="pl-head-actions">
+        <button class="btn btn-secondary btn-sm" onclick="bf_openUnitCost()">Unit cost: ${unitCost ? money2(unitCost) : 'not set'}</button>
+        <button class="btn btn-primary btn-sm" onclick="bf_openExpense()">Log expense</button>
+      </div>
+    </div>
+
+    ${!unitCost ? `
+    <div class="pl-warn">
+      Cost per unit isn't set, so gross profit is showing the same as revenue.
+      Set it and COGS will be computed from the ${p.units || 0} units in this month.
+    </div>` : ''}
+
+    <div class="pl-grid">
+      <div class="pl-tile">
+        <div class="pl-tile-label">Revenue</div>
+        <div class="pl-tile-value">${money(p.revenue.total)}</div>
+      </div>
+      <div class="pl-tile">
+        <div class="pl-tile-label">Gross profit</div>
+        <div class="pl-tile-value">${money(p.gross)}</div>
+        <div class="pl-tile-sub">${p.grossMargin === null ? '—' : p.grossMargin.toFixed(0) + '% margin'}</div>
+      </div>
+      <div class="pl-tile">
+        <div class="pl-tile-label">Operating costs</div>
+        <div class="pl-tile-value">${money(p.opex)}</div>
+      </div>
+      <div class="pl-tile ${p.net >= 0 ? 'pl-tile-good' : 'pl-tile-bad'}">
+        <div class="pl-tile-label">Net profit</div>
+        <div class="pl-tile-value">${p.net < 0 ? '−' : ''}${money(Math.abs(p.net))}</div>
+        <div class="pl-tile-sub">${p.netMargin === null ? '—' : p.netMargin.toFixed(0) + '% margin'}</div>
+      </div>
+    </div>
+
+    <div class="bf-card pl-statement">
+      <div class="pl-section">Revenue</div>
+      ${row('TikTok Shop', p.revenue.tiktok)}
+      ${row('Amazon', p.revenue.amazon)}
+      ${row('Website', p.revenue.website)}
+      ${row('Total revenue', p.revenue.total, { cls: 'pl-total', delta: prev ? delta(p.revenue.total, prev.revenue.total) : '' })}
+
+      <div class="pl-section">Cost of goods</div>
+      ${row('Product cost', p.cogs, { negative: true, hint: unitCost ? `${p.units} units × ${money2(unitCost)}` : 'no unit cost set' })}
+      ${row('Gross profit', p.gross, { cls: 'pl-total', delta: prev ? delta(p.gross, prev.gross) : '' })}
+
+      <div class="pl-section">Operating costs</div>
+      ${row('Advertising', p.ads, { negative: true, hint: 'from ad spend' })}
+      ${row('Software & subscriptions', p.software, { negative: true, hint: 'active subscriptions, monthly equivalent' })}
+      ${Object.entries(p.byCategory).sort((a, b) => b[1] - a[1]).map(([c, v]) => row(c, v, { negative: true })).join('')}
+      ${row('Total operating costs', p.opex, { cls: 'pl-total', negative: true, delta: prev ? delta(p.opex, prev.opex, true) : '' })}
+
+      <div class="pl-net ${p.net >= 0 ? 'pl-up' : 'pl-down'}">
+        <span>Net profit</span>
+        <span>${p.net < 0 ? '−' : ''}${money(Math.abs(p.net))}${prev ? delta(p.net, prev.net) : ''}</span>
+      </div>
+      <div class="pl-foot">
+        ${p.weeks} week${p.weeks === 1 ? '' : 's'} logged in ${monthLabelShort(month)}${prev ? ` · compared against ${monthLabelShort(prev.month)}` : ''}
+      </div>
+    </div>
+  `;
+}
+
+function bf_openUnitCost() {
+  openModal('Cost Per Unit', `
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div class="form-group">
+        <label class="form-label">What one unit costs you</label>
+        <input class="form-input" id="pl-unit" type="number" min="0" step="0.01"
+               value="${bf_unitCost() || ''}" placeholder="e.g. 6.40">
+      </div>
+      <p style="font-size:12px;color:var(--text-muted);margin:0">
+        Landed cost — product, packaging and inbound freight. Multiplied by units
+        sold to get cost of goods, so it drives every gross margin on this page.
+      </p>
+      <div style="display:flex;gap:8px;justify-content:flex-end;padding-top:4px">
+        <button class="btn btn-secondary btn-sm" onclick="closeModal()">Cancel</button>
+        <button class="btn btn-primary btn-sm" onclick="bf_saveUnitCost()">Save</button>
+      </div>
+    </div>
+  `);
+  setTimeout(() => document.getElementById('pl-unit')?.focus(), 60);
+}
+
+function bf_saveUnitCost() {
+  const v = parseFloat(document.getElementById('pl-unit')?.value) || 0;
+  bf_save('blc_cogs', { unit_cost: v });
+  closeModal();
+  bf_renderPL();
+  showToast('Unit cost saved');
+}
+
+const EXPENSE_CATEGORIES = ['Payroll', 'Contractors', 'Shipping', 'Platform fees', 'Packaging', 'Samples', 'Travel', 'Other'];
+
+function bf_openExpense() {
+  const known = [...new Set([...EXPENSE_CATEGORIES, ...(state.expenses || []).map(e => e.category).filter(Boolean)])];
+  openModal('Log Expense', `
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-group" style="margin:0">
+          <label class="form-label">Date</label>
+          <input type="date" class="form-input" id="ex-date" value="${new Date().toISOString().slice(0, 10)}">
+        </div>
+        <div class="form-group" style="margin:0">
+          <label class="form-label">Amount</label>
+          <input class="form-input" id="ex-amount" type="number" min="0" step="0.01" placeholder="0.00">
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-group" style="margin:0">
+          <label class="form-label">Category</label>
+          <input class="form-input" id="ex-category" list="ex-cats" placeholder="e.g. Payroll">
+          <datalist id="ex-cats">${known.map(c => `<option value="${esc(c)}"></option>`).join('')}</datalist>
+        </div>
+        <div class="form-group" style="margin:0">
+          <label class="form-label">Paid to</label>
+          <input class="form-input" id="ex-vendor" placeholder="Optional">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Notes</label>
+        <input class="form-input" id="ex-notes" placeholder="Optional">
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;padding-top:4px">
+        <button class="btn btn-secondary btn-sm" onclick="closeModal()">Cancel</button>
+        <button class="btn btn-primary btn-sm" onclick="bf_saveExpense()">Save</button>
+      </div>
+    </div>
+  `);
+  setTimeout(() => document.getElementById('ex-amount')?.focus(), 60);
+}
+
+async function bf_saveExpense() {
+  const v = i => document.getElementById(i)?.value.trim() || null;
+  const body = {
+    spent_on: v('ex-date'),
+    category: v('ex-category') || 'Other',
+    amount: parseFloat(document.getElementById('ex-amount')?.value) || 0,
+    vendor: v('ex-vendor'),
+    notes: v('ex-notes')
+  };
+  if (!body.spent_on)  { showToast('Pick a date', 'error'); return; }
+  if (!body.amount)    { showToast('Enter an amount', 'error'); return; }
+  try {
+    state.expenses.push(await fetchAPI(API.expenses, { method: 'POST', body: JSON.stringify(body) }));
+    closeModal();
+    bf_renderPL();
+    showToast('Expense logged');
+  } catch (err) { showToast(err.message, 'error'); }
+}
+
 function bf_renderOverview() {
   const latest   = bf_latestLog();
   const rwy      = bf_runway();
