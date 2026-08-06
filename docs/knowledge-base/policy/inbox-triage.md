@@ -242,16 +242,37 @@ are confirmed.
 
 ---
 
-## 7. OPEN ISSUES
+## 7. Disposal hierarchy — archive is the default, not spam
 
-**A. Marking mail as spam is silently destructive.**
-Spam-marking trains the provider filter. A supplier wrongly marked disappears from
-future inboxes, and nobody notices until an invoice goes unpaid. Guardrail needed:
-**never** spam-mark a domain the business has previously corresponded with; prefer
-**archive** over spam for anything ambiguous.
+Spam-marking is the **only silently destructive action** in this policy. It trains
+the provider filter, so a wrongly-marked supplier disappears from future inboxes and
+nobody notices until an invoice goes unpaid.
 
-**B. P0 has no acknowledgment loop.** See `agent-operating-policy.md` §9-E.
+```
+Archive  →  Unsubscribe (safe)  →  Spam  →  Delete
+```
 
-**C. Unsubscribing is an outbound signal.** It confirms the address is live. Safe
-for legitimate lists via `List-Unsubscribe`; already correctly prohibited for
-suspicious mail. No change needed — noting so it isn't loosened later.
+Spam requires **confidence**. When unsure → **archive**, never spam.
+
+### Never spam-mark
+Existing customer · vendor · creator · partner · any domain we have replied to ·
+domain in contacts · domain in Shopify · domain in Notion · domain in previous
+conversations
+
+*Unsubscribing is itself an outbound signal — it confirms the address is live. Safe
+for legitimate lists via `List-Unsubscribe`; remains prohibited for suspicious mail.*
+
+## 8. P0 acknowledgment ladder
+
+P0 repeats until acknowledged:
+
+```
+Telegram → 15 min → 1 hr → 4 hr → daily → until acknowledged
+```
+
+On acknowledgment, reminders stop.
+
+> ⚠️ **Open —** the ladder repeats to a single recipient, so an unreachable founder
+> means a missed deadline regardless. Needs either a second escalation contact or
+> explicit acceptance of the risk, plus a snooze control to prevent alert fatigue.
+> Tracked in `agent-operating-policy.md` §12-D.

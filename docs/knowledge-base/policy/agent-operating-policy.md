@@ -100,16 +100,12 @@ The agent may provide general tracking or order status when **one** of these mat
 Full shipping address · billing address · payment details · full customer history ·
 another customer's orders · phone number · internal risk or fraud notes
 
-Addresses may be confirmed only in **masked** form:
+**Never confirm an address by masking.** A masked ZIP reveals one of the accepted
+verification factors. Instead, disclose nothing until verification passes:
 
-> I currently have the order shipping to an address ending in 30303.
+> I have located an order that appears to match the information you provided.
 
-Do not read the full address back unless the customer has already provided the same
-address in the current conversation.
-
-> ⚠️ **Open issue.** The masked example reveals the ZIP — which is itself one of the
-> accepted verification factors. Mask on a detail that is *not* a verification
-> factor (e.g. last two of the street number). See §9-A.
+Only after verification does the agent confirm anything.
 
 ### Address changes — require ALL
 - Exact order number
@@ -137,13 +133,97 @@ number on the order · original purchasing email.
 
 ---
 
-## 7. Signature and identity of the sender
+## 7. Signature and sender identity
 
-> ⚠️ **Unresolved — see §9-B.** Approved replies currently sign as
-> *"Tamar, Founder, The Bikini Line Co."* During probation every message is
-> human-approved. After auto-send is enabled, mail signed by a named individual
-> would go out without that person having seen it. Needs a decision before auto-send
-> is turned on.
+**The brand is Tamar. People buy from Tamar. The agent is an extension of Tamar,
+not a fake employee.** Do **not** sign as "Customer Support."
+
+```
+Tamar
+Founder, The Bikini Line Co.
+```
+
+Plus a disclosure footer:
+
+> This email was prepared with the assistance of our support system.
+
+**Applied to every agent-drafted email, including during probation** — not only to
+auto-sent mail. If the footer appeared only on auto-sent replies, its *absence*
+would implicitly claim Tamar personally wrote the others. Consistent disclosure
+means the footer carries no hidden signal.
+
+## 8. Category graduation
+
+Auto-send unlocks **per category**, not globally. A single global threshold would be
+satisfied almost entirely by shipping and product questions while the risky
+categories go untested.
+
+| Category | Auto-send after |
+|---|---|
+| Website navigation | 10 approvals |
+| Amazon navigation | 10 approvals |
+| General FAQ | 15 approvals |
+| Product questions | 20 approvals |
+| Shipping updates | 20 approvals |
+| Tracking questions | 20 approvals |
+| TikTok instructions | 20 approvals |
+| Subscription questions | **Manual** |
+| Refunds | **Manual** |
+| Replacements | **Manual** |
+| Reactions | **Manual** |
+| Address changes | **Manual** |
+| Creator / partner | **Manual** |
+| Chargebacks | **Manual** |
+
+The §3 quality gates still apply within each category.
+
+## 9. Mail-loop protection
+
+### Never reply when any of these are present
+`Auto-Submitted` header · `Precedence: bulk` · `no-reply@` sender · Mail Delivery
+Subsystem · out-of-office · vacation responder · automatic reply · `bounce@` ·
+`postmaster@`
+
+### Thread limits
+- **Maximum 1 outbound agent reply per thread** until the *customer* replies
+- **No more than 2 agent replies within 24 hours** without human review
+
+> *"Human replies" is read as **the customer**, not Tamar — otherwise the agent
+> could never hold a normal multi-turn support conversation.*
+
+## 10. Audit trail
+
+Every action leaves a breadcrumb:
+
+```
+Received → Classified → Retrieved KB → Retrieved Policy → Found Shopify Order
+→ Drafted Reply → Requested Approval → Approved → Executed Refund
+→ Confirmation Sent → Closed
+```
+
+Each entry records **the inputs, not just the step** — which KB file and version,
+which config values, which order. Without version stamps, a reply cannot be
+explained after the KB changes underneath it.
+
+## 11. Every stop carries a reason
+
+The agent never surfaces a bare "needs approval." It states why.
+
+```
+Needs approval because:
+✓ Refund
+✓ Money movement
+✓ $54.99
+✓ First refund
+Confidence: high
+```
+
+```
+Needs approval because:
+Customer mentioned HS, pregnancy, reaction.
+Medical discussion detected.
+Confidence: low
+```
 
 ---
 
@@ -159,33 +239,64 @@ Operational alerts, **not** customer emails. The agent:
 
 ---
 
-## 9. OPEN ISSUES
+## 12. OPEN ISSUES
 
-**A. Masked address leaks a verification factor.**
-§6 accepts "order number + delivery ZIP" as proof of identity, then masks addresses
-by revealing the ZIP. Mask on a non-factor detail instead.
+**A. Tier 1 and the confidence gate disagree about pregnancy.**
+§4 lists *"pregnancy or breastfeeding referrals to a doctor"* as eventually
+auto-sendable. But a pregnancy mention is exactly what §11's low-confidence example
+escalates on. Two safety systems, opposite answers. **Proposed resolution:** any
+medical or pregnancy mention escalates and never auto-sends, regardless of how
+formulaic the referral answer is. Remove it from §4.
 
-**B. Sender identity after auto-send.**
-Replies sign as a named human. Once tier 1 auto-sends, that person hasn't seen the
-message. Options: brand-level signature ("The Bikini Line Co. Support"), a named
-support persona, or keep as-is and accept it.
+**B. Subscription questions appear in two tiers.**
+§4 lists *"subscription portal instructions"* as tier 1; §8 marks *Subscription
+questions* Manual. **Proposed resolution:** pure navigation ("here's where to log in
+and cancel") is tier 1; anything referencing a charge, renewal, or refund is manual.
 
-**C. Probation sample coverage.**
-50 replies will be dominated by common cases. Rare high-risk categories (reaction
-reports, wrong-order matches, chargebacks) may appear **zero** times, so passing
-probation proves competence on easy mail only. Consider **per-category** unlock —
-a category auto-sends only after N approved drafts *in that category*.
+**C. Reaction boundary is undefined.**
+§4 allows sensitive-skin and patch-test guidance to auto-send; §8 marks Reactions
+manual. "My skin feels a little dry" vs "my skin is burning" is the line, and it
+isn't drawn. **Proposed resolution:** any message reporting a *current* skin
+symptom escalates; only forward-looking guidance ("will this irritate me?")
+auto-sends.
 
-**D. Mail-loop protection — undefined.**
-No rule prevents the agent replying to auto-responders, no-reply addresses, or its
-own thread repeatedly. Needs: never reply to `no-reply@`/auto-generated senders, and
-never send more than N replies in one thread without human review.
+**D. P0 escalation has a single point of failure.**
+The reminder ladder (15 min → 1 hr → 4 hr → daily) repeats to the same person. Real
+paging escalates to a *second* human. With one recipient, a chargeback deadline
+passes if Tamar is unreachable. Also needs a snooze — an unacknowledged daily
+reminder forever produces alert fatigue, which is how P0s start getting ignored.
 
-**E. P0 notifications have no acknowledgment loop.**
-§Priority in `inbox-triage.md` fires one instant Telegram message. If it isn't seen,
-nothing follows. P0 should repeat or escalate until acknowledged.
-
-**F. Effective auto-send bar is stricter than "95%".**
+**E. Effective auto-send bar is stricter than "95%".**
 The six zero-tolerance gates in §3 already cover most of what "material error"
-means, so the real bar is closer to *zero material errors* than to 95%. Worth
-stating plainly so the threshold isn't misread as lenient.
+means, so the real bar is closer to *zero material errors* than to 95%.
+
+**F. Confidence scoring — see §13.**
+
+## 13. Confidence gating — needs rework before build
+
+The intent is right: a second safety layer that isn't category-based. The
+**mechanism** as specified will not hold.
+
+**Self-reported LLM confidence is not calibrated.** A model writing "99%" is
+emitting a token, not computing a probability. Models are most confidently wrong
+exactly when they are wrong — that is what a hallucination *is*. An auto-send gate
+keyed to the model's own self-assessment fails in the specific case it exists to
+catch.
+
+Deterministic signals are checkable and do not lie:
+
+| Signal | Type |
+|---|---|
+| Retrieval similarity above threshold, and from which KB file | Deterministic |
+| Trigger-term detection (pregnancy · burning · HS · eczema · lawyer · chargeback · attorney · refund) | Deterministic |
+| Shopify order matched, and on how many factors | Deterministic |
+| Category classifier agreement | Deterministic |
+| Thread length and prior escalation | Deterministic |
+| Model self-assessment | **Advisory only** |
+
+Note that the low-confidence example in §11 is already keyword detection — the
+instinct is deterministic. Only the percentage framing is unsound.
+
+**Proposed rule:** hard-gate on deterministic signals. Any trigger term or failed
+retrieval blocks auto-send outright. Model self-assessment may *lower* confidence
+but may never *raise* it above a deterministic block.
