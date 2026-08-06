@@ -80,6 +80,12 @@ product.
 guarantee is 30 days. Support may explain the realistic timeline but **must honor
 the public guarantee.**
 
+**Coverage:** direct website orders, **domestic and international**, within 30 days
+of delivery. For international orders the product guarantee applies, but original
+shipping, customs duties, taxes, and import fees are **not** automatically refunded
+unless approved. *(Build note: this requires partial-refund capability, not just
+full-order refunds.)*
+
 ## 4. Refund method and timing
 
 Approved refunds return to the **original payment method**. Do not promise store
@@ -156,7 +162,11 @@ refund/replacement, prepare replacement, request approval.
 > If it still hasn't shown up after 24 hours, reply here and we'll get a
 > replacement handled.
 
-**After 24 hours** — routine replacement case, no special escalation:
+**After 24 hours** — this is a **routine case**, not an escalation.
+
+*Routine* means: no founder judgment is needed · the agent follows a predefined
+resolution · it still requests a one-tap **operational** approval before completing.
+The approval message asks only **"Approve replacement"** — not a full case review.
 
 1. Verify order
 2. Confirm delivery date
@@ -246,10 +256,13 @@ buyer-protection decisions, and disputes.
 > select Replacement if TikTok shows that option. Once it comes through, we'll
 > approve it as quickly as possible.
 
-**Delivered but missing** — same 24-hour rule, then either guide through TikTok's
-replacement process or prepare an external replacement *only when that is the
-approved operating decision* (see §26-D — currently undefined). Do not promise a
-Shopify-created replacement without checking whether TikTok requires it in-order.
+**Delivered but missing** — same 24-hour rule, then guide the customer through
+TikTok's replacement process.
+
+**Canonical rule:** TikTok Shop replacements and refunds must go through the
+customer's TikTok order whenever TikTok provides that process. **Do not create an
+external Shopify replacement for a TikTok order unless Tamar explicitly approves an
+exception.**
 
 ---
 
@@ -388,7 +401,7 @@ still possible, whether refund needs approval.
 
 | Situation | Action |
 |---|---|
-| Renewed recently, **not shipped** | Cancel → refund → done |
+| Renewed recently, **not shipped** | Cancel the subscription immediately. Prepare the order cancellation and refund **for approval**. |
 | Already shipped | Cannot cancel shipment; offer normal return/refund process |
 
 *Never punish customers for forgetting. They're the customers you want to keep.*
@@ -464,78 +477,101 @@ approved.
 
 **Never automatically offer both.** Prepare an approval request stating the reason.
 
-## 24. Return shipping
+## 24. CANONICAL WEBSITE REFUND POLICY
 
-Brand covers return shipping when: wrong item sent · damaged product · defective
-product · shipping error caused by us.
+For eligible direct website orders:
 
-Never argue over return shipping. If return cost is likely to exceed product value
-or create friction, prepare an exception.
+- Default resolution is a **refund to the original payment method**
+- The customer **does not need to return the bottle**
+- **Every refund requires a one-tap founder approval**
+- The agent may prepare the refund immediately, but **cannot execute it until approved**
+- After approval: recheck the order → issue refund → confirm success → email the
+  customer → record the transaction
 
-> ⚠️ See §26-A — this section conflicts with §25.
+A physical return is considered **only** for: suspected fraud or abuse · repeated
+refund claims · unusually large orders · a specific case where Tamar requests the
+product back.
 
-## 25. 30-day guarantee: return requirement
+> **Customers are never told to ship anything back unless that decision has already
+> been made.**
 
-**Default: refund without requiring the product to be returned.**
+### Approved wording
+> I'm really sorry it didn't work out the way you hoped. I'm preparing the refund
+> for your order now, and you won't need to send the bottle back. I'll confirm as
+> soon as it's been processed.
 
-Rationale: customer acquisition cost far exceeds the bottle. Requiring a return —
-print label, drive somewhere, wait, receive, refund — creates unhappy customers.
-The goodwill is worth more than recovering an opened skincare product.
+## 25. Return shipping
 
-Require a return only for: suspected abuse · multiple refunds · large orders ·
-fraud concerns.
+Return shipping is **not part of the normal 30-day guarantee process**, because no
+return is normally required.
 
-> ⚠️ See §26-A — this section conflicts with §24.
+When a return **is** specifically required:
 
----
-
-## 26. UNRESOLVED CONFLICTS — must be settled before the agent goes live
-
-> These are **contradictions within this document**. Until resolved, the agent will
-> answer differently depending on which section it retrieves.
-
-**A. Return shipping vs. no-return-required.**
-§24 says customers are responsible for return shipping on standard guarantee
-refunds. §25 says the default is to refund *without requiring a return at all*. If
-no return is required, return shipping is moot. These cannot both be the default.
-
-**B. Which refunds are gated?**
-§3 and §22 place all website refunds in "prepare and request approval." But §19
-(subscription renewal, unshipped) says "cancel → refund → done," and §25 says
-"otherwise, just refund." Unclear whether any refund executes without a human tap.
-
-**C. "Routine" vs. approval-gated replacement.**
-§9 calls the delivered-but-missing replacement "a routine replacement case" that
-"does not require special escalation" — then step 6 requires a one-tap approval.
-Needs restating: routine = no human *judgment* required, but still a confirm tap.
-
-**D. TikTok external replacement.**
-§14 permits an external replacement "only when that is the approved operating
-decision." That decision has never been defined.
-
-## 27. UNDEFINED VALUES — the agent cannot apply these as written
-
-| Value | Used in | Needed |
-|---|---|---|
-| "High-value order" | §22 escalate | A dollar threshold |
-| "Repeat refund" / "repeat replacement" | §22 approval | A count and a lookback window |
-| "Large order" | §25 return required | A dollar or quantity threshold |
-| "Significantly beyond expected window" | §10 | Days beyond ETA |
-| "Delay becomes unreasonable" | §8 | Days |
-| International 30-day guarantee | §3 vs §2 | Does the guarantee apply to international orders, and who pays return shipping from abroad? |
-
-## 28. DRIFT RISK — facts sourced from the live website
-
-These were read off the live site and **will go stale silently**. If any changes and
-this file doesn't, the agent promises something that fails at checkout.
-
-| Fact | Value as of 2026-08-06 |
+| Situation | Who pays |
 |---|---|
-| First-order promo code | `BBL10` |
-| Processing time | 1–3 business days / ~72 hours |
-| US delivery | 5–8 business days |
-| Partner commission | 40% (~$15/bottle) |
-| Partner review time | ~48 hours |
-| Subscription discount | 20% *(unverified — do not quote)* |
+| Damaged, defective, leaking, or incorrect item | Brand provides a prepaid label |
+| Suspected abuse / discretionary exception | Tamar decides whether a label is provided |
 
-Anything price-derived (the ~$15) breaks if the product price changes.
+**The agent never decides this independently.** Never argue over return shipping.
+
+## 26. Operating principle for refunds
+
+All website refunds are gated by one-tap founder approval **in Version 1**.
+
+Retired phrasings — do not reintroduce:
+
+| ❌ Old | ✅ Canonical |
+|---|---|
+| "Cancel, refund, done" | Cancel the subscription immediately. If the renewal order has not shipped, prepare the order cancellation and refund for approval. |
+| "Just refund" | Prepare the refund without requiring a return, then request approval. |
+
+## 27. CANONICAL THRESHOLDS
+
+> Previously ambiguous language. These are now the definitions the agent applies.
+
+| Term | Definition |
+|---|---|
+| **High-value order** | More than $150 total |
+| **Large order** | Four or more bottles, or more than $150 |
+| **Repeat refund** | Two or more prior refunds within 12 months |
+| **Repeat replacement** | Two or more prior replacements within 12 months |
+| **Lost in transit** | No meaningful tracking update for 7 consecutive calendar days |
+| **Significantly delayed** | Five business days beyond the latest carrier delivery estimate |
+| **Unreasonable delay** | Meets either the lost-in-transit or significantly-delayed threshold |
+| **Approval expiration** | 24 hours, then a refreshed order check and a new approval request |
+| **Website guarantee coverage** | Direct website orders, domestic and international, within 30 days of delivery |
+
+## 28. Run cadence
+
+Email is **not** monitored on a twice-daily batch.
+
+| Stream | Cadence |
+|---|---|
+| Email monitoring | Real time, or every 5–15 minutes |
+| TikTok manual-review queue | Twice daily |
+
+When a website refund or replacement is prepared, Telegram notifies **immediately**.
+On approval, execution happens **immediately** rather than waiting for the next
+scheduled run.
+
+```text
+Customer emails
+→ Agent checks the order within 15 minutes
+→ Telegram approval appears
+→ Tamar taps approve
+→ Action completes immediately
+→ Customer receives confirmation
+```
+
+## 29. Configuration values — not knowledge
+
+The values below **must not** be hardcoded into knowledge. They are stored as
+editable configuration with a review date, retrieved at runtime. See
+[`config-values.md`](../config-values.md).
+
+`BBL10` · shipping window · Pro Partner commission % · estimated commission per
+bottle · subscription discount · product price · lost-package threshold ·
+high-value threshold
+
+If a configured value is **expired or missing**, the agent must not promise it and
+must flag the record for review.
