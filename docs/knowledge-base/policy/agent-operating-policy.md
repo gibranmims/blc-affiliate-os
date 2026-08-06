@@ -272,31 +272,112 @@ means, so the real bar is closer to *zero material errors* than to 95%.
 
 **F. Confidence scoring — see §13.**
 
-## 13. Confidence gating — needs rework before build
+## 13. The Safety Engine
 
-The intent is right: a second safety layer that isn't category-based. The
-**mechanism** as specified will not hold.
+> **A model may never decide that it is safe. It may only decide that it is not
+> safe.**
 
-**Self-reported LLM confidence is not calibrated.** A model writing "99%" is
-emitting a token, not computing a probability. Models are most confidently wrong
-exactly when they are wrong — that is what a hallucination *is*. An auto-send gate
-keyed to the model's own self-assessment fails in the specific case it exists to
+There is no "confidence score." Self-reported LLM confidence is not a probability —
+a model writing "99%" is emitting a token. Models are most confident exactly when
+they are wrong, so a gate keyed to self-assessment fails in the case it exists to
 catch.
 
-Deterministic signals are checkable and do not lie:
+Instead every email receives a **Safety Score computed from deterministic checks**.
+The LLM contributes nothing to it.
 
-| Signal | Type |
+### Pipeline
+
+```
+Customer Email → Inbox Classification → Knowledge Retrieval → Policy Retrieval
+→ Shopify Lookup (if applicable) → Safety Engine → Decision
+```
+
+### Four separate concepts
+
+| Concept | Question |
 |---|---|
-| Retrieval similarity above threshold, and from which KB file | Deterministic |
-| Trigger-term detection (pregnancy · burning · HS · eczema · lawyer · chargeback · attorney · refund) | Deterministic |
-| Shopify order matched, and on how many factors | Deterministic |
-| Category classifier agreement | Deterministic |
-| Thread length and prior escalation | Deterministic |
-| Model self-assessment | **Advisory only** |
+| **Classification** | What is this? Support · invoice · spam · creator |
+| **Safety** | Can this be handled automatically at all? Yes / no |
+| **Authority** | Does the agent have permission? Draft · approve · execute · escalate |
+| **Reason** | Why did it stop? *(explanation only — never a safety mechanism)* |
 
-Note that the low-confidence example in §11 is already keyword detection — the
-instinct is deterministic. Only the percentage framing is unsound.
+### Checklist
 
-**Proposed rule:** hard-gate on deterministic signals. Any trigger term or failed
-retrieval blocks auto-send outright. Model self-assessment may *lower* confidence
-but may never *raise* it above a deterministic block.
+```
+Identity   verified sender · order matched · no mismatch      PASS
+Retrieval  KB retrieved · policy retrieved · score above bar  PASS
+Category   Product Question                                    PASS
+Medical    no trigger terms                                    PASS
+Money      no refund · no cancellation · no replacement        PASS
+Privacy    no address disclosure                               PASS
+──────────────────────────────────────────────────────────────────
+Result     Safe for Auto Send
+```
+
+The agent never reports a percentage. It reports which checks passed.
+
+### Order matching — inspectable, not scored
+
+```
+Matched   Email ✓   Order Number ✓   ZIP ✓        → proceed
+Matched   Email ✓   Name ✓           ZIP ✗        → manual review
+```
+
+### Retrieval — named sources, not scores
+
+```
+Retrieved   Product KB ✓   Shipping Policy ✓   Return Policy ✓
+```
+
+If a required source is not found → **manual**.
+
+### Hard blocks — in code, no exceptions
+
+Any of these present → **auto-send NO**:
+
+`pregnant` · `pregnancy` · `breastfeeding` · `burning` · `rash` · `reaction` ·
+`eczema` · `HS` · `hidradenitis` · `lawyer` · `attorney` · `chargeback` · `BBB` ·
+`FDA` · `lawsuit` · `refund` · `replacement` · `cancel`
+
+Plus these **derived-state** signals (not keywords — computed from order data):
+sender email ≠ order email · requested shipping address ≠ order address · no order
+match.
+
+### The LLM's remaining job — explanation
+
+```
+Why I Stopped
+Customer reported burning after use.
+Medical trigger detected.
+Current symptoms require manual review.
+```
+
+Useful for the human reading the queue. **Never** a safety mechanism.
+
+## 14. OPEN — hard-block list refinements
+
+**A. Intent vs. mention.** Keyword matching cannot distinguish *"what is your refund
+policy?"* from *"I want a refund."* Both contain `refund`. Under the stated
+principle the LLM may never unblock, so policy-explanation FAQs are permanently
+manual. Correct, but worth knowing it is the consequence.
+
+**B. Non-English mail bypasses every block.** The brand ships internationally. A
+customer writing *"estoy embarazada"* matches no term in the list and sails through
+every medical gate. Needs either language detection → manual, or translated term
+lists.
+
+**C. Substring matching will false-positive.** `HS` inside `months`, `washes`,
+`highest`; `cancel` inside `cancellation policy`; `reaction` inside a quoted
+marketing line. Requires word-boundary matching and case-sensitive handling for
+acronyms.
+
+**D. Terms missing from the list.** `allergic` · `allergy` · `swelling` · `blister`
+· `infection` · `infected` · `hospital` · `dermatologist` · `sue` · `legal` ·
+`unauthorized` · `didn't order` · `fraud`. The first six come from the
+discontinue-use list in the product KB §15 and should not be absent here.
+
+**E. Block rate is the metric to watch.** An over-broad list is *safe* but silently
+defeats the graduation system — if most mail hits a hard block, tier 1 never
+auto-sends and probation graduates a capability that never runs. **Measure the block
+rate during probation.** If it is very high, the list needs narrowing, not the
+thresholds.
