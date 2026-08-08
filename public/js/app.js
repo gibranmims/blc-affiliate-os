@@ -877,8 +877,11 @@ const PROJECT_STATUSES = [
   { key: 'done',     label: 'Done'     }
 ];
 
+// Archived rows stay in — auto-archive would otherwise drop finished work out
+// of both sides of the progress fraction, and a project could never leave 0%.
+// Views that want only live rows filter on !archived themselves.
 function projectTasks(id) {
-  return state.tasks.filter(t => t.project_id === id && !t.archived);
+  return state.tasks.filter(t => t.project_id === id);
 }
 
 function projectProgress(id) {
@@ -974,10 +977,13 @@ function renderProjectDetailPage() {
   const p = state.projects.find(x => x.id === state.activeProjectId);
   if (!p) { navigate('projects'); return; }
 
-  const tasks = projectTasks(p.id).sort((a, b) => {
+  const allProjectTasks = projectTasks(p.id);
+  const tasks = allProjectTasks.filter(t => !t.archived).sort((a, b) => {
     if (a.completed !== b.completed) return a.completed ? 1 : -1;
     return deadlineSortKey(a.deadline) - deadlineSortKey(b.deadline);
   });
+  const archivedTasks = allProjectTasks.filter(t => t.archived)
+    .sort((a, b) => new Date(archivedMoment(b)) - new Date(archivedMoment(a)));
   const pr  = projectProgress(p.id);
   const st  = PROJECT_STATUSES.find(s => s.key === p.status) || PROJECT_STATUSES[1];
   const files = (state.projectAttachments || []).filter(a => a.project_id === p.id);
@@ -1148,6 +1154,17 @@ function renderProjectDetailPage() {
                   </tr>`;
                 }).join('') : `
                   <tr><td colspan="5" class="pd-empty">Nothing here yet — add the first piece of work below.</td></tr>`}
+                ${archivedTasks.length ? `
+                  <tr class="pd-archived-row"><td colspan="5">
+                    <details class="pd-archived">
+                      <summary>${archivedTasks.length} archived</summary>
+                      ${archivedTasks.map(t => `
+                        <div class="pd-archived-task">
+                          <span class="pd-task-name" onclick="openTaskDetail('${t.id}')">${esc(t.title)}</span>
+                          <button class="archive-restore" onclick="restoreTask('${t.id}')">Restore</button>
+                        </div>`).join('')}
+                    </details>
+                  </td></tr>` : ''}
               </tbody>
             </table>
           </div>
@@ -1219,6 +1236,8 @@ async function toggleProjectTask(id) {
     });
     const i = state.tasks.findIndex(t => t.id === id);
     if (i !== -1) state.tasks[i] = updated;
+    if (updated.completed) scheduleAutoArchive(id);
+    else cancelPendingArchive(id);
     renderProjectDetailPage();
     updateTasksUrgentBadge();
   } catch (err) { showToast(err.message, 'error'); }
@@ -3321,6 +3340,7 @@ async function loadTasks() {
   state.tasks       = tasks;
   state.taskBuckets = buckets || [];
   updateTasksUrgentBadge();
+  sweepCompletedTasks();   // deliberately not awaited — board renders now
 }
 
 async function loadProjects() {
@@ -3512,18 +3532,25 @@ function renderTaskItem(t) {
       ${priorityBadge(t.priority)}
       ${taskTagBadge(t.tag)}
       ${dl ? `<span class="task-deadline ${dl.cls}">${dl.text}</span>` : ''}
-      ${t.completed ? `<button class="focus-archive-btn" onclick="archiveTask('${t.id}')" title="Archive">Archive</button>` : ''}
+      ${t.completed
+        ? (pendingArchives.has(t.id)
+            ? `<button class="focus-archive-btn focus-undo-btn" onclick="toggleTask('${t.id}')" title="Keep this task">Undo</button>`
+            : `<button class="focus-archive-btn" onclick="archiveTask('${t.id}')" title="Archive">Archive</button>`)
+        : ''}
       <button class="focus-edit-btn" onclick="openTaskDetail('${t.id}')" title="Edit">
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
       </button>
     </div>`;
 }
 
-// Flat, unbucketed list — used by the "For Founder" queue
+// Flat, unbucketed list — used by the "For Founder" queue. Its archive
+// section attaches to the column itself, since there are no buckets.
 function renderTaskList(assignee) {
   const tasks = tasksIn(assignee);
-  if (tasks.length === 0) return `<div class="focus-empty">Nothing yet</div>`;
-  return tasks.map(renderTaskItem).join('');
+  const list  = tasks.length
+    ? tasks.map(renderTaskItem).join('')
+    : `<div class="focus-empty">Nothing yet</div>`;
+  return list + renderArchiveSection(assignee);
 }
 
 // ============================================================
@@ -3608,7 +3635,129 @@ function renderBucketedColumn(assignee) {
     </div>`;
   }).join('');
 
-  return unsortedHtml + bucketsHtml;
+  return unsortedHtml + bucketsHtml + renderArchiveSection(assignee);
+}
+
+// ============================================================
+// AUTO-ARCHIVE
+// Checking a task off starts a 5s undo window, then archives it.
+// Archived work stays reachable in a per-person section at the
+// foot of each column, with Restore.
+// ============================================================
+
+const ARCHIVE_UNDO_MS   = 5000;
+const ARCHIVE_OPEN_KEY  = 'blc_archive_open';
+const pendingArchives   = new Map();   // task id → timeout handle
+
+function archiveOpenSet() {
+  try { return new Set(JSON.parse(localStorage.getItem(ARCHIVE_OPEN_KEY) || '[]')); }
+  catch { return new Set(); }
+}
+
+function toggleArchiveOpen(assignee) {
+  const set = archiveOpenSet();
+  set.has(assignee) ? set.delete(assignee) : set.add(assignee);
+  localStorage.setItem(ARCHIVE_OPEN_KEY, JSON.stringify([...set]));
+  refreshTaskBoard();
+}
+
+function scheduleAutoArchive(id) {
+  cancelPendingArchive(id);
+  pendingArchives.set(id, setTimeout(() => archiveTask(id, { auto: true }), ARCHIVE_UNDO_MS));
+}
+
+function cancelPendingArchive(id) {
+  const handle = pendingArchives.get(id);
+  if (handle !== undefined) { clearTimeout(handle); pendingArchives.delete(id); }
+}
+
+// The archive moment for sorting: archived_at once migration 024 has run,
+// created_at as a sensible stand-in for rows archived before it existed.
+function archivedMoment(t) {
+  return t.archived_at || t.created_at;
+}
+
+// A refresh mid-window leaves a task completed-but-not-archived, and so do
+// check-offs made on someone else's machine. The user already saw the check
+// land, so these sweep straight into the archive with no second window.
+async function sweepCompletedTasks() {
+  const strays = state.tasks.filter(t => t.completed && !t.archived && !pendingArchives.has(t.id));
+  for (const t of strays) {
+    try {
+      const updated = await fetchAPI(`${API.tasks}/${t.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ archived: true })
+      });
+      const i = state.tasks.findIndex(x => x.id === t.id);
+      if (i !== -1) state.tasks[i] = updated;
+    } catch { /* stays visible on the board — better than vanishing */ }
+  }
+  if (strays.length) refreshTaskBoard();
+}
+
+async function restoreTask(id) {
+  try {
+    // Restore must un-complete as well — a task restored still-checked would
+    // be re-archived by the very next sweep, and Restore would look broken.
+    const updated = await fetchAPI(`${API.tasks}/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ archived: false, completed: false })
+    });
+    const i = state.tasks.findIndex(t => t.id === id);
+    if (i !== -1) state.tasks[i] = updated;
+    refreshTaskBoard();
+    if (state.currentPage === 'project') renderProjectDetailPage();
+    showToast('Task restored');
+  } catch (err) { showToast(err.message, 'error'); }
+}
+
+function renderArchiveSection(assignee) {
+  const rows = state.tasks
+    .filter(t => t.assignee === assignee && t.archived)
+    .sort((a, b) => new Date(archivedMoment(b)) - new Date(archivedMoment(a)));
+  if (!rows.length) return '';
+
+  const isOpen = archiveOpenSet().has(assignee);
+  const head = `
+    <button class="archive-head" onclick="toggleArchiveOpen('${assignee}')">
+      <svg class="archive-caret${isOpen ? ' archive-caret-open' : ''}" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="9 6 15 12 9 18"/></svg>
+      Archived <span class="archive-count">${rows.length}</span>
+    </button>`;
+  if (!isOpen) return `<div class="archive-zone">${head}</div>`;
+
+  const cutoff = Date.now() - 30 * 86400000;
+  const recent = rows.filter(t => new Date(archivedMoment(t)).getTime() >= cutoff);
+  const older  = rows.length - recent.length;
+
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const dayLabel = t => {
+    const d = new Date(archivedMoment(t)); d.setHours(0, 0, 0, 0);
+    const diff = Math.round((today - d) / 86400000);
+    if (diff <= 0) return 'Today';
+    if (diff === 1) return 'Yesterday';
+    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  };
+
+  let lastLabel = null;
+  const items = recent.map(t => {
+    const label  = dayLabel(t);
+    const header = label !== lastLabel ? `<div class="archive-day">${label}</div>` : '';
+    lastLabel = label;
+    return `${header}
+      <div class="archive-task">
+        <span class="archive-task-title" onclick="openTaskDetail('${t.id}')">${esc(t.title)}</span>
+        <button class="archive-restore" onclick="restoreTask('${t.id}')">Restore</button>
+      </div>`;
+  }).join('');
+
+  return `
+    <div class="archive-zone">
+      ${head}
+      <div class="archive-body">
+        ${items}
+        ${older > 0 ? `<div class="archive-older">and ${older} older</div>` : ''}
+      </div>
+    </div>`;
 }
 
 // ── Bucket menu ─────────────────────────────────────────────────
@@ -3916,6 +4065,9 @@ async function toggleTask(id) {
     });
     const i = state.tasks.findIndex(t => t.id === id);
     if (i !== -1) state.tasks[i] = updated;
+    // Checking off opens the undo window; unchecking during it is the undo.
+    if (updated.completed) scheduleAutoArchive(id);
+    else cancelPendingArchive(id);
     refreshTaskBoard();
   } catch (err) { showToast(err.message, 'error'); }
 }
@@ -3928,17 +4080,25 @@ async function deleteTask(id) {
   } catch (err) { showToast(err.message, 'error'); }
 }
 
-async function archiveTask(id) {
+async function archiveTask(id, opts = {}) {
+  cancelPendingArchive(id);
   try {
-    await fetchAPI(`${API.tasks}/${id}`, {
+    const updated = await fetchAPI(`${API.tasks}/${id}`, {
       method: 'PUT',
       body: JSON.stringify({ archived: true })
     });
-    state.tasks = state.tasks.filter(t => t.id !== id);
-    closeModal();
+    // Stays in state — the archive section at the foot of the column reads it.
+    const i = state.tasks.findIndex(t => t.id === id);
+    if (i !== -1) state.tasks[i] = updated;
+    if (!opts.auto) closeModal();
     refreshTaskBoard();
+    if (state.currentPage === 'project') renderProjectDetailPage();
     showToast('Task archived');
-  } catch (err) { showToast(err.message, 'error'); }
+  } catch (err) {
+    // Never disappear a task optimistically — leave it struck-through on the board.
+    refreshTaskBoard();
+    showToast(err.message, 'error');
+  }
 }
 
 // Everyone who can own a task: the team, plus the founder's review queue.
@@ -8327,6 +8487,7 @@ function renderPartnerPipelineView() {
       <div class="filter-bar" style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
         <strong>${selectedVisible.length} selected</strong>
         <button class="btn btn-secondary btn-sm" onclick="clearPartnerLeadSelection()">Clear</button>
+        ${state.partnerFilter !== 'archived' ? `<button class="btn btn-secondary btn-sm" onclick="bulkArchivePartnerLeads()">Archive ${selectedVisible.length}</button>` : ''}
         <button class="btn btn-danger btn-sm" onclick="bulkDeletePartnerLeads()">Delete ${selectedVisible.length}</button>
       </div>` : ''}
 
@@ -8417,6 +8578,32 @@ function toggleAllPartnerLeads(checked) {
 function clearPartnerLeadSelection() {
   state.selectedLeadIds = [];
   renderPartnerOutreachPage();
+}
+
+// Archive the selection in one pass — for sweeps like "everyone who said
+// not interested". Status change only, so it's recoverable from the
+// Archived tab, and no confirm dialog stands in the way.
+async function bulkArchivePartnerLeads() {
+  const visible = (state.partnerFilter === 'all'
+    ? state.partnerLeads.filter(l => l.status !== 'archived')
+    : state.partnerLeads.filter(l => l.status === state.partnerFilter)
+  ).map(l => l.id);
+  const ids = state.selectedLeadIds.filter(id => visible.includes(id));
+  if (!ids.length) return;
+
+  try {
+    await fetchAPI(`${API.partnerOutreach}/bulk-archive`, {
+      method: 'POST',
+      body: JSON.stringify({ ids })
+    });
+    state.partnerLeads = state.partnerLeads.map(l =>
+      ids.includes(l.id) ? { ...l, status: 'archived' } : l);
+    state.selectedLeadIds = [];
+    renderPartnerOutreachPage();
+    showToast(`Archived ${ids.length} lead${ids.length === 1 ? '' : 's'}`);
+  } catch (e) {
+    showToast((e && e.message) || 'Archive failed', 'error');
+  }
 }
 
 async function bulkDeletePartnerLeads() {

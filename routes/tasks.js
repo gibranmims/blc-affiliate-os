@@ -58,7 +58,13 @@ router.put('/:id', async (req, res) => {
     if (req.body.title     !== undefined) updates.title     = req.body.title.trim();
     if (req.body.completed !== undefined) updates.completed = req.body.completed;
     if (req.body.notes     !== undefined) updates.notes     = req.body.notes;
-    if (req.body.archived  !== undefined) updates.archived  = req.body.archived;
+    if (req.body.archived  !== undefined) {
+      updates.archived = req.body.archived;
+      // Stamped here, never by the browser. Cleared on restore so the
+      // archive list can't sort a restored-then-rearchived task by a
+      // timestamp from its first life.
+      updates.archived_at = req.body.archived ? new Date().toISOString() : null;
+    }
     if (req.body.tag       !== undefined) updates.tag       = req.body.tag || null;
     if (req.body.deadline  !== undefined) updates.deadline  = req.body.deadline || null;
     if (req.body.bucket_id  !== undefined) updates.bucket_id  = req.body.bucket_id  || null;
@@ -79,12 +85,23 @@ router.put('/:id', async (req, res) => {
       if (!a) return res.status(400).json({ error: 'Assignee required' });
       updates.assignee = a;
     }
-    const { data, error } = await supabase()
+    let { data, error } = await supabase()
       .from('tasks')
       .update(updates)
       .eq('id', req.params.id)
       .select()
       .single();
+    // Migration 024 is run by hand, so the column can lag the code. Archiving
+    // still has to work in the gap — retry without the timestamp.
+    if (error && 'archived_at' in updates && /archived_at/.test(error.message || '')) {
+      delete updates.archived_at;
+      ({ data, error } = await supabase()
+        .from('tasks')
+        .update(updates)
+        .eq('id', req.params.id)
+        .select()
+        .single());
+    }
     if (error) throw error;
     res.json(data);
   } catch (err) {
