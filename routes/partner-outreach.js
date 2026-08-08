@@ -121,6 +121,21 @@ router.put('/:id', async (req, res) => {
   }
 });
 
+// POST /bulk-delete — clear out a selection in one go.
+// Declared before the /:id routes so "bulk-delete" is never read as an id.
+router.post('/bulk-delete', async (req, res) => {
+  try {
+    const ids = Array.isArray(req.body.ids) ? req.body.ids.filter(Boolean) : [];
+    if (!ids.length) return res.status(400).json({ error: 'No leads selected' });
+
+    const { error } = await supabase.from('partner_leads').delete().in('id', ids);
+    if (error) throw error;
+    res.json({ success: true, deleted: ids.length });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // DELETE lead
 router.delete('/:id', async (req, res) => {
   try {

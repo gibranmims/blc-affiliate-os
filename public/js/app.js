@@ -98,6 +98,7 @@ const state = {
   tcStart:            null,
   bfTab:              'overview',
   partnerLeads:      [],
+  selectedLeadIds:   [],
   partnerApplications: [],
   partnerAppFilter:  'all',
   partnerTemplates:  [],
@@ -8144,6 +8145,13 @@ function renderPartnerPipelineView() {
     ? state.partnerLeads.filter(l => l.status !== 'archived')
     : state.partnerLeads.filter(l => l.status === state.partnerFilter);
 
+  // Selection is scoped to what's on screen: "select all" inside the Archived
+  // filter selects the archived leads and nothing else, so a bulk delete can
+  // never reach rows you can't see.
+  const visibleIds = filtered.map(l => l.id);
+  const selectedVisible = state.selectedLeadIds.filter(id => visibleIds.includes(id));
+  const allVisibleSelected = visibleIds.length > 0 && selectedVisible.length === visibleIds.length;
+
   document.getElementById('page-content').innerHTML = `
     <div class="page-header">
       <div>
@@ -8193,6 +8201,13 @@ function renderPartnerPipelineView() {
       </div>
     </div>
 
+    ${selectedVisible.length ? `
+      <div class="filter-bar" style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+        <strong>${selectedVisible.length} selected</strong>
+        <button class="btn btn-secondary btn-sm" onclick="clearPartnerLeadSelection()">Clear</button>
+        <button class="btn btn-danger btn-sm" onclick="bulkDeletePartnerLeads()">Delete ${selectedVisible.length}</button>
+      </div>` : ''}
+
     <div class="table-container">
       ${filtered.length === 0 ? `
         <div class="empty-state">
@@ -8205,6 +8220,11 @@ function renderPartnerPipelineView() {
         <table class="data-table">
           <thead>
             <tr>
+              <th style="width:34px" onclick="event.stopPropagation()">
+                <input type="checkbox" title="Select all in this view"
+                       ${allVisibleSelected ? 'checked' : ''}
+                       onchange="toggleAllPartnerLeads(this.checked)">
+              </th>
               <th>Esthetician / Studio</th>
               <th>IG Handle</th>
               <th>Followers</th>
@@ -8217,6 +8237,10 @@ function renderPartnerPipelineView() {
           <tbody>
             ${filtered.slice().sort((a, b) => (b.follower_count || 0) - (a.follower_count || 0)).map(l => `
               <tr class="clickable-row ${state.selectedPartnerId === l.id ? 'row-active' : ''}" onclick="openPartnerDetailPanel('${l.id}')">
+                <td onclick="event.stopPropagation()">
+                  <input type="checkbox" ${state.selectedLeadIds.includes(l.id) ? 'checked' : ''}
+                         onchange="togglePartnerLeadSelect('${l.id}', this.checked)">
+                </td>
                 <td>
                   <div class="creator-cell">
                     <div class="creator-name">${esc(l.esthetician_name || l.studio_name || l.ig_handle)}</div>
@@ -8244,6 +8268,58 @@ function renderPartnerPipelineView() {
         </table>
       `}
     </div>`;
+}
+
+// ── Bulk selection ─────────────────────────────────────────────
+// For clearing out leads in one pass instead of one row at a time.
+
+function togglePartnerLeadSelect(id, checked) {
+  state.selectedLeadIds = checked
+    ? [...new Set([...state.selectedLeadIds, id])]
+    : state.selectedLeadIds.filter(x => x !== id);
+  renderPartnerOutreachPage();
+}
+
+function toggleAllPartnerLeads(checked) {
+  const visible = (state.partnerFilter === 'all'
+    ? state.partnerLeads.filter(l => l.status !== 'archived')
+    : state.partnerLeads.filter(l => l.status === state.partnerFilter)
+  ).map(l => l.id);
+
+  state.selectedLeadIds = checked
+    ? [...new Set([...state.selectedLeadIds, ...visible])]
+    : state.selectedLeadIds.filter(id => !visible.includes(id));
+  renderPartnerOutreachPage();
+}
+
+function clearPartnerLeadSelection() {
+  state.selectedLeadIds = [];
+  renderPartnerOutreachPage();
+}
+
+async function bulkDeletePartnerLeads() {
+  const visible = (state.partnerFilter === 'all'
+    ? state.partnerLeads.filter(l => l.status !== 'archived')
+    : state.partnerLeads.filter(l => l.status === state.partnerFilter)
+  ).map(l => l.id);
+  const ids = state.selectedLeadIds.filter(id => visible.includes(id));
+  if (!ids.length) return;
+
+  // Deleting leads is permanent — name the count and make them opt in.
+  if (!confirm(`Permanently delete ${ids.length} lead${ids.length === 1 ? '' : 's'}?\n\nThis cannot be undone.`)) return;
+
+  try {
+    await fetchAPI(`${API.partnerOutreach}/bulk-delete`, {
+      method: 'POST',
+      body: JSON.stringify({ ids })
+    });
+    state.partnerLeads = state.partnerLeads.filter(l => !ids.includes(l.id));
+    state.selectedLeadIds = [];
+    renderPartnerOutreachPage();
+    showToast(`Deleted ${ids.length} lead${ids.length === 1 ? '' : 's'}`);
+  } catch (e) {
+    showToast((e && e.message) || 'Delete failed', 'error');
+  }
 }
 
 // Fills a template's {{name}}/{{studio}}/{{detail}} placeholders with this lead's data
