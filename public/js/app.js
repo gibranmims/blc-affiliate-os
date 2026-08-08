@@ -24,7 +24,8 @@ const API = {
   contentIdeas:    '/api/content-ideas',
   teamCalendar:    '/api/team-calendar',
   partnerOutreach:    '/api/partner-outreach',
-  partnerOutreachGen: '/api/partner-outreach-gen'
+  partnerOutreachGen: '/api/partner-outreach-gen',
+  partnerApplications: '/api/partner-applications'
 };
 
 // Outreach signs as the brand, not a person — the team can change without
@@ -97,6 +98,8 @@ const state = {
   tcStart:            null,
   bfTab:              'overview',
   partnerLeads:      [],
+  partnerApplications: [],
+  partnerAppFilter:  'all',
   partnerTemplates:  [],
   partnerFilter:     'all',
   partnerView:       'pipeline',   // 'pipeline' | 'import' | 'templates' | 'stats'
@@ -716,7 +719,8 @@ function navigate(page) {
     support:            renderSupportPage,
     'content-calendar': renderContentCalendarPage,
     'team-calendar':    renderTeamCalendarPage,
-    'partner-outreach': renderPartnerOutreachPage
+    'partner-outreach': renderPartnerOutreachPage,
+    'partner-applications': renderPartnerApplicationsPage
   };
   if (renderers[page]) renderers[page]();
 }
@@ -786,14 +790,14 @@ const HUBS = {
     promise: 'More people selling for us.',
     sub:     'The esthetician partner network — the distribution we own and run ourselves.',
     stats: () => [
-      [state.partnerLeads.filter(l => ['contacted','replied','applied'].includes(l.status)).length, 'In pipeline'],
-      [state.partnerLeads.filter(l => l.status === 'replied').length,                               'Replied'],
-      [state.partnerLeads.filter(l => l.status === 'accepted').length,                              'Accepted'],
-      [state.partners.length,                                                                       'Partners']
+      [state.partnerApplications.filter(a => a.stage === 'applied').length,   'Awaiting review'],
+      [state.partnerApplications.filter(a => a.stage === 'approved').length,  'Approved'],
+      [state.partnerApplications.filter(a => a.stage === 'signed_up').length, 'Signed up'],
+      [state.partnerApplications.filter(a => a.stage === 'active').length,    'Selling']
     ],
     hero: {
-      page: 'partner-outreach', icon: 'envelope', eyebrow: "TODAY'S OUTREACH",
-      name: 'Pro Partner Outreach', desc: 'Reach the estheticians who move product', cta: 'Send today\'s DMs →'
+      page: 'partner-applications', icon: 'envelope', eyebrow: 'PRO PARTNER NETWORK',
+      name: 'Pro Partner Applications', desc: 'Everyone who applied, and where they are', cta: 'Review applications →'
     },
     // Partners lives in Operations — it covers manufacturing and accounting
     // as much as growth, and the same card in two hubs reads as two pages.
@@ -5804,7 +5808,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     load('Comment Bank',      loadCommentBank),
     load('Content Calendar',  loadContentCalendar),
     load('Content ideas',     loadContentIdeas),
-    load('Pro Partner leads', loadPartnerOutreach)
+    load('Pro Partner leads', loadPartnerOutreach),
+    load('Partner applications', loadPartnerApplications)
   ]);
 
   if (failed.length) {
@@ -7833,9 +7838,259 @@ async function tcDelete(id) {
 }
 
 // ============================================================
+// PRO PARTNER APPLICATIONS
+//
+// Everyone who applied to the Pro Partner Network, and where they
+// actually are. The applications live in the partner portal; the OS
+// reads them live and adds its own notes + "reached out" flag, so the
+// stage shown here is always what the portal's data really says.
+//
+// Stages are derived, never typed by hand:
+//   applied   → the Typeform came in, awaiting your review
+//   approved  → code issued and emailed, but they haven't signed up yet
+//   signed_up → portal account created
+//   active    → first commission landed
+// ============================================================
+
+const APP_STAGES = [
+  { key: 'applied',   label: 'Needs review', badge: 'badge-yellow' },
+  { key: 'approved',  label: 'Approved',     badge: 'badge-blue'   },
+  { key: 'signed_up', label: 'Signed up',    badge: 'badge-blue'   },
+  { key: 'active',    label: 'Selling',      badge: 'badge-green'  },
+  { key: 'rejected',  label: 'Rejected',     badge: 'badge-gray'   }
+];
+
+const APP_STAGE_BY_KEY = Object.fromEntries(APP_STAGES.map(s => [s.key, s]));
+
+async function loadPartnerApplications() {
+  state.partnerApplications = await fetchAPI(API.partnerApplications);
+}
+
+function partnerAppStageBadge(stage) {
+  const s = APP_STAGE_BY_KEY[stage] || { label: stage, badge: 'badge-gray' };
+  return `<span class="badge ${s.badge}">${esc(s.label)}</span>`;
+}
+
+function setPartnerAppFilter(key) {
+  state.partnerAppFilter = key;
+  renderPartnerApplicationsPage();
+}
+
+function renderPartnerApplicationsPage() {
+  const apps = state.partnerApplications || [];
+  const count = key => apps.filter(a => a.stage === key).length;
+
+  const filtered = state.partnerAppFilter === 'all'
+    ? apps
+    : apps.filter(a => a.stage === state.partnerAppFilter);
+
+  const needsReview = count('applied');
+  const approvedIdle = count('approved');   // approved but never signed up — the leak worth watching
+
+  document.getElementById('page-content').innerHTML = `
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Pro Partner Applications</h1>
+        <p class="page-subtitle">Everyone who applied to the Pro Partner Network — from application through their first sale</p>
+      </div>
+      <button class="btn btn-secondary" onclick="refreshPartnerApplications()">Refresh</button>
+    </div>
+
+    <div class="stat-cards">
+      <div class="stat-card stat-card-neutral">
+        <div class="stat-value">${apps.length}</div>
+        <div class="stat-label">Total Applied</div>
+      </div>
+      <div class="stat-card stat-card-neutral">
+        <div class="stat-value accent">${needsReview}</div>
+        <div class="stat-label">Needs Review</div>
+      </div>
+      <div class="stat-card stat-card-blue">
+        <div class="stat-value blue">${approvedIdle}</div>
+        <div class="stat-label">Approved, Not Signed Up</div>
+      </div>
+      <div class="stat-card stat-card-green">
+        <div class="stat-value green">${count('active')}</div>
+        <div class="stat-label">Selling</div>
+      </div>
+    </div>
+
+    <div class="filter-bar">
+      <div class="filter-tabs">
+        <button class="filter-tab ${state.partnerAppFilter === 'all' ? 'active' : ''}" onclick="setPartnerAppFilter('all')">
+          All <span class="filter-count">${apps.length}</span>
+        </button>
+        ${APP_STAGES.map(s => `
+          <button class="filter-tab ${state.partnerAppFilter === s.key ? 'active' : ''}" onclick="setPartnerAppFilter('${s.key}')">
+            ${s.label} <span class="filter-count">${count(s.key)}</span>
+          </button>
+        `).join('')}
+      </div>
+    </div>
+
+    <div class="table-container">
+      ${filtered.length === 0 ? `
+        <div class="empty-state">
+          <div class="empty-icon">📋</div>
+          <h3>${apps.length === 0 ? 'No applications yet' : 'None in this stage'}</h3>
+          <p>${apps.length === 0
+              ? 'Applications from the Typeform land here automatically.'
+              : 'Try a different filter.'}</p>
+        </div>
+      ` : `
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Applicant</th>
+              <th>Platform</th>
+              <th>Applied</th>
+              <th>Stage</th>
+              <th>Sales</th>
+              <th>Reached out</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            ${filtered.map(a => `
+              <tr>
+                <td>
+                  <div style="font-weight:600">${esc(a.full_name || '—')}</div>
+                  <div style="font-size:12px;color:var(--text-muted)">${esc(a.business_name || a.email || '')}</div>
+                </td>
+                <td>
+                  ${esc(a.platform || '—')}
+                  ${a.follower_range ? `<div style="font-size:12px;color:var(--text-muted)">${esc(a.follower_range)}</div>` : ''}
+                </td>
+                <td>${a.created_at ? new Date(a.created_at).toLocaleDateString() : '—'}</td>
+                <td>${partnerAppStageBadge(a.stage)}</td>
+                <td>${a.sales_count ? `${a.sales_count} · $${a.total_commission.toFixed(2)}` : '—'}</td>
+                <td>
+                  <input type="checkbox" ${a.reached_out ? 'checked' : ''}
+                         onchange="togglePartnerAppReachedOut('${a.id}', this.checked)"
+                         title="You've personally messaged them">
+                </td>
+                <td style="text-align:right;white-space:nowrap">
+                  ${a.stage === 'applied'
+                    ? `<button class="btn btn-primary btn-sm" onclick="approvePartnerApp('${a.id}')">Approve</button>`
+                    : ''}
+                  <button class="btn btn-secondary btn-sm" onclick="openPartnerAppDetail('${a.id}')">Open</button>
+                </td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+      `}
+    </div>
+  `;
+}
+
+async function refreshPartnerApplications() {
+  try {
+    await loadPartnerApplications();
+    renderPartnerApplicationsPage();
+    showToast('Up to date');
+  } catch (e) {
+    showToast((e && e.message) || 'Could not reach the portal', 'error');
+  }
+}
+
+async function togglePartnerAppReachedOut(id, checked) {
+  try {
+    await fetchAPI(`${API.partnerApplications}/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ reached_out: checked })
+    });
+    const a = state.partnerApplications.find(x => x.id === id);
+    if (a) { a.reached_out = checked; a.reached_out_at = checked ? new Date().toISOString() : null; }
+    showToast(checked ? 'Marked as reached out' : 'Unmarked');
+  } catch (e) {
+    showToast((e && e.message) || 'Error', 'error');
+    renderPartnerApplicationsPage();
+  }
+}
+
+function openPartnerAppDetail(id) {
+  const a = state.partnerApplications.find(x => x.id === id);
+  if (!a) return;
+
+  openModal(a.full_name || 'Application', `
+    <div class="detail-grid">
+      ${[['Email', a.email], ['Studio', a.business_name], ['Platform', a.platform],
+         ['Followers', a.follower_range], ['Location', a.location],
+         ['Applied', a.created_at ? new Date(a.created_at).toLocaleString() : null],
+         ['Invite code', a.invite_code],
+         ['Signed up', a.signed_up_at ? new Date(a.signed_up_at).toLocaleDateString() : null],
+         ['First sale', a.first_sale_date],
+         ['Commission earned', a.sales_count ? `$${a.total_commission.toFixed(2)} across ${a.sales_count}` : null]]
+        .filter(([, v]) => v)
+        .map(([label, value]) => `
+          <div class="detail-field">
+            <div class="detail-label">${esc(label)}</div>
+            <div class="detail-value">${esc(String(value))}</div>
+          </div>`).join('')}
+    </div>
+
+    ${a.profile_link ? `<p style="margin-top:12px"><a class="ig-link" href="${esc(a.profile_link)}" target="_blank" rel="noreferrer">${esc(a.profile_link)}</a></p>` : ''}
+    ${a.why_join ? `<div style="margin-top:16px"><div class="detail-label">Why they want in</div><p style="margin-top:6px;white-space:pre-wrap">${esc(a.why_join)}</p></div>` : ''}
+
+    <div style="margin-top:20px">
+      <div class="detail-label">Your notes</div>
+      <textarea id="partner-app-notes" class="form-input" rows="4"
+                style="margin-top:6px;width:100%">${esc(a.notes || '')}</textarea>
+      <button class="btn btn-secondary btn-sm" style="margin-top:8px"
+              onclick="savePartnerAppNotes('${a.id}')">Save notes</button>
+    </div>
+
+    ${a.stage === 'applied' ? `
+      <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">
+        <button class="btn btn-primary" onclick="approvePartnerApp('${a.id}')">
+          Approve &amp; send their invite
+        </button>
+        <p style="margin-top:8px;font-size:12px;color:var(--text-muted)">
+          Issues their invite code and emails them the code, the sign-up link, and the Skool invite.
+        </p>
+      </div>` : ''}
+  `);
+}
+
+async function savePartnerAppNotes(id) {
+  const notes = document.getElementById('partner-app-notes')?.value || '';
+  try {
+    await fetchAPI(`${API.partnerApplications}/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ notes })
+    });
+    const a = state.partnerApplications.find(x => x.id === id);
+    if (a) a.notes = notes;
+    showToast('Notes saved');
+  } catch (e) {
+    showToast((e && e.message) || 'Error', 'error');
+  }
+}
+
+async function approvePartnerApp(id) {
+  const a = state.partnerApplications.find(x => x.id === id);
+  if (!a) return;
+  if (!confirm(`Approve ${a.full_name || a.email}?\n\nThis issues their invite code and emails it to ${a.email} along with the sign-up and Skool links.`)) return;
+
+  try {
+    const result = await fetchAPI(`${API.partnerApplications}/${id}/approve`, { method: 'POST' });
+    closeModal();
+    await loadPartnerApplications();
+    renderPartnerApplicationsPage();
+    if (result.already_approved) showToast(`Already approved — code ${result.code}`);
+    else if (result.email_sent)  showToast(`Approved — invite emailed (${result.code})`);
+    else showToast(`Approved with code ${result.code}, but the email did NOT send — send it manually`, 'error');
+  } catch (e) {
+    showToast((e && e.message) || 'Approval failed', 'error');
+  }
+}
+
+// ============================================================
 // PRO PARTNER OUTREACH — IG DM lead tracker for licensed
 // wax specialists / estheticians (Pro Partner Network funnel).
 // Separate from the TikTok creator "Affiliate Outreach" pipeline.
+// Retired from the sidebar in favour of the applications tracker
+// above; the page and its data are intact if it's ever wanted back.
 // ============================================================
 
 async function loadPartnerOutreach() {

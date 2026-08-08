@@ -28,6 +28,7 @@ const contentIdeasRoutes    = require('./routes/content-ideas');
 const teamCalendarRoutes    = require('./routes/team-calendar');
 const partnerOutreachRoutes    = require('./routes/partner-outreach');
 const partnerOutreachGenRoutes = require('./routes/partner-outreach-gen');
+const partnerApplicationsRoutes = require('./routes/partner-applications');
 const commentBankRoutes        = require('./routes/comment-bank');
 const { requireAuth } = require('./middleware/auth');
 const { startCron } = require('./cron/reminders');
@@ -124,6 +125,7 @@ app.use('/api/comment-bank',      commentBankRoutes);
 // ── Pro Partner Outreach ──────────────────────────────────────────
 app.use('/api/partner-outreach',     partnerOutreachRoutes);
 app.use('/api/partner-outreach-gen', partnerOutreachGenRoutes);
+app.use('/api/partner-applications', partnerApplicationsRoutes);
 
 // ── SPA fallback (serves index.html for all other GET requests) ───
 app.get('*', (req, res) => {
