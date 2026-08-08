@@ -3441,6 +3441,42 @@ function deadlineSortKey(deadline) {
   return Math.round((new Date(deadline + 'T00:00:00') - today) / 86400000);
 }
 
+// ── Priority ────────────────────────────────────────────────────
+// Optional by design. Most tasks are never ranked, so a badge on the board
+// means somebody actually decided about this one.
+const PRIORITIES = [
+  { key: 'high',   label: 'High',   cls: 'prio-high'   },
+  { key: 'medium', label: 'Medium', cls: 'prio-medium' },
+  { key: 'low',    label: 'Low',    cls: 'prio-low'    }
+];
+
+// Migration 023 is run by hand in the Supabase SQL editor, so the code can
+// reach production before the column does. PostgREST omits keys it has no
+// column for — so read the loaded rows and simply hide the feature until the
+// migration lands, rather than 500-ing every save in the meantime.
+function tasksSupportPriority() {
+  return !state.tasks.length || state.tasks.some(t => 'priority' in t);
+}
+
+function priorityBadge(priority) {
+  const p = PRIORITIES.find(x => x.key === priority);
+  return p ? `<span class="task-prio ${p.cls}">${p.label}</span>` : '';
+}
+
+// Unranked sits with medium: leaving priority alone is neutral, never a
+// demotion. Low is the only rank that pushes work down.
+function prioritySortKey(priority) {
+  if (priority === 'high') return 0;
+  if (priority === 'low')  return 2;
+  return 1;                            // medium, or never ranked
+}
+
+// Anything overdue or due today owns the top of the list regardless of rank —
+// priority orders the calm middle, it doesn't get to bury late work.
+function isUrgent(t) {
+  return t.deadline != null && deadlineSortKey(t.deadline) <= 0;
+}
+
 // Tasks for one person, optionally narrowed to a single bucket.
 //   bucketId undefined → every task in the column (flat, used by "For Founder")
 //   bucketId null      → Unsorted (no bucket assigned)
@@ -3452,7 +3488,14 @@ function tasksIn(assignee, bucketId) {
     .sort((a, b) => {
       // completed always last
       if (a.completed !== b.completed) return a.completed ? 1 : -1;
-      // sort by urgency: overdue first, then soonest, then no-deadline
+      // overdue and due-today keep the top of the list, ordered by how late
+      // they are — priority never gets to push genuinely late work down
+      const ua = isUrgent(a), ub = isUrgent(b);
+      if (ua !== ub) return ua ? -1 : 1;
+      if (ua && ub)  return deadlineSortKey(a.deadline) - deadlineSortKey(b.deadline);
+      // everything else: priority first, then soonest deadline
+      const pa = prioritySortKey(a.priority), pb = prioritySortKey(b.priority);
+      if (pa !== pb) return pa - pb;
       return deadlineSortKey(a.deadline) - deadlineSortKey(b.deadline);
     });
 }
@@ -3466,6 +3509,7 @@ function renderTaskItem(t) {
         ${t.completed ? `<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5"><polyline points="20 6 9 17 4 12"/></svg>` : ''}
       </button>
       <span class="focus-task-title" onclick="openTaskDetail('${t.id}')">${esc(t.title)}${t.notes ? ` <span class="focus-has-notes" title="Has notes">·</span>` : ''}</span>
+      ${priorityBadge(t.priority)}
       ${taskTagBadge(t.tag)}
       ${dl ? `<span class="task-deadline ${dl.cls}">${dl.text}</span>` : ''}
       ${t.completed ? `<button class="focus-archive-btn" onclick="archiveTask('${t.id}')" title="Archive">Archive</button>` : ''}
@@ -3624,27 +3668,42 @@ async function bucketDrop(e, assignee, bucketId) {
   boardDragEnd();
   if (!payload) return;
   if (payload.type === 'task') {
-    await moveTaskToBucket(payload.id, bucketId || null);
+    await moveTaskToBucket(payload.id, bucketId || null, assignee);
   } else if (payload.type === 'bucket' && payload.assignee === assignee) {
     await dropBucketOnto(payload.id, bucketId, assignee);
   }
 }
 
-async function moveTaskToBucket(taskId, bucketId) {
+// Dropping into another person's column reassigns the task as well as moving
+// it. Sending only the bucket used to leave the task owned by one person and
+// bucketed under another — a combination no column matches, so the task
+// vanished from the board entirely while still sitting in the database.
+async function moveTaskToBucket(taskId, bucketId, assignee) {
   const task = state.tasks.find(t => t.id === taskId);
-  if (!task || (task.bucket_id || null) === bucketId) return;
-  const previous = task.bucket_id || null;
+  if (!task) return;
+  const nextAssignee = assignee || task.assignee;
+  const sameBucket   = (task.bucket_id || null) === bucketId;
+  const sameOwner    = nextAssignee === task.assignee;
+  if (sameBucket && sameOwner) return;
+
+  const prevBucket   = task.bucket_id || null;
+  const prevAssignee = task.assignee;
   task.bucket_id = bucketId;          // optimistic — the board feels instant
+  task.assignee  = nextAssignee;
   refreshTaskBoard();
   try {
+    const body = { bucket_id: bucketId };
+    if (!sameOwner) body.assignee = nextAssignee;
     const updated = await fetchAPI(`${API.tasks}/${taskId}`, {
       method: 'PUT',
-      body: JSON.stringify({ bucket_id: bucketId })
+      body: JSON.stringify(body)
     });
     const i = state.tasks.findIndex(t => t.id === taskId);
     if (i !== -1) state.tasks[i] = updated;
+    if (!sameOwner) showToast(`Moved to ${memberName(nextAssignee)}`);
   } catch (err) {
-    task.bucket_id = previous;       // put it back where it was
+    task.bucket_id = prevBucket;     // put it back where it was
+    task.assignee  = prevAssignee;
     refreshTaskBoard();
     showToast(err.message, 'error');
   }
@@ -3882,25 +3941,70 @@ async function archiveTask(id) {
   } catch (err) { showToast(err.message, 'error'); }
 }
 
+// Everyone who can own a task: the team, plus the founder's review queue.
+function assignableKeys() {
+  return [...activeMembers().map(m => m.member_key), 'for-founder'];
+}
+
+// Buckets belong to one person, so the Bucket dropdown has to be rebuilt
+// whenever the Assignee dropdown changes — offering Gibran's buckets while
+// the task is assigned to Tamar is what strands a task in no column at all.
+function bucketFieldHtml(assignee, selectedId) {
+  const buckets = assignee === 'for-founder' ? [] : bucketsFor(assignee);
+  const label   = `<label class="form-label">Bucket</label>`;
+  if (!buckets.length) {
+    const why = assignee === 'for-founder' ? 'For Founder is a flat queue' : 'No buckets yet';
+    return `${label}
+      <select class="form-input" id="td-bucket" disabled>
+        <option value="">${why}</option>
+      </select>`;
+  }
+  return `${label}
+    <select class="form-input" id="td-bucket">
+      <option value="">Unsorted</option>
+      ${buckets.map(b => `<option value="${b.id}" ${selectedId === b.id ? 'selected' : ''}>${esc(b.name)}</option>`).join('')}
+    </select>`;
+}
+
+// Reassigning keeps the task in the same-named bucket where the new owner has
+// one — moving "This Week" work to Tamar lands it in her This Week, not in a
+// pile at the top of her column. No match falls back to Unsorted.
+function syncTaskDetailBuckets() {
+  const group      = document.getElementById('td-bucket-group');
+  const assigneeEl = document.getElementById('td-assignee');
+  if (!group || !assigneeEl) return;
+  const bucketEl = document.getElementById('td-bucket');
+  const prevName = bucketEl && bucketEl.value
+    ? (state.taskBuckets.find(b => b.id === bucketEl.value)?.name || null)
+    : null;
+  const next  = assigneeEl.value;
+  const match = prevName
+    ? bucketsFor(next).find(b => b.name.toLowerCase() === prevName.toLowerCase())
+    : null;
+  group.innerHTML = bucketFieldHtml(next, match ? match.id : null);
+}
+
 function openTaskDetail(id) {
   const t = state.tasks.find(t => t.id === id);
   if (!t) return;
-  const buckets = bucketsFor(t.assignee);
   openModal('Task', `
     <div style="display:flex;flex-direction:column;gap:16px">
       <div class="form-group">
         <label class="form-label">Title</label>
         <input class="form-input" id="td-title" value="${esc(t.title)}" placeholder="Task name" maxlength="120">
       </div>
-      <div style="display:grid;grid-template-columns:${buckets.length ? '1fr 1fr' : '1fr'};gap:12px">
-        ${buckets.length ? `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
         <div class="form-group" style="margin:0">
-          <label class="form-label">Bucket</label>
-          <select class="form-input" id="td-bucket">
-            <option value="">Unsorted</option>
-            ${buckets.map(b => `<option value="${b.id}" ${t.bucket_id === b.id ? 'selected' : ''}>${esc(b.name)}</option>`).join('')}
+          <label class="form-label">Assigned to</label>
+          <select class="form-input" id="td-assignee" onchange="syncTaskDetailBuckets()">
+            ${assignableKeys().map(k => `<option value="${k}" ${t.assignee === k ? 'selected' : ''}>${esc(memberName(k))}</option>`).join('')}
           </select>
-        </div>` : ''}
+        </div>
+        <div class="form-group" style="margin:0" id="td-bucket-group">
+          ${bucketFieldHtml(t.assignee, t.bucket_id)}
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:${tasksSupportPriority() ? '1fr 1fr' : '1fr'};gap:12px">
         <div class="form-group" style="margin:0">
           <label class="form-label">Project</label>
           <select class="form-input" id="td-project">
@@ -3908,6 +4012,14 @@ function openTaskDetail(id) {
             ${projectsSorted().map(p => `<option value="${p.id}" ${t.project_id === p.id ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}
           </select>
         </div>
+        ${tasksSupportPriority() ? `
+        <div class="form-group" style="margin:0">
+          <label class="form-label">Priority</label>
+          <select class="form-input" id="td-priority">
+            <option value="">No priority</option>
+            ${PRIORITIES.map(p => `<option value="${p.key}" ${t.priority === p.key ? 'selected' : ''}>${p.label}</option>`).join('')}
+          </select>
+        </div>` : ''}
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
         <div class="form-group" style="margin:0">
@@ -3944,14 +4056,24 @@ async function saveTaskDetail(id) {
   const notes    = document.getElementById('td-notes')?.value.trim();
   const tag      = document.getElementById('td-tag')?.value || null;
   const deadline = document.getElementById('td-deadline')?.value || null;
+  const priority  = document.getElementById('td-priority')?.value || null;
   const bucketEl  = document.getElementById('td-bucket');
   const projectEl = document.getElementById('td-project');
+  const assignee  = document.getElementById('td-assignee')?.value || null;
   if (!title) { showToast('Title is required', 'error'); return; }
   const body = { title, notes: notes || null, tag, deadline };
+  if (tasksSupportPriority()) body.priority = priority;
+  if (assignee) body.assignee = assignee;
   // Only send bucket_id when the column actually has buckets — otherwise a
-  // missing dropdown would read as "move to Unsorted".
+  // missing dropdown would read as "move to Unsorted". A disabled dropdown
+  // (For Founder, or a person with no buckets) reads as Unsorted on purpose.
   if (bucketEl)  body.bucket_id  = bucketEl.value  || null;
   if (projectEl) body.project_id = projectEl.value || null;
+  // Last line of defence: never save a bucket that belongs to someone else.
+  if (body.bucket_id && assignee) {
+    const b = state.taskBuckets.find(x => x.id === body.bucket_id);
+    if (!b || b.assignee !== assignee) body.bucket_id = null;
+  }
   try {
     const updated = await fetchAPI(`${API.tasks}/${id}`, {
       method: 'PUT',

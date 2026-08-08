@@ -6185,6 +6185,27 @@ textarea:focus {
 .tag-revenue { background: rgba(22, 163, 74, 0.1);  color: var(--green); }
 .tag-brand   { background: rgba(37, 99, 235, 0.1);   color: var(--blue);  }
 
+/* ── Task priority — quieter than the tag pills beside them ──
+   Only ranked tasks get one, so the board stays calm by default. Low is
+   deliberately muted: visible enough to confirm you set it, quiet enough
+   that it never competes with a deadline. */
+.task-prio {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border-radius: 99px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  line-height: 1.4;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.prio-high   { background: var(--red-light);    color: var(--red);    }
+.prio-medium { background: var(--orange-light); color: var(--orange); }
+.prio-low    { background: rgba(242,244,249,0.06); color: var(--text-muted); }
+
 /* ── Task deadline badges — colored pills ─────────────────── */
 .task-deadline {
   font-size: 11px;
