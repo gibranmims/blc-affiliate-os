@@ -136,6 +136,24 @@ router.post('/bulk-delete', async (req, res) => {
   }
 });
 
+// POST /bulk-archive — the gentle sibling of bulk-delete. Archiving is a
+// status change, so a mistake here is recoverable from the Archived tab.
+router.post('/bulk-archive', async (req, res) => {
+  try {
+    const ids = Array.isArray(req.body.ids) ? req.body.ids.filter(Boolean) : [];
+    if (!ids.length) return res.status(400).json({ error: 'No leads selected' });
+
+    const { error } = await supabase
+      .from('partner_leads')
+      .update({ status: 'archived' })
+      .in('id', ids);
+    if (error) throw error;
+    res.json({ success: true, archived: ids.length });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // DELETE lead
 router.delete('/:id', async (req, res) => {
   try {
